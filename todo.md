@@ -22,6 +22,6 @@
 - [x] Crear una grilla de casos preparada para imágenes antes/después consentidas.
 - [x] Centralizar el resto del contenido principal en una fuente de datos independiente.
 - [x] Dejar en pausa la carga de precios, casos consentidos y testimonios hasta contar con material real.
-- [ ] Revisar la rama de GitHub y dejar preparada una rama de fusión para la versión actual de la landing.
-- [ ] Verificar la configuración de compilación y las variables necesarias para una integración con Vercel.
-- [ ] Sincronizar el código funcional actual de la landing con el repositorio GitHub seleccionado.
+- [x] Revisar la rama de GitHub y dejar preparada la rama principal de la versión actual de la landing.
+- [x] Verificar la configuración de compilación y las variables necesarias para una integración con Vercel.
+- [x] Sincronizar el código funcional actual de la landing con el repositorio GitHub seleccionado.
