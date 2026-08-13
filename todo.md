@@ -1,0 +1,27 @@
+# Project TODO
+
+- [x] Convertir el proyecto en una landing page de una sola página orientada a conversión.
+- [x] Implementar navegación fija con enlaces a secciones y selector visual ES/PT/EN.
+- [x] Diseñar un hero dark elegante con identidad de Naty, especialidad, ubicación y CTAs a WhatsApp.
+- [x] Incorporar una sección de autoridad profesional sin inventar cifras ni credenciales.
+- [x] Crear la estructura de la sección de servicios con procedimiento, precio, duración y CTA a WhatsApp.
+- [x] Crear la sección "Sobre mí" con formación, enfoque profesional y experiencia editable.
+- [x] Incorporar una galería de resultados preparada para fotografías reales antes/después y aviso de privacidad.
+- [x] Añadir preguntas frecuentes accesibles sobre procedimiento, seguridad y cuidados posteriores.
+- [x] Crear una sección de curso para profesionales con propuesta, público objetivo y CTA a WhatsApp.
+- [x] Reservar una sección de testimonios únicamente para contenido real y verificable aportado por Naty.
+- [x] Construir un footer con ubicación Valparaíso, contacto y acceso a Instagram.
+- [x] Asegurar que todos los CTAs conducen a WhatsApp y mostrar enlaces sociales correspondientes.
+- [x] Aplicar estilo mobile-first, responsive, dark y con acentos rosados.
+- [x] Escribir y ejecutar pruebas de componentes, revisar la experiencia visual y corregir errores detectados.
+- [ ] Incorporar valores y duración reales del servicio cuando sean confirmados por Naty.
+- [ ] Cargar fotografías antes/después consentidas para completar la galería de resultados.
+- [ ] Sustituir el bloque reservado por testimonios reales y autorizados de pacientes.
+- [x] Añadir un selector visual de idioma ES/PT/EN preparado para futuras traducciones.
+- [x] Organizar el contenido principal en una fuente de datos independiente para facilitar su edición.
+- [x] Crear una grilla de casos preparada para imágenes antes/después consentidas.
+- [x] Centralizar el resto del contenido principal en una fuente de datos independiente.
+- [x] Dejar en pausa la carga de precios, casos consentidos y testimonios hasta contar con material real.
+- [ ] Revisar la rama de GitHub y dejar preparada una rama de fusión para la versión actual de la landing.
+- [ ] Verificar la configuración de compilación y las variables necesarias para una integración con Vercel.
+- [ ] Sincronizar el código funcional actual de la landing con el repositorio GitHub seleccionado.
