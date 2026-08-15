@@ -1,0 +1,79 @@
+"use client";
+
+import { ArrowUpRight, Menu, X } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { NAV_LINKS } from "@/lib/site";
+
+export function SiteHeader() {
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // El borde inferior sólo aparece al desplazarse, para que la cabecera se
+  // funda con el hero al inicio.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Navegar cierra el menú móvil: sin esto queda abierto sobre la página nueva.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  const isCurrent = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
+  return (
+    <header className="site-header" data-scrolled={scrolled}>
+      <div className="header-inner">
+        <Link className="wordmark" href="/" aria-label="naty.studio, ir al inicio">
+          naty<span>.</span>studio
+        </Link>
+
+        <nav className="desktop-nav" aria-label="Navegación principal">
+          {NAV_LINKS.map(link => (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={isCurrent(link.href) ? "page" : undefined}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <Link className="primary-link header-cta" href="/reservar">
+          Agendar hora <ArrowUpRight size={15} aria-hidden="true" />
+        </Link>
+
+        <button
+          className="menu-toggle"
+          type="button"
+          onClick={() => setMenuOpen(open => !open)}
+          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuOpen}
+          aria-controls="menu-movil"
+        >
+          {menuOpen ? <X size={21} /> : <Menu size={21} />}
+        </button>
+      </div>
+
+      <nav className="mobile-nav" id="menu-movil" data-open={menuOpen} aria-label="Navegación móvil">
+        {NAV_LINKS.map(link => (
+          <Link key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
+            {link.label}
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </Link>
+        ))}
+        <Link className="primary-link" href="/reservar">
+          Agendar hora <ArrowUpRight size={16} aria-hidden="true" />
+        </Link>
+      </nav>
+    </header>
+  );
+}
