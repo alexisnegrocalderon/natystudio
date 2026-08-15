@@ -17,7 +17,7 @@ export const metadata = buildMetadata({
 
 export default async function ServicesPage() {
   const services = await safeQuery(
-    () => api.catalog.listServices.query({ kind: "service" }),
+    () => api.catalog.listServices({ kind: "service" }),
     [],
     "catalog.listServices",
   );

@@ -20,7 +20,7 @@ export default async function CoursePage() {
   // Los cursos se administran como servicios con kind="course", así que cuando
   // Naty publique el programa aparecerá aquí sin tocar el código.
   const courses = await safeQuery(
-    () => api.catalog.listServices.query({ kind: "course" }),
+    () => api.catalog.listServices({ kind: "course" }),
     [],
     "catalog.listServices (curso)",
   );

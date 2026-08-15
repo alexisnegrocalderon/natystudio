@@ -19,7 +19,6 @@ import {
   formatDuration,
   type AppointmentStatus,
 } from "@naty/shared";
-import { API_URL } from "@/lib/api-client";
 import { trpc } from "@/lib/trpc";
 
 const STATUS_COPY: Record<AppointmentStatus, { label: string; detail: string; tone: string }> = {
@@ -148,9 +147,9 @@ export function BookingDetail({ publicId }: { publicId: string }) {
 
       {isActive ? (
         <div className="form-actions">
-          {/* La descarga del .ics la sirve el API directamente, sin pasar por
-              tRPC, para que el navegador y el correo puedan enlazarla. */}
-          <a className="primary-link" href={`${API_URL}/api/calendar/${publicId}.ics`}>
+          {/* La descarga del .ics tiene su propia ruta, fuera de tRPC, para que
+              el navegador y el correo puedan enlazarla directamente. */}
+          <a className="primary-link" href={`/api/calendar/${publicId}.ics`}>
             <CalendarPlus size={17} /> Agregar a mi calendario
           </a>
           <Link className="ghost-link" href="/contacto">

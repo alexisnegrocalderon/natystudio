@@ -29,7 +29,7 @@ const authorityIcons = [Stethoscope, ShieldCheck, GraduationCap];
 
 export default async function HomePage() {
   const services = await safeQuery(
-    () => api.catalog.listServices.query({ kind: "service" }),
+    () => api.catalog.listServices({ kind: "service" }),
     [],
     "catalog.listServices",
   );

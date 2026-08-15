@@ -21,7 +21,13 @@ export const pool = new pg.Pool({
    */
   connectionTimeoutMillis: 15_000,
   idleTimeoutMillis: 30_000,
-  max: 10,
+  /**
+   * En un entorno serverless cada instancia fría abre su propio pool: con
+   * varias instancias concurrentes, un `max` alto por instancia multiplica el
+   * total de conexiones hacia Neon. El pooler de Neon (PgBouncer) ya
+   * multiplexa por detrás, así que un pool chico por instancia alcanza.
+   */
+  max: 3,
 });
 
 pool.on("error", error => {

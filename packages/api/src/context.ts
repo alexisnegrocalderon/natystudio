@@ -1,4 +1,4 @@
-import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
+import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { parse as parseCookies } from "cookie";
 import { eq } from "drizzle-orm";
 import { ADMIN_SESSION_COOKIE } from "@naty/shared";
@@ -6,13 +6,14 @@ import { verifySessionToken } from "./auth/session";
 import { db, users, type User } from "./db";
 
 export type TrpcContext = {
-  req: CreateExpressContextOptions["req"];
-  res: CreateExpressContextOptions["res"];
+  req: Request;
+  /** Cabeceras de la respuesta que el adaptador fetch de tRPC fusiona al final. */
+  resHeaders: Headers;
   user: User | null;
 };
 
-export async function createContext(opts: CreateExpressContextOptions): Promise<TrpcContext> {
-  const token = parseCookies(opts.req.headers.cookie ?? "")[ADMIN_SESSION_COOKIE];
+export async function createContext(opts: FetchCreateContextFnOptions): Promise<TrpcContext> {
+  const token = parseCookies(opts.req.headers.get("cookie") ?? "")[ADMIN_SESSION_COOKIE];
   const userId = verifySessionToken(token);
 
   let user: User | null = null;
@@ -21,5 +22,5 @@ export async function createContext(opts: CreateExpressContextOptions): Promise<
     user = found[0] ?? null;
   }
 
-  return { req: opts.req, res: opts.res, user };
+  return { req: opts.req, resHeaders: opts.resHeaders, user };
 }

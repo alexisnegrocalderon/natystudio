@@ -13,7 +13,7 @@ export const revalidate = 300;
 
 export async function generateStaticParams() {
   const posts = await safeQuery(
-    () => api.content.listPosts.query({ limit: 50 }),
+    () => api.content.listPosts({ limit: 50 }),
     [],
     "content.listPosts (generateStaticParams)",
   );
@@ -23,7 +23,7 @@ export async function generateStaticParams() {
 type Props = { params: Promise<{ slug: string }> };
 
 async function loadPost(slug: string) {
-  return safeQuery(() => api.content.getPost.query({ slug }), null, `content.getPost(${slug})`);
+  return safeQuery(() => api.content.getPost({ slug }), null, `content.getPost(${slug})`);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

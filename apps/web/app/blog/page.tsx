@@ -17,7 +17,7 @@ export const metadata = buildMetadata({
 });
 
 export default async function BlogIndexPage() {
-  const posts = await safeQuery(() => api.content.listPosts.query(), [], "content.listPosts");
+  const posts = await safeQuery(() => api.content.listPosts(), [], "content.listPosts");
 
   return (
     <>

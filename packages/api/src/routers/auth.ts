@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import { ADMIN_SESSION_COOKIE, adminLoginSchema, totpConfirmSchema, totpVerifySchema } from "@naty/shared";
 import { createSessionToken, SESSION_MAX_AGE_MS } from "../auth/session";
+import { clearCookie, setCookie } from "../auth/cookies";
 import {
   buildEnrollmentUri,
   consumeBackupCode,
@@ -31,14 +32,14 @@ const INVALID_CREDENTIALS = new TRPCError({
   message: "Correo o contraseña incorrectos.",
 });
 
-function setSessionCookie(res: { cookie: (name: string, value: string, options: object) => void }, userId: number) {
-  res.cookie(ADMIN_SESSION_COOKIE, createSessionToken(userId), {
+function setSessionCookie(resHeaders: Headers, userId: number) {
+  setCookie(resHeaders, ADMIN_SESSION_COOKIE, createSessionToken(userId), {
     httpOnly: true,
     secure: ENV.isProduction,
-    // El panel vive en Vercel y el API en Railway: son dominios distintos, así
-    // que la cookie de sesión necesita SameSite=None para viajar en producción.
-    sameSite: ENV.isProduction ? "none" : "lax",
-    maxAge: SESSION_MAX_AGE_MS,
+    // Panel y API viven en el mismo origen (ambos dentro de apps/web), así que
+    // "lax" alcanza — no hace falta "none", que exigiría relajar más la cookie.
+    sameSite: "lax",
+    maxAge: SESSION_MAX_AGE_MS / 1000,
     path: "/",
   });
 }
@@ -101,7 +102,7 @@ export const authRouter = router({
       return { requiresTotp: true as const, challengeId };
     }
 
-    setSessionCookie(ctx.res, user.id);
+    setSessionCookie(ctx.resHeaders, user.id);
     await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
     return { requiresTotp: false as const };
   }),
@@ -144,13 +145,13 @@ export const authRouter = router({
     // El desafío se consume: un código interceptado no sirve dos veces.
     await db.delete(totpChallenges).where(eq(totpChallenges.id, input.challengeId));
 
-    setSessionCookie(ctx.res, user.id);
+    setSessionCookie(ctx.resHeaders, user.id);
     await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
     return { ok: true as const };
   }),
 
   logout: publicProcedure.mutation(({ ctx }) => {
-    ctx.res.clearCookie(ADMIN_SESSION_COOKIE, { path: "/" });
+    clearCookie(ctx.resHeaders, ADMIN_SESSION_COOKIE, { path: "/" });
     return { ok: true as const };
   }),
 

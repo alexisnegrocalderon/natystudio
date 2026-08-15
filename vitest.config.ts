@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@naty/shared": path.resolve(root, "packages/shared/src"),
-      "@": path.resolve(root, "apps/api/src"),
+      "@": path.resolve(root, "packages/api/src"),
     },
   },
   test: {

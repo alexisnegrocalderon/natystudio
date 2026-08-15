@@ -9,8 +9,6 @@ import type { AppRouter } from "@naty/api";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
-
 export function TrpcProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -29,11 +27,10 @@ export function TrpcProvider({ children }: { children: ReactNode }) {
     trpc.createClient({
       links: [
         httpBatchLink({
-          url: `${API_URL}/api/trpc`,
+          // Ruta relativa: sitio y API viven en el mismo origen, así que el
+          // navegador ya envía la cookie de sesión sin configuración extra.
+          url: "/api/trpc",
           transformer: superjson,
-          // El API vive en otro dominio y la sesión del panel viaja en cookie:
-          // sin `credentials` el navegador no la enviaría.
-          fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
         }),
       ],
     }),

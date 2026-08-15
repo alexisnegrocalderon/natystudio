@@ -21,19 +21,11 @@ function boolean(name: string, fallback: boolean): boolean {
   return value === "true" || value === "1" || value === "yes";
 }
 
-/** Orígenes autorizados para CORS. En desarrollo se permite el Next.js local. */
-const webOrigins = optional("WEB_ORIGIN", "http://localhost:3000")
-  .split(",")
-  .map(origin => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
 export const ENV = {
   isProduction,
-  port: Number(optional("PORT", "4000")),
   databaseUrl: required("DATABASE_URL"),
-  webOrigins,
   /** URL pública del sitio, usada para armar enlaces dentro de los correos. */
-  siteUrl: optional("SITE_URL", webOrigins[0] ?? "http://localhost:3000").replace(/\/$/, ""),
+  siteUrl: optional("SITE_URL", "http://localhost:3000").replace(/\/$/, ""),
 
   /** Firma las cookies de sesión del panel. En producción es obligatoria. */
   adminSessionSecret: required("ADMIN_SESSION_SECRET", "desarrollo-inseguro-cambiar"),
@@ -45,6 +37,12 @@ export const ENV = {
 
   /** Secreto compartido con Next.js para revalidar páginas estáticas al editar contenido. */
   revalidateSecret: optional("REVALIDATE_SECRET"),
+
+  /**
+   * Protege /api/cron: sin este valor coincidiendo, cualquiera podría forzar
+   * el reenvío de recordatorios repetidamente. Obligatorio en producción.
+   */
+  cronSecret: required("CRON_SECRET", "desarrollo-inseguro-cambiar"),
 
   /** Los pagos siguen apagados hasta que existan credenciales de Mercado Pago. */
   paymentsEnabled: boolean("PAYMENTS_ENABLED", false),

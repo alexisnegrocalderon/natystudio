@@ -9,10 +9,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
-    "dev:api": "pnpm --filter @naty/api dev",
-    "dev:web": "pnpm --filter @naty/web dev",
-    "build": "pnpm --filter @naty/api build && pnpm --filter @naty/web build",
+    "dev": "pnpm --filter @naty/web dev",
+    "build": "pnpm --filter @naty/web build",
     "check": "pnpm -r check",
     "test": "vitest run",
     "format": "prettier --write .",

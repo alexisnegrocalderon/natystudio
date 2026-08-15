@@ -21,7 +21,7 @@ export const revalidate = 300;
  */
 export async function generateStaticParams() {
   const services = await safeQuery(
-    () => api.catalog.listServices.query(),
+    () => api.catalog.listServices(),
     [],
     "catalog.listServices (generateStaticParams)",
   );
@@ -31,7 +31,7 @@ export async function generateStaticParams() {
 type Props = { params: Promise<{ slug: string }> };
 
 async function loadService(slug: string) {
-  return safeQuery(() => api.catalog.getService.query({ slug }), null, `catalog.getService(${slug})`);
+  return safeQuery(() => api.catalog.getService({ slug }), null, `catalog.getService(${slug})`);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

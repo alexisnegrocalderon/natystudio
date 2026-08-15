@@ -3,14 +3,15 @@
 Sitio web y sistema de agenda para naty.studio — enfermera estética en Valparaíso.
 
 ```
-apps/web        Next.js  →  Vercel    Sitio público, embudo de reserva y panel
-apps/api        Express  →  Railway   tRPC, base de datos, correos y recordatorios
+apps/web        Next.js  →  Vercel   Sitio público, embudo de reserva, panel y backend (todo en uno)
+packages/api                          tRPC, esquema de base de datos, correos y recordatorios
 packages/shared                       Tipos, validaciones y formatos comunes
 ```
 
-Frontend y backend se despliegan por separado: el sitio es estático y vive en un CDN, mientras el
-API es un proceso permanente que puede correr tareas programadas y, más adelante, recibir los
-avisos de pago de Mercado Pago.
+Un solo despliegue: el backend corre como rutas de API dentro del mismo proyecto de Next.js, no
+como un servicio aparte. `packages/api` es la librería de dominio que `apps/web` consume — ya no
+se despliega por su cuenta, sólo se usa localmente para mantenimiento de la base
+(`pnpm db:migrate`, `pnpm db:seed`).
 
 ---
 
@@ -34,10 +35,10 @@ pnpm install
 > El plan gratuito suspende la base tras unos minutos sin uso. La primera consulta después de una
 > pausa tarda un poco más de lo normal: es el comportamiento esperado, no un error de configuración.
 
-### 2. Configurar el API
+### 2. Configurar el sitio
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
 ```
 
 Completa como mínimo:
@@ -45,12 +46,18 @@ Completa como mínimo:
 ```bash
 DATABASE_URL=postgresql://usuario:clave@ep-xxx-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require
 ADMIN_SESSION_SECRET=   # genera con: openssl rand -base64 32
-ADMIN_EMAIL=            # el correo con el que entrará Naty al panel
+CRON_SECRET=            # genera igual; protege /api/cron
 ```
 
 `sslmode=require` no es opcional: Neon rechaza las conexiones sin TLS.
 
-Crea las tablas y los datos iniciales:
+### 3. Crear las tablas y la cuenta de administración
+
+```bash
+cp packages/api/.env.example packages/api/.env
+```
+
+Completa `DATABASE_URL` (la misma de arriba) y `ADMIN_EMAIL`, luego:
 
 ```bash
 pnpm db:migrate   # crea las tablas y el constraint anti-solapamiento
@@ -59,15 +66,7 @@ pnpm db:seed      # cuenta de administración, horario base y el primer servicio
 
 El seed imprime la contraseña generada **una sola vez**. Guárdala antes de cerrar la terminal.
 
-### 3. Configurar el sitio
-
-```bash
-cp apps/web/.env.example apps/web/.env.local
-```
-
-Con los valores por defecto ya apunta al API local.
-
-### 4. Levantar todo
+### 4. Levantar el sitio
 
 ```bash
 pnpm dev
@@ -75,7 +74,6 @@ pnpm dev
 
 - Sitio: <http://localhost:3000>
 - Panel: <http://localhost:3000/admin>
-- API: <http://localhost:4000>
 
 ---
 
@@ -83,8 +81,8 @@ pnpm dev
 
 | Comando | Qué hace |
 |---|---|
-| `pnpm dev` | Levanta sitio y API a la vez |
-| `pnpm build` | Compila ambos |
+| `pnpm dev` | Levanta el sitio (incluye el backend) |
+| `pnpm build` | Compila para producción |
 | `pnpm test` | Corre los tests |
 | `pnpm check` | Verifica los tipos en todos los paquetes |
 | `pnpm db:migrate` | Aplica las migraciones |
@@ -115,35 +113,41 @@ pending_approval ──(Naty confirma)──> confirmed ──> completed / no_s
 
 Con la aprobación automática activada en Ajustes, la reserva nace directamente en `confirmed`.
 
-**Correos.** Se encolan en `email_jobs` y los envía un cron cada cinco minutos. La idempotencia
-vive en la fila de la base, así que reiniciar el servidor no duplica ni pierde recordatorios.
+**Correos y recordatorios.** Se encolan en `email_jobs` y los procesa `GET /api/cron` — no hay un
+proceso interno corriendo el cron (no hay proceso permanente en absoluto: es todo funciones que se
+despiertan por petición). Un servicio externo tiene que llamar a esa ruta cada 5 minutos (ver
+"Recordatorios programados" más abajo). La idempotencia vive en la fila de la base, así que dos
+disparos superpuestos no duplican ni pierden avisos.
 
 ---
 
 ## Despliegue
 
-### Sitio en Vercel
-
-Importa el repositorio y configura:
+Un solo proyecto en **Vercel**, apuntando a la raíz del repositorio (Next.js detecta `apps/web`
+automáticamente si se configura como Root Directory, o usa el `pnpm --filter @naty/web build` de
+la raíz).
 
 - **Root Directory**: `apps/web`
-- **Variables**:
-  ```
-  NEXT_PUBLIC_API_URL=https://tu-api.up.railway.app
-  NEXT_PUBLIC_SITE_URL=https://tudominio.cl
-  NEXT_PUBLIC_INDEXING_ENABLED=false
-  REVALIDATE_SECRET=<mismo valor que en el API>
-  ```
+- **Variables**: las de `apps/web/.env.example` — `DATABASE_URL`, `ADMIN_SESSION_SECRET`,
+  `CRON_SECRET`, `SITE_URL`/`NEXT_PUBLIC_SITE_URL`, y opcionalmente `RESEND_API_KEY`,
+  `ADMIN_NOTIFY_EMAIL`.
 
-### API en Railway
+Corre `pnpm db:migrate` y `pnpm db:seed` una vez contra la base de producción (desde tu máquina, o
+pegando el SQL equivalente en el SQL Editor de Neon si no tienes terminal a mano).
 
-- **Root Directory**: `apps/api`
-- **Build**: `pnpm install && pnpm build`
-- **Start**: `pnpm start`
-- **Variables**: las de `apps/api/.env.example`, con `WEB_ORIGIN` apuntando al dominio de Vercel
-  (nunca un comodín: las peticiones del panel viajan con cookie de sesión).
+### Recordatorios programados (`/api/cron`)
 
-Ejecuta `pnpm db:migrate` una vez contra la base de producción.
+Sin un proceso permanente, algo externo tiene que disparar el mantenimiento cada 5 minutos:
+
+1. Crea una cuenta gratuita en **[cron-job.org](https://cron-job.org)** (o similar).
+2. Programa una llamada GET cada 5 minutos a:
+   ```
+   https://tudominio.cl/api/cron?key=<CRON_SECRET>
+   ```
+3. Confirma en los logs de Vercel que la ruta responde `{"ok":true,"sent":...,"released":...}`.
+
+Sin la clave correcta, la ruta devuelve `401` — así nadie más puede forzar el reenvío de
+recordatorios.
 
 ---
 
@@ -156,6 +160,7 @@ Ejecuta `pnpm db:migrate` una vez contra la base de producción.
 - [ ] **Cargar precios y duraciones reales** de cada servicio desde el panel. Con el precio en cero
       el sitio muestra "Consulta el valor" en vez de un monto.
 - [ ] **Activar la verificación en dos pasos** en Ajustes y guardar los códigos de respaldo.
+- [ ] **Configurar el pinger de `/api/cron`** (ver arriba) — sin esto no salen los recordatorios.
 - [ ] **Recién entonces**, poner `NEXT_PUBLIC_INDEXING_ENABLED=true`.
 
 > El último punto importa más de lo que parece. Si Google alcanza a indexar el sitio bajo una URL

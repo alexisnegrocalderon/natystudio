@@ -1,27 +1,31 @@
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
-import superjson from "superjson";
-import type { AppRouter } from "@naty/api";
+import { appRouter } from "@naty/api";
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
-
-/** Cliente para componentes de servidor. Sólo consulta datos públicos. */
-export const api = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: `${API_URL}/api/trpc`,
-      transformer: superjson,
-    }),
-  ],
+/**
+ * Cliente para componentes de servidor: invoca el router de tRPC directamente
+ * en el mismo proceso, sin pasar por HTTP.
+ *
+ * Es más que una optimización — es lo que hace posible generar las páginas
+ * estáticas: durante `next build` no hay ningún servidor escuchando todavía,
+ * así que una URL (incluso relativa) no tendría a quién resolverse. Una
+ * llamada directa a la función del router no depende de que exista un
+ * servidor: sólo necesita la base de datos.
+ *
+ * Todo lo que se sirve desde aquí es público (catálogo, disponibilidad,
+ * contenido del blog): no hay sesión de usuario que propagar.
+ */
+export const api = appRouter.createCaller({
+  req: new Request("http://localhost/"),
+  resHeaders: new Headers(),
+  user: null,
 });
 
 /**
  * Envuelve una consulta al API para que un fallo no tumbe la compilación.
  *
- * Las páginas públicas se generan estáticamente, así que se consultan durante
- * el build. Si el API todavía no está desplegado —el caso normal del primer
- * despliegue— el error rompería `next build` entero. Devolver el valor de
- * reserva permite publicar el sitio y que el contenido aparezca cuando el API
- * esté disponible y venza el ISR.
+ * Si la base de datos no está disponible durante el build (primer despliegue,
+ * variable de entorno mal configurada), el error rompería `next build`
+ * entero. Devolver el valor de reserva permite publicar el sitio igual, y el
+ * contenido real aparece en cuanto la base responda y venza el ISR.
  */
 export async function safeQuery<T>(operation: () => Promise<T>, fallback: T, label: string): Promise<T> {
   try {

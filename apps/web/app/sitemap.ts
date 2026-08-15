@@ -25,8 +25,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const [services, posts] = await Promise.all([
-    safeQuery(() => api.catalog.listServices.query(), [], "sitemap: servicios"),
-    safeQuery(() => api.content.listPosts.query({ limit: 50 }), [], "sitemap: artículos"),
+    safeQuery(() => api.catalog.listServices(), [], "sitemap: servicios"),
+    safeQuery(() => api.content.listPosts({ limit: 50 }), [], "sitemap: artículos"),
   ]);
 
   return [

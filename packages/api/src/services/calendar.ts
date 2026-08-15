@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { BUSINESS_TIMEZONE } from "@naty/shared";
+import { appointments, customers, db, services } from "../db";
+import { ENV } from "../env";
 
 export type CalendarEvent = {
   uid: string;
@@ -101,4 +104,35 @@ export function buildGoogleCalendarUrl(event: CalendarEvent): string {
   if (event.description) params.set("details", event.description);
   if (event.location) params.set("location", event.location);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+/**
+ * Arma el `.ics` de una cita a partir de su `publicId`.
+ *
+ * Vive aquí (no en la ruta de `apps/web`) para que esa ruta no necesite
+ * depender de Drizzle directamente: sólo pide "el ics de esta reserva" y este
+ * paquete resuelve la consulta y el formato.
+ */
+export async function buildIcsForAppointment(publicId: string): Promise<string | null> {
+  const rows = await db
+    .select({ appointment: appointments, service: services, customer: customers })
+    .from(appointments)
+    .innerJoin(services, eq(appointments.serviceId, services.id))
+    .innerJoin(customers, eq(appointments.customerId, customers.id))
+    .where(eq(appointments.publicId, publicId))
+    .limit(1);
+
+  const found = rows[0];
+  if (!found) return null;
+
+  return buildIcs({
+    uid: `${found.appointment.publicId}@naty.studio`,
+    startsAt: found.appointment.startsAt,
+    endsAt: found.appointment.endsAt,
+    title: `${found.service.name} · naty.studio`,
+    description: "Tu cita en naty.studio, Valparaíso.",
+    location: "Valparaíso, Chile",
+    url: `${ENV.siteUrl}/reserva/${found.appointment.publicId}`,
+    cancelled: found.appointment.status === "cancelled",
+  });
 }
