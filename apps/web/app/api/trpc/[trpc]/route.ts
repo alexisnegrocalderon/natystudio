@@ -13,6 +13,11 @@ function handler(req: Request) {
     req,
     router: appRouter,
     createContext,
+    onError({ error, path }) {
+      // El mensaje que ve el cliente oculta la causa real a propósito; queda
+      // sólo en el log del servidor, donde no es sensible.
+      console.error(`[trpc] ${path ?? "?"}:`, error.cause ?? error);
+    },
   });
 }
 
