@@ -33,4 +33,4 @@
 - [x] Replantear la landing con una estética gráfica de alto contraste, bloques de color y tipografía monumental inspirada en las referencias aportadas.
 - [x] Mantener la reserva por WhatsApp como llamada principal dentro de la nueva identidad.
 - [x] Validar la nueva dirección visual en escritorio y móvil antes de sincronizarla.
-- [ ] Sincronizar la nueva identidad Natalia Rodríguez Studio con el repositorio GitHub.
+- [x] Sincronizar la nueva identidad Natalia Rodríguez Studio con el repositorio GitHub.
