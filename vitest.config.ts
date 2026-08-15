@@ -1,19 +1,17 @@
 import { defineConfig } from "vitest/config";
-import path from "path";
+import path from "node:path";
 
-const templateRoot = path.resolve(import.meta.dirname);
+const root = path.resolve(import.meta.dirname);
 
 export default defineConfig({
-  root: templateRoot,
   resolve: {
     alias: {
-      "@": path.resolve(templateRoot, "client", "src"),
-      "@shared": path.resolve(templateRoot, "shared"),
-      "@assets": path.resolve(templateRoot, "attached_assets"),
+      "@naty/shared": path.resolve(root, "packages/shared/src"),
+      "@": path.resolve(root, "apps/api/src"),
     },
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts", "client/**/*.test.ts", "client/**/*.spec.ts"],
+    include: ["apps/**/*.test.ts", "packages/**/*.test.ts"],
   },
 });
