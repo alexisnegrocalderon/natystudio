@@ -25,3 +25,7 @@
 - [x] Revisar la rama de GitHub y dejar preparada la rama principal de la versión actual de la landing.
 - [x] Verificar la configuración de compilación y las variables necesarias para una integración con Vercel.
 - [x] Sincronizar el código funcional actual de la landing con el repositorio GitHub seleccionado.
+- [x] Rediseñar integralmente la landing con una dirección visual profesional, clara y atractiva basada en la referencia aportada.
+- [x] Reforzar el flujo de conversión con una reserva directa y visible para Natalia por WhatsApp.
+- [x] Verificar el nuevo diseño en escritorio y dispositivos móviles antes de actualizar la versión entregable.
+- [ ] Sincronizar el rediseño profesional validado con el repositorio GitHub de naty.studio.
