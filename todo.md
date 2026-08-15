@@ -29,3 +29,8 @@
 - [x] Reforzar el flujo de conversión con una reserva directa y visible para Natalia por WhatsApp.
 - [x] Verificar el nuevo diseño en escritorio y dispositivos móviles antes de actualizar la versión entregable.
 - [x] Sincronizar el rediseño profesional validado con el repositorio GitHub de naty.studio.
+- [x] Reemplazar la identidad visible por Natalia Rodríguez Studio e integrar el logotipo oficial proporcionado.
+- [x] Replantear la landing con una estética gráfica de alto contraste, bloques de color y tipografía monumental inspirada en las referencias aportadas.
+- [x] Mantener la reserva por WhatsApp como llamada principal dentro de la nueva identidad.
+- [x] Validar la nueva dirección visual en escritorio y móvil antes de sincronizarla.
+- [ ] Sincronizar la nueva identidad Natalia Rodríguez Studio con el repositorio GitHub.

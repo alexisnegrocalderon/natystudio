@@ -1,43 +1,35 @@
 import { useState } from "react";
 import {
-  ArrowRight,
+  ArrowDownRight,
+  ArrowUpRight,
   Check,
   ChevronDown,
-  Clock3,
   GraduationCap,
   Instagram,
   MapPin,
   Menu,
   MessageCircle,
+  Plus,
   ShieldCheck,
   Sparkles,
   Stethoscope,
   X,
 } from "lucide-react";
 import { INSTAGRAM_URL, whatsappWithMessage } from "@/lib/landing";
-import {
-  aboutContent,
-  courseContent,
-  faqContent,
-  footerContent,
-  gallerySlots,
-  languages,
-  navItems,
-  serviceContent,
-  type Language,
-} from "@/content/natyContent";
+import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, languages, navItems, serviceContent, type Language } from "@/content/natyContent";
 
+const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/gimEZJCjXoLkQZdV.jpeg";
+const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
 const bookingUrl = whatsappWithMessage("Hola Natalia, quiero reservar una evaluación para retiro de acrocordones.");
 const courseUrl = whatsappWithMessage("Hola Natalia, me interesa recibir información sobre la formación para profesionales.");
 const questionUrl = whatsappWithMessage("Hola Natalia, tengo una pregunta antes de reservar una evaluación.");
 
-function ReserveButton({ href = bookingUrl, children, subtle = false }: { href?: string; children: React.ReactNode; subtle?: boolean }) {
-  return (
-    <a className={`reserve-button ${subtle ? "reserve-button--subtle" : ""}`} href={href} target="_blank" rel="noreferrer">
-      <span>{children}</span>
-      <ArrowRight size={18} aria-hidden="true" />
-    </a>
-  );
+function WhatsAppCTA({ children, href = bookingUrl, inverse = false }: { children: React.ReactNode; href?: string; inverse?: boolean }) {
+  return <a className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} href={href} target="_blank" rel="noreferrer"><span>{children}</span><ArrowUpRight size={18} /></a>;
+}
+
+function Logo({ compact = false }: { compact?: boolean }) {
+  return <a href="#inicio" className={`nr-logo ${compact ? "nr-logo--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></a>;
 }
 
 export default function Home() {
@@ -45,145 +37,55 @@ export default function Home() {
   const [activeLanguage, setActiveLanguage] = useState<Language>("ES");
 
   return (
-    <main className="redesign-shell">
-      <header className="redesign-header">
-        <a className="brand-lockup" href="#inicio" aria-label="Naty studio, inicio">
-          <span className="brand-name">naty.studio</span>
-          <span>enfermera estética</span>
-        </a>
-
-        <nav className="redesign-nav" aria-label="Navegación principal">
-          {navItems.map(([label, href]) => <a key={href} href={href}>{label}</a>)}
-        </nav>
-
-        <div className="header-actions">
-          <div className="language-picker" aria-label="Selector de idioma">
-            {languages.map((language) => (
-              <button key={language} type="button" aria-pressed={activeLanguage === language} onClick={() => setActiveLanguage(language)}>{language}</button>
-            ))}
-          </div>
-          <ReserveButton>Reservar con Natalia</ReserveButton>
-        </div>
-
-        <button className="redesign-menu" type="button" aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
-          {menuOpen ? <X size={23} /> : <Menu size={23} />}
-        </button>
-        {menuOpen && (
-          <div className="mobile-drawer">
-            {navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}
-            <ReserveButton>Reservar con Natalia</ReserveButton>
-          </div>
-        )}
+    <main className="nr-site">
+      <header className="nr-header">
+        <Logo compact />
+        <nav className="nr-nav" aria-label="Navegación principal">{navItems.map(([label, href]) => <a key={href} href={href}>{label}</a>)}</nav>
+        <div className="nr-header-tools"><div className="nr-languages" aria-label="Selector de idioma">{languages.map((language) => <button key={language} type="button" aria-pressed={activeLanguage === language} onClick={() => setActiveLanguage(language)}>{language}</button>)}</div><WhatsAppCTA inverse>Reservar</WhatsAppCTA></div>
+        <button className="nr-menu" type="button" aria-expanded={menuOpen} aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={23} /> : <Menu size={23} />}</button>
+        {menuOpen && <div className="nr-mobile-nav">{navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}<WhatsAppCTA inverse>Reservar con Natalia</WhatsAppCTA></div>}
       </header>
 
-      <section id="inicio" className="new-hero">
-        <div className="new-hero-copy">
-          <p className="section-kicker"><span />Atención presencial en Valparaíso</p>
-          <h1>El cuidado de tu piel, <em>en manos expertas.</em></h1>
-          <p className="hero-summary">Soy Natalia, enfermera estética especializada en retiro de acrocordones. Te acompaño con una atención cercana, clara y responsable desde la primera consulta.</p>
-          <div className="hero-ctas">
-            <ReserveButton>Quiero reservar con Natalia</ReserveButton>
-            <a className="quiet-link" href="#procedimiento">Conocer el procedimiento <ArrowRight size={16} /></a>
-          </div>
-          <div className="hero-assurance">
-            <ShieldCheck size={21} />
-            <p><strong>Atención personalizada.</strong> Cada caso comienza con orientación e indicaciones claras.</p>
-          </div>
+      <section id="inicio" className="nr-hero">
+        <div className="nr-hero-rail"><span>ENFERMERA ESTÉTICA</span><span>VALPARAÍSO · CHILE</span><span className="rail-star">✦</span></div>
+        <div className="nr-hero-main">
+          <p className="nr-overline">NATALIA RODRÍGUEZ STUDIO</p>
+          <h1>CUIDADO<br />PARA TU<br /><em>PIEL.</em></h1>
+          <div className="nr-hero-bottom"><p>Una atención cercana, profesional y clara para acompañarte desde la primera consulta.</p><WhatsAppCTA inverse>Reservar con Natalia</WhatsAppCTA></div>
         </div>
-
-        <div className="new-hero-visual">
-          <div className="hero-sun" />
-          <div className="portrait-mat"><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg" alt="Natalia, enfermera estética" /></div>
-          <div className="availability-note"><span className="availability-dot" />Agenda abierta <strong>Valparaíso</strong></div>
-          <p className="hero-signature">Natalia<br /><span>Enfermera estética</span></p>
-        </div>
+        <div className="nr-hero-media"><div className="media-title">TU ESPACIO<br />DE CUIDADO</div><div className="media-photo"><img src={PORTRAIT_URL} alt="Natalia Rodríguez, enfermera estética" /></div><div className="media-sticker"><span>AGENDA</span><strong>ABIERTA</strong><Plus size={16} /></div></div>
       </section>
 
-      <section className="pathways" aria-label="Formas de conocer naty.studio">
-        <a href={bookingUrl} target="_blank" rel="noreferrer" className="pathway-card pathway-card--rose">
-          <MessageCircle size={24} /><span>01</span><h2>Reserva una<br /><em>evaluación</em></h2><p>Coordina tu atención directamente con Natalia por WhatsApp.</p><ArrowRight className="pathway-arrow" size={21} />
-        </a>
-        <a href="#procedimiento" className="pathway-card">
-          <Stethoscope size={24} /><span>02</span><h2>Conoce el<br /><em>procedimiento</em></h2><p>Información simple para que sepas qué esperar de tu atención.</p><ArrowRight className="pathway-arrow" size={21} />
-        </a>
-        <a href="#curso" className="pathway-card">
-          <GraduationCap size={24} /><span>03</span><h2>Aprende con<br /><em>Natalia</em></h2><p>Formación para profesionales de salud y estética.</p><ArrowRight className="pathway-arrow" size={21} />
-        </a>
+      <section className="nr-marquee" aria-label="Especialidad de Natalia Rodríguez Studio"><span>RETIRO DE ACROCORDONES</span><i>✦</i><span>ATENCIÓN PERSONALIZADA</span><i>✦</i><span>FORMACIÓN PROFESIONAL</span></section>
+
+      <section className="nr-intro-grid">
+        <div className="intro-statement"><p className="nr-overline">01 · ATENCIÓN PRESENCIAL</p><h2>MENOS<br />DUDAS.<br /><em>MÁS CLARIDAD.</em></h2></div>
+        <article id="procedimiento" className="intro-service"><span className="block-number">SERVICIO 01</span><Stethoscope size={25} /><h3>{serviceContent.title}</h3><p>{serviceContent.description}</p><div className="intro-facts"><p><span>VALOR</span>{serviceContent.value}</p><p><span>DURACIÓN</span>{serviceContent.duration}</p></div><WhatsAppCTA>Reservar mi evaluación</WhatsAppCTA></article>
+        <article className="intro-steps"><span className="block-number">EL PROCESO</span><ol><li><span>01</span><p><strong>Escríbenos</strong>Comparte qué necesitas evaluar por WhatsApp.</p></li><li><span>02</span><p><strong>Resolvemos dudas</strong>Te orientamos antes de coordinar tu hora.</p></li><li><span>03</span><p><strong>Te atendemos</strong>Recibes una atención e indicaciones personalizadas.</p></li></ol></article>
       </section>
 
-      <section id="procedimiento" className="procedure-section content-width">
-        <div className="procedure-intro">
-          <p className="section-kicker"><span />Retiro de acrocordones</p>
-          <h2>Una atención clara, <em>sin complicarla.</em></h2>
-          <p>La consulta está diseñada para que conozcas cada paso, resuelvas tus dudas y recibas orientación de acuerdo con tu caso.</p>
-        </div>
-        <div className="procedure-detail">
-          <article className="service-detail-card">
-            <p className="detail-number">Servicio 01</p>
-            <h3>{serviceContent.title}</h3>
-            <p>{serviceContent.description}</p>
-            <div className="detail-facts">
-              <p><span>VALOR</span>{serviceContent.value}</p>
-              <p><span>DURACIÓN</span>{serviceContent.duration}</p>
-            </div>
-            <ReserveButton>Reservar mi evaluación</ReserveButton>
-          </article>
-          <ol className="care-steps">
-            <li><span>1</span><div><h3>Conversemos</h3><p>Escríbenos por WhatsApp y cuéntanos qué deseas evaluar.</p></div></li>
-            <li><span>2</span><div><h3>Te orientamos</h3><p>Recibes información clara sobre la atención y los próximos pasos.</p></div></li>
-            <li><span>3</span><div><h3>Atención y cuidado</h3><p>Luego de tu atención, tendrás indicaciones personalizadas.</p></div></li>
-          </ol>
-        </div>
+      <section id="sobre-mi" className="nr-about">
+        <div className="nr-about-panel"><Logo /><div className="panel-pink-circle" /><span>PROFESIONAL<br />Y CERCANA.</span></div>
+        <div className="nr-about-copy"><p className="nr-overline">02 · CONOCE A NATALIA</p><h2>EL CONOCIMIENTO<br />TAMBIÉN SE NOTA<br /><em>EN CÓMO TE CUIDAN.</em></h2>{aboutContent.paragraphs.map((paragraph) => <p className="body-copy" key={paragraph}>{paragraph}</p>)}<div className="nr-checks">{aboutContent.points.map((point) => <p key={point}><Check size={17} />{point}</p>)}</div><WhatsAppCTA inverse>Hablar con Natalia</WhatsAppCTA></div>
       </section>
 
-      <section id="sobre-mi" className="about-redesign">
-        <div className="about-redesign-inner content-width">
-          <div className="about-panel"><span className="panel-caption">Cuidado profesional<br />con una mirada humana.</span><div className="panel-illustration"><span>n</span><i /></div></div>
-          <div className="about-redesign-copy">
-            <p className="section-kicker"><span />Sobre Natalia</p>
-            <h2>Tu tranquilidad también forma parte de la <em>atención.</em></h2>
-            {aboutContent.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-            <div className="credibility-list">
-              {aboutContent.points.map((point) => <p key={point}><Check size={17} />{point}</p>)}
-            </div>
-            <ReserveButton subtle>Hablar con Natalia</ReserveButton>
-          </div>
-        </div>
+      <section id="resultados" className="nr-results">
+        <div className="results-heading"><p className="nr-overline">03 · PRIVACIDAD Y RESULTADOS</p><h2>LO MÁS IMPORTANTE<br />ES QUE TE SIENTAS<br /><em>SEGURA.</em></h2></div>
+        <div className="results-content"><p>Las fotografías de resultados se publican solamente con autorización. Mientras incorporamos nuevos casos, puedes conocer el trabajo de Natalia en Instagram.</p><a className="instagram-card" href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={28} /><span>VER EL TRABAJO<br /><strong>EN INSTAGRAM</strong></span><ArrowDownRight size={23} /></a><div className="case-grid">{gallerySlots.map((slot, index) => <article className={`nr-case case-${index + 1}`} key={`${slot.caseLabel}-${slot.state}`}><span>{slot.caseLabel}</span><ShieldCheck size={21} /><strong>{slot.state}</strong><p>{slot.note}</p></article>)}</div></div>
       </section>
 
-      <section id="resultados" className="gallery-redesign content-width">
-        <div className="gallery-header">
-          <div><p className="section-kicker"><span />Resultados con privacidad</p><h2>El respeto por cada caso, <em>siempre primero.</em></h2></div>
-          <p>Las fotografías de resultados se comparten exclusivamente con autorización. Mientras se incorporan casos al sitio, puedes conocer el trabajo de Natalia en Instagram.</p>
-        </div>
-        <div className="gallery-layout">
-          <a className="instagram-invite" href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={24} /><span>Conoce naty.studio<br /><strong>en Instagram</strong></span><ArrowRight size={20} /></a>
-          {gallerySlots.map((slot, index) => <article className={`gallery-case case-${index + 1}`} key={`${slot.caseLabel}-${slot.state}`}><span>{slot.caseLabel}</span><div><ShieldCheck size={18} /><strong>{slot.state}</strong></div><p>{slot.note}</p></article>)}
-        </div>
+      <section id="curso" className="nr-course">
+        <div className="course-sideword">FORMACIÓN</div><div className="course-main"><p className="nr-overline">04 · PARA PROFESIONALES</p><h2>APRENDE<br />CON UNA MIRADA<br /><em>PROFESIONAL.</em></h2><p>{courseContent.description}</p><WhatsAppCTA href={courseUrl} inverse>Quiero información</WhatsAppCTA></div><div className="course-meta"><GraduationCap size={31} /><p><span>DIRIGIDO A</span>{courseContent.audience}</p><p><span>MODALIDAD</span>{courseContent.modality}</p><div className="course-mark">NR<br /><small>STUDIO</small></div></div>
       </section>
 
-      <section id="curso" className="education-redesign">
-        <div className="content-width education-inner">
-          <div className="education-copy"><p className="section-kicker section-kicker--dark"><span />Formación para profesionales</p><h2>Aprende una técnica desde una mirada <em>profesional.</em></h2><p>{courseContent.description}</p><ReserveButton href={courseUrl}>Quiero información del curso</ReserveButton></div>
-          <div className="education-side"><div className="course-badge"><GraduationCap size={27} /><span>Formación<br />naty.studio</span></div><div className="course-fact"><span>DIRIGIDO A</span><strong>{courseContent.audience}</strong></div><div className="course-fact"><span>MODALIDAD</span><strong>{courseContent.modality}</strong></div></div>
-        </div>
+      <section id="preguntas" className="nr-faq">
+        <div className="faq-intro"><p className="nr-overline">05 · PREGUNTAS</p><h2>ANTES DE<br /><em>RESERVAR.</em></h2><p>Escríbenos si necesitas una orientación adicional. Natalia está disponible para ayudarte.</p><WhatsAppCTA href={questionUrl}>Hacer una consulta</WhatsAppCTA></div>
+        <div className="nr-accordion">{faqContent.items.map((item, index) => <details key={item.question}><summary><span>0{index + 1}</span>{item.question}<ChevronDown size={20} /></summary><p>{item.answer}</p></details>)}</div>
       </section>
 
-      <section id="preguntas" className="faq-redesign content-width">
-        <div className="faq-title"><p className="section-kicker"><span />Antes de reservar</p><h2>Resolvamos tus <em>preguntas.</em></h2><p>Si necesitas una orientación adicional, Natalia está disponible por WhatsApp.</p><ReserveButton href={questionUrl} subtle>Hacer una consulta</ReserveButton></div>
-        <div className="faq-accordion">
-          {faqContent.items.map((item, index) => <details key={item.question}><summary><span>0{index + 1}</span>{item.question}<ChevronDown size={19} /></summary><p>{item.answer}</p></details>)}
-        </div>
-      </section>
+      <section className="nr-final"><div className="final-logo"><Logo /></div><div><p className="nr-overline">TU PRÓXIMA ATENCIÓN</p><h2>RESERVA CON<br /><em>NATALIA.</em></h2><p>Coordina tu evaluación por WhatsApp. Te respondemos con disponibilidad y la información que necesitas.</p><WhatsAppCTA>Reservar por WhatsApp</WhatsAppCTA></div><Sparkles className="final-sparkle" size={28} /></section>
 
-      <section className="final-reserve">
-        <div className="content-width final-reserve-inner"><Sparkles size={23} /><p className="section-kicker section-kicker--dark"><span />Tu próxima atención</p><h2>Reserva tu evaluación <em>con Natalia.</em></h2><p>Escríbenos por WhatsApp para conocer disponibilidad y resolver cualquier duda antes de tu visita.</p><ReserveButton>Reservar por WhatsApp</ReserveButton></div>
-      </section>
-
-      <footer className="redesign-footer">
-        <div className="content-width footer-main"><a className="brand-lockup" href="#inicio"><span className="brand-name">naty.studio</span><span>enfermera estética</span></a><p>{footerContent.description}</p><div><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div>
-        <div className="content-width footer-meta"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} naty.studio</span></div>
-      </footer>
+      <footer className="nr-footer"><div className="footer-top"><Logo compact /><p>{footerContent.description}</p><div><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div><div className="footer-bottom"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} Natalia Rodríguez Studio</span></div></footer>
     </main>
   );
 }
