@@ -28,4 +28,4 @@
 - [x] Rediseñar integralmente la landing con una dirección visual profesional, clara y atractiva basada en la referencia aportada.
 - [x] Reforzar el flujo de conversión con una reserva directa y visible para Natalia por WhatsApp.
 - [x] Verificar el nuevo diseño en escritorio y dispositivos móviles antes de actualizar la versión entregable.
-- [ ] Sincronizar el rediseño profesional validado con el repositorio GitHub de naty.studio.
+- [x] Sincronizar el rediseño profesional validado con el repositorio GitHub de naty.studio.
