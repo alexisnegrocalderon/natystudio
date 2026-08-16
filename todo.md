@@ -75,7 +75,11 @@
 - [x] Verificar por contrato que el catálogo de Neon staging responde al frontend piloto.
 - [x] Verificar por contrato que la consulta de Neon staging devuelve un catálogo listo para la landing.
 - [x] Agregar una prueba de interfaz que descarte el fallback y verifique el render de la tarjeta en estado `ready` con etiqueta `STAGING`.
-- [ ] Publicar el piloto en una rama de preview sin modificar la rama principal ni producción.
+- [x] Publicar el piloto en la rama `preview/natalia-pilot` sin modificar la rama principal ni producción.
 - [ ] Verificar el despliegue de preview de Vercel y la reserva segura antes de fusionar cambios.
 - [ ] Eliminar la rama temporal de prueba de Neon cuando el usuario autorice su limpieza.
-- [ ] Añadir una entrada Express compatible con Vercel para que el preview atienda el API piloto de forma same-origin.
+- [x] Añadir y probar localmente una entrada Express compatible con Vercel para el API piloto.
+- [x] Reproducir y corregir el fallo de `pnpm install --frozen-lockfile` en la rama `preview/natalia-pilot` sin tocar producción.
+- [x] Corregir el conflicto de workspace heredado y validar localmente `pnpm install --frozen-lockfile` en la rama de preview.
+- [ ] Ajustar y validar la configuración de Vercel para desplegar efectivamente la entrada Express junto al frontend de preview.
+- [ ] Verificar en Vercel preview que `/api/health` y `trpc.nataliaPilot.services` responden same-origin antes de declarar completa la integración Express.
