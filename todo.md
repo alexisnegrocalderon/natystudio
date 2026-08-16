@@ -76,14 +76,31 @@
 - [x] Verificar por contrato que la consulta de Neon staging devuelve un catálogo listo para la landing.
 - [x] Agregar una prueba de interfaz que descarte el fallback y verifique el render de la tarjeta en estado `ready` con etiqueta `STAGING`.
 - [x] Publicar el piloto en la rama `preview/natalia-pilot` sin modificar la rama principal ni producción.
-- [ ] Verificar el despliegue de preview de Vercel y la reserva segura antes de fusionar cambios.
+- [x] Verificar por evidencia aportada por el usuario que el preview de Vercel carga y que el catálogo serverless responde desde Neon staging.
+- [ ] Probar explícitamente en el preview protegido que los CTAs de reserva y contacto siguen abriendo enlaces de WhatsApp.
 - [ ] Eliminar la rama temporal de prueba de Neon cuando el usuario autorice su limpieza.
 - [x] Añadir y probar localmente una entrada Express compatible con Vercel para el API piloto.
 - [x] Reproducir y corregir el fallo de `pnpm install --frozen-lockfile` en la rama `preview/natalia-pilot` sin tocar producción.
 - [x] Corregir el conflicto de workspace heredado y validar localmente `pnpm install --frozen-lockfile` en la rama de preview.
-- [ ] Versionar explícitamente `pnpm-lock.yaml` en la rama de preview para que Vercel pueda ejecutar la instalación congelada.
-- [ ] Cambiar la Root Directory de Vercel desde `apps/web` a la raíz del repositorio antes del redeploy de preview.
-- [ ] Cambiar el Framework Preset heredado de Next.js a Vite u Other para el stack del piloto antes del redeploy de preview.
-- [ ] Reemplazar la función Express incompatible de Vercel por una función serverless mínima de catálogo y salud para preview.
-- [ ] Ajustar y validar la configuración de Vercel para desplegar efectivamente la entrada Express junto al frontend de preview.
-- [ ] Verificar en Vercel preview que `/api/health` y `trpc.nataliaPilot.services` responden same-origin antes de declarar completa la integración Express.
+- [x] Versionar explícitamente `pnpm-lock.yaml` en la rama de preview para que Vercel pueda ejecutar la instalación congelada.
+- [x] Cambiar la Root Directory de Vercel desde `apps/web` a la raíz del repositorio antes del redeploy de preview.
+- [x] Cambiar el Framework Preset heredado de Next.js a Vite u Other para el stack del piloto antes del redeploy de preview.
+- [x] Reemplazar la función Express incompatible de Vercel por funciones serverless mínimas de catálogo y salud para preview.
+- [x] Comparar la rama de preview con la landing moderna y confirmar que no contiene activos ni entradas heredadas.
+- [x] Verificar desde la URL protegida de preview que Safari muestra la landing moderna y no un alias o caché anteriores.
+- [x] Ajustar y validar la configuración de Vercel para desplegar funciones serverless junto al frontend de preview.
+- [x] Registrar la evidencia aportada por el usuario de que `/api/health` y `/api/pilot-services` responden JSON same-origin desde el preview protegido.
+- [ ] Sustituir el embudo de reserva por WhatsApp por un flujo interno de agenda, pago y confirmación en staging.
+- [ ] Diseñar disponibilidad, retención temporal de horarios y reserva idempotente para evitar dobles reservas.
+- [ ] Integrar un pago de prueba compatible con el modelo centralizado de ANC, sin activar cobros reales ni modificar la comisión protegida.
+- [ ] Validar el recorrido completo de selección de hora, pago de prueba y confirmación desde la landing de preview.
+- [ ] Crear una ruta administrativa aislada para Natalia sobre Neon staging, separada de la landing pública.
+- [ ] Añadir un acceso de administración para disponibilidad, catálogo, reservas y controles de pago de staging.
+- [ ] Documentar la ruta administrativa de Natalia como patrón para incorporarla al Admin central de ANC.
+- [ ] Crear el portal privado `/admin` de Natalia dentro de su plataforma, separado del panel de operaciones ANC.
+- [ ] Añadir controles de acceso para que solo Natalia y administradores autorizados puedan gestionar su negocio.
+- [ ] Incluir gestión de contenido, servicios, agenda, reservas, cursos y pagos de staging dentro del portal privado.
+- [x] Implementar y validar la autenticación server-side por correo y contraseña de Natalia, con hash, sesiones HTTP-only y rol propietario.
+- [ ] Construir la pantalla de inicio de sesión y proteger visualmente la ruta administrativa privada.
+- [x] Construir y validar visualmente la pantalla de inicio de sesión para la ruta privada `/admin`.
+- [x] Registrar studio.nataliarodriguez@gmail.com como primer usuario administrativo de Natalia en staging.
