@@ -1,0 +1,81 @@
+# Project TODO
+
+- [x] Convertir el proyecto en una landing page de una sola página orientada a conversión.
+- [x] Implementar navegación fija con enlaces a secciones y selector visual ES/PT/EN.
+- [x] Diseñar un hero dark elegante con identidad de Naty, especialidad, ubicación y CTAs a WhatsApp.
+- [x] Incorporar una sección de autoridad profesional sin inventar cifras ni credenciales.
+- [x] Crear la estructura de la sección de servicios con procedimiento, precio, duración y CTA a WhatsApp.
+- [x] Crear la sección "Sobre mí" con formación, enfoque profesional y experiencia editable.
+- [x] Incorporar una galería de resultados preparada para fotografías reales antes/después y aviso de privacidad.
+- [x] Añadir preguntas frecuentes accesibles sobre procedimiento, seguridad y cuidados posteriores.
+- [x] Crear una sección de curso para profesionales con propuesta, público objetivo y CTA a WhatsApp.
+- [x] Reservar una sección de testimonios únicamente para contenido real y verificable aportado por Naty.
+- [x] Construir un footer con ubicación Valparaíso, contacto y acceso a Instagram.
+- [x] Asegurar que todos los CTAs conducen a WhatsApp y mostrar enlaces sociales correspondientes.
+- [x] Aplicar estilo mobile-first, responsive, dark y con acentos rosados.
+- [x] Escribir y ejecutar pruebas de componentes, revisar la experiencia visual y corregir errores detectados.
+- [ ] Incorporar valores y duración reales del servicio cuando sean confirmados por Naty.
+- [ ] Cargar fotografías antes/después consentidas para completar la galería de resultados.
+- [ ] Sustituir el bloque reservado por testimonios reales y autorizados de pacientes.
+- [x] Añadir un selector visual de idioma ES/PT/EN preparado para futuras traducciones.
+- [x] Organizar el contenido principal en una fuente de datos independiente para facilitar su edición.
+- [x] Crear una grilla de casos preparada para imágenes antes/después consentidas.
+- [x] Centralizar el resto del contenido principal en una fuente de datos independiente.
+- [x] Dejar en pausa la carga de precios, casos consentidos y testimonios hasta contar con material real.
+- [x] Revisar la rama de GitHub y dejar preparada la rama principal de la versión actual de la landing.
+- [x] Verificar la configuración de compilación y las variables necesarias para una integración con Vercel.
+- [x] Sincronizar el código funcional actual de la landing con el repositorio GitHub seleccionado.
+- [x] Rediseñar integralmente la landing con una dirección visual profesional, clara y atractiva basada en la referencia aportada.
+- [x] Reforzar el flujo de conversión con una reserva directa y visible para Natalia por WhatsApp.
+- [x] Verificar el nuevo diseño en escritorio y dispositivos móviles antes de actualizar la versión entregable.
+- [x] Sincronizar el rediseño profesional validado con el repositorio GitHub de naty.studio.
+- [x] Reemplazar la identidad visible por Natalia Rodríguez Studio e integrar el logotipo oficial proporcionado.
+- [x] Replantear la landing con una estética gráfica de alto contraste, bloques de color y tipografía monumental inspirada en las referencias aportadas.
+- [x] Mantener la reserva por WhatsApp como llamada principal dentro de la nueva identidad.
+- [x] Validar la nueva dirección visual en escritorio y móvil antes de sincronizarla.
+- [x] Sincronizar la nueva identidad Natalia Rodríguez Studio con el repositorio GitHub.
+- [x] Auditar el repositorio y el proyecto Vercel existentes de Natalia Rodríguez Studio sin crear duplicados.
+- [x] Confirmar la rama, el dominio o subdominio y la relación del frontend actual con ANC Platform Core.
+- [x] Revisar documentalmente los estados manual_required de Neon, Resend y las integraciones en el manifiesto y dry-run del Core.
+- [x] Diagnosticar el origen del backend que atiende el Admin de ANC y el bloqueo de rutas Platform Factory.
+- [x] Preparar únicamente un preview o dry-run de services-v1 para retiro-acrocordones, sin crear recursos externos.
+- [ ] Publicar o asociar el backend actualizado que atiende el Admin antes de ejecutar el preview de fábrica.
+- [ ] Ejecutar el preview de `services-v1` para `retiro-acrocordones` una vez que las rutas del backend y el acceso administrativo estén disponibles.
+- [x] Confirmar operativamente que no existe un proyecto o branch Neon propio o compartido identificado para Natalia, sin usar bases de otros clientes.
+- [x] Confirmar que la credencial conectada de Resend no permite auditar dominios y mantener mailing en `manual_required` hasta contar con acceso administrativo o evidencia de un remitente verificado.
+- [x] Registrar la evidencia aportada por el usuario de que `natystudio` está vinculado a `alexisnegrocalderon/natystudio` en Vercel.
+- [x] Definir el conjunto mínimo de recursos aislados para el staging de Natalia sin activar pagos, WhatsApp, mailing ni producción.
+- [x] Presentar el preview de aprovisionamiento para aprobación antes de crear proyecto Neon, variables o despliegues externos.
+- [ ] Crear y validar, tras aprobación explícita, el entorno de staging aislado para Natalia Rodríguez Studio.
+- [x] Confirmar mediante captura que la sección de formación está renderizada en la landing actual.
+- [ ] Verificar en la interfaz que el enlace o botón "Aprende con Natalia" hace scroll correctamente a la sección de formación en móvil y escritorio.
+- [ ] Separar y documentar el comportamiento de autorización de nueva pestaña en Safari respecto de la navegación interna de la landing.
+- [x] Centralizar el identificador de la sección de formación y cubrirlo con una prueba automatizada.
+- [ ] Verificar el proyecto Vercel existente de Natalia en una nueva pestaña sin crear ni modificar recursos.
+- [ ] Verificar técnicamente el proyecto Vercel `natystudio` con acceso de lectura funcional, incluyendo rama de producción y dominios activos.
+- [x] Crear el proyecto Neon aislado `retiro-acrocordones` y validar que su rama `staging` no contiene datos heredados.
+- [ ] Conectar un backend ANC Core aislado a la rama Neon de staging y aplicar sus migraciones de forma controlada.
+- [ ] Restablecer el backend efectivo de Platform Factory para que el Admin de ANC deje de responder 404 en sus rutas de fábrica.
+- [x] Aplicar y validar el esquema piloto `pilot_*` únicamente en la rama Neon de staging de Natalia.
+- [x] Preparar un backend piloto aislado para Natalia conectado exclusivamente a su Neon de staging.
+- [ ] Registrar formalmente el entorno de Natalia y sus rutas dentro del Core de ANC cuando el piloto quede validado.
+- [ ] Convertir el esquema `pilot_*` en migraciones versionadas antes de incorporar el piloto al flujo administrable del Core.
+- [x] Implementar y verificar por lectura el catálogo, precios, reporting y notificaciones bloqueadas del piloto sin activar integraciones externas.
+- [ ] Conectar la landing existente al backend piloto únicamente en preview y validar la reserva segura.
+- [ ] Documentar el piloto de Natalia como patrón de instalación posterior dentro del Admin de ANC.
+- [x] Consumir el catálogo del backend piloto desde la landing de preview, manteniendo WhatsApp como único canal de reserva.
+- [x] Confirmar que el proyecto Neon de staging de Natalia es visible y administrable por la cuenta técnica central de ANC/Alexis.
+- [x] Alinear el entorno Neon piloto con el modelo centralizado elegido, sin requerir reemplazo de base.
+- [x] Confirmar el modelo centralizado: ANC/Alexis administra recursos aislados de Natalia sin mezclar datos de clientes.
+- [x] Entregar una guía exacta para localizar el proyecto y la rama de Neon creados bajo la cuenta técnica central de ANC.
+- [x] Seleccionar la rama Neon `staging` y actualizar de forma segura la conexión del backend piloto.
+- [x] Rotar la contraseña de Neon expuesta y validar la nueva conexión de staging antes de conectar el preview.
+- [x] Probar el flujo de reserva del piloto en una rama Neon temporal y validar cliente, booking, outbox y errores sin contaminar staging.
+- [x] Añadir estados explícitos de carga, error y catálogo vacío para la consulta de servicios en la landing de preview.
+- [x] Verificar por contrato que el catálogo de Neon staging responde al frontend piloto.
+- [x] Verificar por contrato que la consulta de Neon staging devuelve un catálogo listo para la landing.
+- [x] Agregar una prueba de interfaz que descarte el fallback y verifique el render de la tarjeta en estado `ready` con etiqueta `STAGING`.
+- [ ] Publicar el piloto en una rama de preview sin modificar la rama principal ni producción.
+- [ ] Verificar el despliegue de preview de Vercel y la reserva segura antes de fusionar cambios.
+- [ ] Eliminar la rama temporal de prueba de Neon cuando el usuario autorice su limpieza.
+- [ ] Añadir una entrada Express compatible con Vercel para que el preview atienda el API piloto de forma same-origin.

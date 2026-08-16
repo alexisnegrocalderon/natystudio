@@ -109,12 +109,6 @@ temp/
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 
-# Next.js
-.next/
-next-env.d.ts
-.vercel/
-
-# Turbo/monorepo
-.turbo/
-
+# Manus version file (auto-generated, not part of source)
+client/public/__manus__/version.json
 .project-config.json
