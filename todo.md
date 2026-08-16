@@ -81,5 +81,9 @@
 - [x] Añadir y probar localmente una entrada Express compatible con Vercel para el API piloto.
 - [x] Reproducir y corregir el fallo de `pnpm install --frozen-lockfile` en la rama `preview/natalia-pilot` sin tocar producción.
 - [x] Corregir el conflicto de workspace heredado y validar localmente `pnpm install --frozen-lockfile` en la rama de preview.
+- [ ] Versionar explícitamente `pnpm-lock.yaml` en la rama de preview para que Vercel pueda ejecutar la instalación congelada.
+- [ ] Cambiar la Root Directory de Vercel desde `apps/web` a la raíz del repositorio antes del redeploy de preview.
+- [ ] Cambiar el Framework Preset heredado de Next.js a Vite u Other para el stack del piloto antes del redeploy de preview.
+- [ ] Reemplazar la función Express incompatible de Vercel por una función serverless mínima de catálogo y salud para preview.
 - [ ] Ajustar y validar la configuración de Vercel para desplegar efectivamente la entrada Express junto al frontend de preview.
 - [ ] Verificar en Vercel preview que `/api/health` y `trpc.nataliaPilot.services` responden same-origin antes de declarar completa la integración Express.

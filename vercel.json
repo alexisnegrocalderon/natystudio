@@ -4,7 +4,10 @@
   "outputDirectory": "dist/public",
   "installCommand": "pnpm install --frozen-lockfile",
   "functions": {
-    "api/[...path].ts": {
+    "api/pilot-services.ts": {
+      "maxDuration": 10
+    },
+    "api/health.ts": {
       "maxDuration": 10
     }
   }

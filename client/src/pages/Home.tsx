@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -15,7 +15,7 @@ import {
   Stethoscope,
   X,
 } from "lucide-react";
-import { COURSE_SECTION_ID, getPilotCatalogSourceLabel, getPilotCatalogState, INSTAGRAM_URL, whatsappWithMessage } from "@/lib/landing";
+import { COURSE_SECTION_ID, getPilotCatalogState, INSTAGRAM_URL, whatsappWithMessage } from "@/lib/landing";
 import { trpc } from "@/lib/trpc";
 import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, languages, navItems, serviceContent, type Language } from "@/content/natyContent";
 import { PilotServiceCard } from "@/components/PilotServiceCard";
@@ -26,6 +26,41 @@ const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_f
 const bookingUrl = whatsappWithMessage("Hola Natalia, quiero reservar una evaluación para retiro de acrocordones.");
 const courseUrl = whatsappWithMessage("Hola Natalia, me interesa recibir información sobre la formación para profesionales.");
 const questionUrl = whatsappWithMessage("Hola Natalia, tengo una pregunta antes de reservar una evaluación.");
+
+type PreviewService = {
+  slug: string;
+  name: string;
+  description: string;
+  priceNote: string;
+  durationNote: string;
+};
+
+function usePreviewCatalog(enabled: boolean) {
+  const [services, setServices] = useState<PreviewService[] | undefined>();
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    setIsLoading(true);
+    fetch("/api/pilot-services", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("pilot_catalog_unavailable");
+        return response.json() as Promise<{ services?: PreviewService[] }>;
+      })
+      .then((payload) => setServices(payload.services ?? []))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setIsError(true);
+      })
+      .finally(() => setIsLoading(false));
+
+    return () => controller.abort();
+  }, [enabled]);
+
+  return { services, isLoading, isError };
+}
 
 function WhatsAppCTA({ children, href = bookingUrl, inverse = false }: { children: React.ReactNode; href?: string; inverse?: boolean }) {
   return <a className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} href={href} target="_blank" rel="noreferrer"><span>{children}</span><ArrowUpRight size={18} /></a>;
@@ -38,7 +73,11 @@ function Logo({ compact = false }: { compact?: boolean }) {
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<Language>("ES");
-  const { data: pilotServices, isError: isPilotCatalogError, isLoading: isPilotCatalogLoading } = trpc.nataliaPilot.services.useQuery();
+  const pilotCatalogQuery = trpc.nataliaPilot.services.useQuery();
+  const previewCatalog = usePreviewCatalog(pilotCatalogQuery.isError);
+  const pilotServices = pilotCatalogQuery.data ?? previewCatalog.services;
+  const isPilotCatalogError = pilotCatalogQuery.isError && previewCatalog.isError;
+  const isPilotCatalogLoading = pilotCatalogQuery.isLoading || (pilotCatalogQuery.isError && previewCatalog.isLoading);
   const pilotService = pilotServices?.[0];
   const pilotCatalogState = getPilotCatalogState({
     isLoading: isPilotCatalogLoading,
