@@ -97,8 +97,8 @@
 - [ ] Crear una ruta administrativa aislada para Natalia sobre Neon staging, separada de la landing pública.
 - [ ] Añadir un acceso de administración para disponibilidad, catálogo, reservas y controles de pago de staging.
 - [ ] Documentar la ruta administrativa de Natalia como patrón para incorporarla al Admin central de ANC.
-- [ ] Crear el portal privado `/admin` de Natalia dentro de su plataforma, separado del panel de operaciones ANC.
-- [ ] Añadir controles de acceso para que solo Natalia y administradores autorizados puedan gestionar su negocio.
+- [x] Crear localmente el portal privado `/admin` de Natalia, separado del panel de operaciones ANC.
+- [x] Añadir controles server-side de acceso para Natalia y futuros administradores autorizados.
 - [ ] Incluir gestión de contenido, servicios, agenda, reservas, cursos y pagos de staging dentro del portal privado.
 - [x] Implementar y validar la autenticación server-side por correo y contraseña de Natalia, con hash, sesiones HTTP-only y rol propietario.
 - [ ] Construir la pantalla de inicio de sesión y proteger visualmente la ruta administrativa privada.
