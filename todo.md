@@ -139,5 +139,7 @@
 - [ ] Restaurar el fallback SPA para que `/admin` y demás rutas del portal carguen la aplicación React sin interferir con `/api/*`.
 - [ ] Diagnosticar y corregir el error técnico del inicio de sesión de Natalia en Preview tras consolidar las rutas API.
 - [ ] Empaquetar el enrutador API consolidado y sus dependencias dentro de la función serverless para eliminar el error `ERR_MODULE_NOT_FOUND` de Vercel.
+- [ ] Corregir el fallo de build del Preview introducido por el punto de entrada serverless empaquetado antes de volver a probar el acceso de Natalia.
+- [ ] Actualizar la configuración `functions` de Vercel para que apunte a `api/index.js`, el punto de entrada serverless vigente.
 - [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
 - [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.
