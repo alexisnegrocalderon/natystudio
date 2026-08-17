@@ -19,6 +19,7 @@ import { COURSE_SECTION_ID, getPilotCatalogState, INSTAGRAM_URL, whatsappWithMes
 import { trpc } from "@/lib/trpc";
 import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, languages, navItems, serviceContent, type Language } from "@/content/natyContent";
 import { PilotServiceCard } from "@/components/PilotServiceCard";
+import { BookingModal } from "@/components/BookingModal";
 import "../pilot.css";
 
 const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/gimEZJCjXoLkQZdV.jpeg";
@@ -66,12 +67,17 @@ function WhatsAppCTA({ children, href = bookingUrl, inverse = false }: { childre
   return <a className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} href={href} target="_blank" rel="noreferrer"><span>{children}</span><ArrowUpRight size={18} /></a>;
 }
 
+function BookingCTA({ children, inverse = false, onClick }: { children: React.ReactNode; inverse?: boolean; onClick: () => void }) {
+  return <button type="button" className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} onClick={onClick}><span>{children}</span><ArrowUpRight size={18} /></button>;
+}
+
 function Logo({ compact = false }: { compact?: boolean }) {
   return <a href="#inicio" className={`nr-logo ${compact ? "nr-logo--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></a>;
 }
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<Language>("ES");
   const pilotCatalogQuery = trpc.nataliaPilot.services.useQuery();
   const previewCatalog = usePreviewCatalog(pilotCatalogQuery.isError);
@@ -96,9 +102,9 @@ export default function Home() {
       <header className="nr-header">
         <Logo compact />
         <nav className="nr-nav" aria-label="Navegación principal">{navItems.map(([label, href]) => <a key={href} href={href}>{label}</a>)}</nav>
-        <div className="nr-header-tools"><div className="nr-languages" aria-label="Selector de idioma">{languages.map((language) => <button key={language} type="button" aria-pressed={activeLanguage === language} onClick={() => setActiveLanguage(language)}>{language}</button>)}</div><WhatsAppCTA inverse>Reservar</WhatsAppCTA></div>
+        <div className="nr-header-tools"><div className="nr-languages" aria-label="Selector de idioma">{languages.map((language) => <button key={language} type="button" aria-pressed={activeLanguage === language} onClick={() => setActiveLanguage(language)}>{language}</button>)}</div><BookingCTA inverse onClick={() => setBookingOpen(true)}>Reservar</BookingCTA></div>
         <button className="nr-menu" type="button" aria-expanded={menuOpen} aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={23} /> : <Menu size={23} />}</button>
-        {menuOpen && <div className="nr-mobile-nav">{navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}<WhatsAppCTA inverse>Reservar con Natalia</WhatsAppCTA></div>}
+        {menuOpen && <div className="nr-mobile-nav">{navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}<BookingCTA inverse onClick={() => { setMenuOpen(false); setBookingOpen(true); }}>Reservar con Natalia</BookingCTA></div>}
       </header>
 
       <section id="inicio" className="nr-hero">
@@ -106,7 +112,7 @@ export default function Home() {
         <div className="nr-hero-main">
           <p className="nr-overline">NATALIA RODRÍGUEZ STUDIO</p>
           <h1>CUIDADO<br />PARA TU<br /><em>PIEL.</em></h1>
-          <div className="nr-hero-bottom"><p>Una atención cercana, profesional y clara para acompañarte desde la primera consulta.</p><WhatsAppCTA inverse>Reservar con Natalia</WhatsAppCTA></div>
+          <div className="nr-hero-bottom"><p>Una atención cercana, profesional y clara para acompañarte desde la primera consulta.</p><BookingCTA inverse onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA></div>
         </div>
         <div className="nr-hero-media"><div className="media-title">TU ESPACIO<br />DE CUIDADO</div><div className="media-photo"><img src={PORTRAIT_URL} alt="Natalia Rodríguez, enfermera estética" /></div><div className="media-sticker"><span>AGENDA</span><strong>ABIERTA</strong><Plus size={16} /></div></div>
       </section>
@@ -115,8 +121,8 @@ export default function Home() {
 
       <section className="nr-intro-grid">
         <div className="intro-statement"><p className="nr-overline">01 · ATENCIÓN PRESENCIAL</p><h2>MENOS<br />DUDAS.<br /><em>MÁS CLARIDAD.</em></h2></div>
-        <PilotServiceCard state={pilotCatalogState} service={pilotService} fallback={{ title: serviceContent.title, description: serviceContent.description, value: serviceContent.value, duration: serviceContent.duration }} statusMessage={pilotStatus}><WhatsAppCTA>Reservar mi evaluación</WhatsAppCTA></PilotServiceCard>
-        <article className="intro-steps"><span className="block-number">EL PROCESO</span><ol><li><span>01</span><p><strong>Escríbenos</strong>Comparte qué necesitas evaluar por WhatsApp.</p></li><li><span>02</span><p><strong>Resolvemos dudas</strong>Te orientamos antes de coordinar tu hora.</p></li><li><span>03</span><p><strong>Te atendemos</strong>Recibes una atención e indicaciones personalizadas.</p></li></ol></article>
+        <PilotServiceCard state={pilotCatalogState} service={pilotService} fallback={{ title: serviceContent.title, description: serviceContent.description, value: serviceContent.value, duration: serviceContent.duration }} statusMessage={pilotStatus}><BookingCTA onClick={() => setBookingOpen(true)}>Reservar mi evaluación</BookingCTA></PilotServiceCard>
+        <article className="intro-steps"><span className="block-number">EL PROCESO</span><ol><li><span>01</span><p><strong>Elige tu hora</strong>Revisa los cupos disponibles directamente en la agenda.</p></li><li><span>02</span><p><strong>Confirma tus datos</strong>Tu cupo queda reservado durante el proceso.</p></li><li><span>03</span><p><strong>Recibes confirmación</strong>Tu atención queda registrada con sus indicaciones.</p></li></ol></article>
       </section>
 
       <section id="sobre-mi" className="nr-about">
@@ -138,9 +144,10 @@ export default function Home() {
         <div className="nr-accordion">{faqContent.items.map((item, index) => <details key={item.question}><summary><span>0{index + 1}</span>{item.question}<ChevronDown size={20} /></summary><p>{item.answer}</p></details>)}</div>
       </section>
 
-      <section className="nr-final"><div className="final-logo"><Logo /></div><div><p className="nr-overline">TU PRÓXIMA ATENCIÓN</p><h2>RESERVA CON<br /><em>NATALIA.</em></h2><p>Coordina tu evaluación por WhatsApp. Te respondemos con disponibilidad y la información que necesitas.</p><WhatsAppCTA>Reservar por WhatsApp</WhatsAppCTA></div><Sparkles className="final-sparkle" size={28} /></section>
+      <section className="nr-final"><div className="final-logo"><Logo /></div><div><p className="nr-overline">TU PRÓXIMA ATENCIÓN</p><h2>RESERVA CON<br /><em>NATALIA.</em></h2><p>Elige tu servicio, revisa la agenda disponible y confirma tu solicitud sin salir del sitio.</p><BookingCTA onClick={() => setBookingOpen(true)}>Reservar mi hora</BookingCTA></div><Sparkles className="final-sparkle" size={28} /></section>
 
       <footer className="nr-footer"><div className="footer-top"><Logo compact /><p>{footerContent.description}</p><div><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div><div className="footer-bottom"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} Natalia Rodríguez Studio</span></div></footer>
+      <BookingModal open={bookingOpen} onOpenChange={setBookingOpen} services={pilotServices ?? []} />
     </main>
   );
 }

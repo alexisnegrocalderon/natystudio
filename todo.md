@@ -91,16 +91,28 @@
 - [x] Ajustar y validar la configuración de Vercel para desplegar funciones serverless junto al frontend de preview.
 - [x] Registrar la evidencia aportada por el usuario de que `/api/health` y `/api/pilot-services` responden JSON same-origin desde el preview protegido.
 - [ ] Sustituir el embudo de reserva por WhatsApp por un flujo interno de agenda, pago y confirmación en staging.
-- [ ] Diseñar disponibilidad, retención temporal de horarios y reserva idempotente para evitar dobles reservas.
+- [x] Diseñar disponibilidad, retención temporal de horarios y reserva idempotente para evitar dobles reservas.
 - [ ] Integrar un pago de prueba compatible con el modelo centralizado de ANC, sin activar cobros reales ni modificar la comisión protegida.
 - [ ] Validar el recorrido completo de selección de hora, pago de prueba y confirmación desde la landing de preview.
-- [ ] Crear una ruta administrativa aislada para Natalia sobre Neon staging, separada de la landing pública.
-- [ ] Añadir un acceso de administración para disponibilidad, catálogo, reservas y controles de pago de staging.
+- [x] Crear una ruta administrativa aislada para Natalia sobre Neon staging, separada de la landing pública.
+- [x] Añadir un acceso de administración para disponibilidad, catálogo, reservas y controles de pago de staging.
 - [ ] Documentar la ruta administrativa de Natalia como patrón para incorporarla al Admin central de ANC.
 - [x] Crear localmente el portal privado `/admin` de Natalia, separado del panel de operaciones ANC.
 - [x] Añadir controles server-side de acceso para Natalia y futuros administradores autorizados.
 - [ ] Incluir gestión de contenido, servicios, agenda, reservas, cursos y pagos de staging dentro del portal privado.
 - [x] Implementar y validar la autenticación server-side por correo y contraseña de Natalia, con hash, sesiones HTTP-only y rol propietario.
-- [ ] Construir la pantalla de inicio de sesión y proteger visualmente la ruta administrativa privada.
+- [x] Construir la pantalla de inicio de sesión y proteger visualmente la ruta administrativa privada.
 - [x] Construir y validar visualmente la pantalla de inicio de sesión para la ruta privada `/admin`.
 - [x] Registrar studio.nataliarodriguez@gmail.com como primer usuario administrativo de Natalia en staging.
+- [x] Habilitar edición real de servicios, creación de horarios disponibles y creación de cursos desde el portal privado sobre Neon staging.
+- [ ] Mostrar una lista completa de reservas con paciente, servicio, horario y estado de pago en el portal privado.
+- [ ] Habilitar edición de contenido público desde el módulo Contenido con revisión previa de publicación.
+- [ ] Configurar Mercado Pago primero en modo de prueba y preservar la comisión ANC protegida.
+- [ ] Integrar la reserva de Natalia con el orquestador de pagos central de ANC usando la cuenta de cliente ya configurada, sin almacenar credenciales de Mercado Pago en naty-studio.
+- [ ] Eliminar cualquier dependencia de una configuración local de Mercado Pago en el portal de Natalia y conservar solo estados de pago provenientes de ANC.
+- [ ] Añadir en el portal de Natalia el estado y la acción de vincular su propia cuenta de Mercado Pago mediante el proceso centralizado de ANC.
+- [x] Diseñar el contrato seguro entre el portal de Natalia y ANC para iniciar la vinculación y recibir el resultado sin exponer credenciales ni modificar la comisión ANC del 1,5 %.
+- [ ] Implementar en ANC un enlace OAuth de un solo uso para que Natalia autorice su cuenta de Mercado Pago desde su portal privado.
+- [ ] Conectar el botón de pagos del portal de Natalia al enlace OAuth de ANC y reflejar el estado de autorización sin persistir secretos locales.
+- [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
+- [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.

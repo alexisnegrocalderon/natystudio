@@ -100,3 +100,106 @@ export function parsePortalCookie(cookieHeader: string | undefined) {
 export function portalSessionCookie(token: string, maxAgeSeconds = SESSION_TTL_SECONDS) {
   return `natalia_admin_session=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
+
+export type AdminServiceInput = {
+  slug: string;
+  name: string;
+  description: string;
+  priceNote: string;
+  durationNote: string;
+  enabled: boolean;
+};
+
+export type AvailabilityInput = {
+  startsAt: string;
+  endsAt: string;
+  note?: string;
+};
+
+export type CourseInput = {
+  title: string;
+  description: string;
+  priceNote: string;
+  durationNote: string;
+  enabled: boolean;
+};
+
+export function validateNataliaAvailability(input: AvailabilityInput) {
+  const startsAt = new Date(input.startsAt);
+  const endsAt = new Date(input.endsAt);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+    throw new Error("El horario seleccionado no es válido.");
+  }
+  return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), note: input.note?.trim() || null };
+}
+
+function requireText(value: string, label: string, maxLength: number) {
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maxLength) throw new Error(`${label} no es válido.`);
+  return normalized;
+}
+
+export async function updateNataliaService(input: AdminServiceInput) {
+  const sql = getSql();
+  const slug = requireText(input.slug, "El servicio", 80);
+  const [service] = await sql`
+    UPDATE pilot_services
+    SET name = ${requireText(input.name, "El nombre", 120)},
+        description = ${requireText(input.description, "La descripción", 1_200)},
+        price_note = ${requireText(input.priceNote, "El precio", 180)},
+        duration_note = ${requireText(input.durationNote, "La duración", 180)},
+        enabled = ${input.enabled},
+        updated_at = NOW()
+    WHERE slug = ${slug}
+    RETURNING slug, name, description, price_note AS "priceNote", duration_note AS "durationNote", enabled
+  `;
+  if (!service) throw new Error("El servicio no existe.");
+  return service;
+}
+
+export async function listNataliaAvailability() {
+  const sql = getSql();
+  return sql`
+    SELECT id, starts_at AS "startsAt", ends_at AS "endsAt", status, note, hold_expires_at AS "holdExpiresAt"
+    FROM pilot_availability_slots
+    WHERE starts_at >= NOW() - INTERVAL '1 day'
+    ORDER BY starts_at ASC
+    LIMIT 80
+  `;
+}
+
+export async function createNataliaAvailability(input: AvailabilityInput) {
+  const validated = validateNataliaAvailability(input);
+  const sql = getSql();
+  const [slot] = await sql`
+    INSERT INTO pilot_availability_slots (starts_at, ends_at, status, note)
+    VALUES (${validated.startsAt}, ${validated.endsAt}, ${"available"}, ${validated.note})
+    RETURNING id, starts_at AS "startsAt", ends_at AS "endsAt", status, note
+  `;
+  return slot;
+}
+
+export async function listNataliaCourses() {
+  const sql = getSql();
+  return sql`
+    SELECT id, title, description, price_note AS "priceNote", duration_note AS "durationNote", enabled
+    FROM pilot_courses
+    ORDER BY id ASC
+  `;
+}
+
+export async function createNataliaCourse(input: CourseInput) {
+  const sql = getSql();
+  const [course] = await sql`
+    INSERT INTO pilot_courses (title, description, price_note, duration_note, enabled)
+    VALUES (
+      ${requireText(input.title, "El título", 180)},
+      ${input.description.trim().slice(0, 1_200)},
+      ${requireText(input.priceNote, "El precio", 180)},
+      ${input.durationNote.trim().slice(0, 180)},
+      ${input.enabled}
+    )
+    RETURNING id, title, description, price_note AS "priceNote", duration_note AS "durationNote", enabled
+  `;
+  return course;
+}
