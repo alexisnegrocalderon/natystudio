@@ -15,6 +15,12 @@ describe("handleNataliaVercelApi", () => {
     expect(res.json).toHaveBeenCalledWith({ service: "natalia-pilot-preview", status: "ready" });
   });
 
+  it("acepta el path reescrito por la única función de Vercel", async () => {
+    const res = response();
+    await handleNataliaVercelApi({ method: "GET", url: "/api?path=health", query: { path: "health" } }, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("devuelve un error claro para rutas no registradas", async () => {
     const res = response();
     await handleNataliaVercelApi({ method: "GET", url: "/api/no-existe" }, res);

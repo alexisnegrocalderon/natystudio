@@ -48,7 +48,10 @@ async function pilotServices(req: ApiRequest, res: ApiResponse) {
   }
 }
 
-function requestPath(req: ApiRequest) {
+function requestPath(req: ApiRequest & { query?: Record<string, string | string[] | undefined> }) {
+  const queryPath = req.query?.path ?? new URL(req.url ?? "/api", "https://natalia.local").searchParams.get("path");
+  if (typeof queryPath === "string" && queryPath) return `/${queryPath.replace(/^\/+/, "")}`;
+  if (Array.isArray(queryPath) && queryPath.length) return `/${queryPath.join("/").replace(/^\/+/, "")}`;
   return new URL(req.url ?? "/api", "https://natalia.local").pathname.replace(/^\/api/, "") || "/";
 }
 
