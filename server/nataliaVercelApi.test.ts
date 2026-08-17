@@ -28,6 +28,13 @@ describe("handleNataliaVercelApi", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "api_route_not_found" });
   });
 
+  it("reconoce la ruta heredada de conexión Mercado Pago", async () => {
+    const res = response();
+    await handleNataliaVercelApi({ method: "GET", url: "/api/admin/payments/mercadopago/connect" }, res);
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: "method_not_allowed" });
+  });
+
   it("mantiene la respuesta segura si falta Neon en el catálogo", async () => {
     const previous = process.env.NEON_DATABASE_URL;
     delete process.env.NEON_DATABASE_URL;

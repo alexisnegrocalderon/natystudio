@@ -130,18 +130,23 @@
 - [x] Diagnosticar y corregir el error `FUNCTION_INVOCATION_FAILED` del Preview serverless de ANC antes de activar rutas administrativas o pagos.
 - [x] Analizar y resolver el error persistente del Preview posterior al empaquetado, verificando dependencias y configuración de runtime sin tocar datos de staging.
 - [x] Registrar en ANC staging el cliente, proyecto, acuerdo de comisión del 1,5 % y fuente firmada exclusivos de Natalia antes de habilitar el puente de pagos.
-- [ ] Configurar el portal de Natalia únicamente con la URL del Preview ANC y las credenciales firmadas de su fuente de ventas, sin almacenar secretos de Mercado Pago.
+- [x] Configurar el portal de Natalia únicamente con la URL del Preview ANC y las credenciales firmadas de su fuente de ventas, sin almacenar secretos de Mercado Pago.
 - [x] Proporcionar una consola temporal protegida para ejecutar una sola vez el bootstrap de Natalia con el token guardado en Vercel, sin compartirlo por chat.
 - [x] Proporcionar una consola temporal protegida para ejecutar una sola vez el bootstrap de Natalia con el token guardado en Vercel, sin compartirlo por chat.
-- [ ] Configurar un bypass de protección de Vercel exclusivo de Preview para que el servidor de Natalia se comunique con ANC staging sin hacer públicas las APIs.
+- [x] Configurar un bypass de protección de Vercel exclusivo de Preview para que el servidor de Natalia se comunique con ANC staging sin hacer públicas las APIs.
 - [ ] Configurar las variables OAuth requeridas por el Admin ANC antes de activar el acceso administrativo central fuera de staging.
-- [ ] Consolidar los endpoints API de Natalia en una sola función serverless con enrutamiento interno para cumplir el límite de 12 funciones de Vercel Hobby.
-- [ ] Restaurar el fallback SPA para que `/admin` y demás rutas del portal carguen la aplicación React sin interferir con `/api/*`.
-- [ ] Diagnosticar y corregir el error técnico del inicio de sesión de Natalia en Preview tras consolidar las rutas API.
-- [ ] Empaquetar el enrutador API consolidado y sus dependencias dentro de la función serverless para eliminar el error `ERR_MODULE_NOT_FOUND` de Vercel.
-- [ ] Corregir el fallo de build del Preview introducido por el punto de entrada serverless empaquetado antes de volver a probar el acceso de Natalia.
-- [ ] Actualizar la configuración `functions` de Vercel para que apunte a `api/index.js`, el punto de entrada serverless vigente.
-- [ ] Corregir el rewrite de solicitudes POST hacia la función única para que el login administrativo reciba su ruta y cuerpo correctamente en Preview.
-- [ ] Eliminar el fallo previo a Neon en la invocación de `/api` asegurando que Vercel cargue directamente el handler autocontenido de Natalia.
+- [x] Consolidar los endpoints API de Natalia en una sola función serverless con enrutamiento interno para cumplir el límite de 12 funciones de Vercel Hobby.
+- [x] Restaurar el fallback SPA para que `/admin` y demás rutas del portal carguen la aplicación React sin interferir con `/api/*`.
+- [x] Diagnosticar y corregir el error técnico del inicio de sesión de Natalia en Preview tras consolidar las rutas API.
+- [x] Empaquetar el enrutador API consolidado y sus dependencias dentro de la función serverless para eliminar el error `ERR_MODULE_NOT_FOUND` de Vercel.
+- [x] Corregir el fallo de build del Preview introducido por el punto de entrada serverless empaquetado antes de volver a probar el acceso de Natalia.
+- [x] Actualizar la configuración `functions` de Vercel para que apunte a `api/index.js`, el punto de entrada serverless vigente.
+- [x] Corregir el rewrite de solicitudes POST hacia la función única para que el login administrativo reciba su ruta y cuerpo correctamente en Preview.
+- [x] Eliminar el fallo previo a Neon en la invocación de `/api` asegurando que Vercel cargue directamente el handler autocontenido de Natalia.
 - [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
 - [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.
+- [x] Corregir la ruta o URL de ANC usada por el módulo Pagos para eliminar el estado `api_route_not_found` antes de iniciar OAuth de Mercado Pago.
+- [x] Alinear `ANC_SALES_SOURCE_KEY` y `ANC_SALES_SOURCE_SECRET` con la fuente firmada creada para Natalia en ANC staging antes de solicitar OAuth de Mercado Pago.
+- [x] Reemplazar en Preview el secreto de fuente de ventas por el `sourceSecret` exacto emitido por el bootstrap de Natalia, sin exponerlo en chat.
+- [x] Implementar una rotación de un solo uso y protegida para la fuente firmada de Natalia en ANC staging si el secreto original no está disponible.
+- [ ] Corregir el endpoint OAuth de Mercado Pago en ANC staging para que el botón de conexión de Natalia no devuelva `api_route_not_found`.

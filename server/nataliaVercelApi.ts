@@ -73,5 +73,6 @@ export async function handleNataliaVercelApi(req: any, res: any) {
   if (path === "/admin/payments/mercadopago") {
     return req.method === "GET" ? getNataliaPaymentConnection(req, res) : startNataliaPaymentConnection(req, res);
   }
+  if (path === "/admin/payments/mercadopago/connect") return startNataliaPaymentConnection(req, res);
   return res.status(404).json({ error: "api_route_not_found" });
 }
