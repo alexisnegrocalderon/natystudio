@@ -4,7 +4,10 @@
   "outputDirectory": "dist/public",
   "installCommand": "pnpm install --frozen-lockfile",
   "functions": {
-    "api/index.js": { "maxDuration": 10 }
+    "api/index.js": {
+      "maxDuration": 10,
+      "includeFiles": "api/.natalia-api.cjs"
+    }
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api?path=:path*" },

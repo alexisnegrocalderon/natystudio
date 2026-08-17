@@ -141,5 +141,7 @@
 - [ ] Empaquetar el enrutador API consolidado y sus dependencias dentro de la función serverless para eliminar el error `ERR_MODULE_NOT_FOUND` de Vercel.
 - [ ] Corregir el fallo de build del Preview introducido por el punto de entrada serverless empaquetado antes de volver a probar el acceso de Natalia.
 - [ ] Actualizar la configuración `functions` de Vercel para que apunte a `api/index.js`, el punto de entrada serverless vigente.
+- [ ] Corregir el rewrite de solicitudes POST hacia la función única para que el login administrativo reciba su ruta y cuerpo correctamente en Preview.
+- [ ] Eliminar el fallo previo a Neon en la invocación de `/api` asegurando que Vercel cargue directamente el handler autocontenido de Natalia.
 - [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
 - [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.
