@@ -135,5 +135,6 @@
 - [x] Proporcionar una consola temporal protegida para ejecutar una sola vez el bootstrap de Natalia con el token guardado en Vercel, sin compartirlo por chat.
 - [ ] Configurar un bypass de protección de Vercel exclusivo de Preview para que el servidor de Natalia se comunique con ANC staging sin hacer públicas las APIs.
 - [ ] Configurar las variables OAuth requeridas por el Admin ANC antes de activar el acceso administrativo central fuera de staging.
+- [ ] Consolidar los endpoints API de Natalia en una sola función serverless con enrutamiento interno para cumplir el límite de 12 funciones de Vercel Hobby.
 - [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
 - [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.
