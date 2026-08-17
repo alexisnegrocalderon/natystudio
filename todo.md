@@ -114,5 +114,26 @@
 - [x] Diseñar el contrato seguro entre el portal de Natalia y ANC para iniciar la vinculación y recibir el resultado sin exponer credenciales ni modificar la comisión ANC del 1,5 %.
 - [ ] Implementar en ANC un enlace OAuth de un solo uso para que Natalia autorice su cuenta de Mercado Pago desde su portal privado.
 - [ ] Conectar el botón de pagos del portal de Natalia al enlace OAuth de ANC y reflejar el estado de autorización sin persistir secretos locales.
+- [ ] Desplegar el backend efectivo de ANC con el puente OAuth de Mercado Pago y verificar las rutas firmadas antes de configurar el portal de Natalia.
+- [ ] Migrar el backend central de ANC al proyecto Vercel existente mediante funciones serverless, sin crear proyectos ni repositorios duplicados.
+- [ ] Configurar un entorno Preview de ANC con secretos exclusivamente server-side y validar sus rutas tRPC antes de redirigir el frontend administrativo.
+- [x] Migrar la capa de datos antigua MySQL del Admin ANC a Neon central, sin utilizar la base staging aislada de Natalia.
+- [x] Verificar técnicamente que `NEON_DATABASE_URL` quedó creada solo para Preview en `anc-solutions-website` y que el runtime serverless la puede consumir.
+- [ ] Confirmar por evidencia verificable la rama `staging` de ANC Platform Core y registrar su identificador antes de aplicar migraciones.
+- [x] Aplicar y verificar el esquema del Admin ANC únicamente en la rama staging de ANC Platform Core antes de activar rutas administrativas.
+- [x] Comparar el esquema heredado de ANC Platform Core staging con el contrato del Admin ANC y preparar solo migraciones incrementales, sin repetir tablas existentes.
+- [ ] Crear únicamente las tablas faltantes del Admin ANC en staging mediante una migración idempotente, sin alterar las tablas heredadas de ANC Platform Core.
+- [x] Verificar las columnas y claves de `users`, `admin_credentials`, `appointments` y `module_catalog` antes de añadir relaciones desde los módulos incrementales.
+- [x] Renombrar el esquema lógico del Admin ANC con prefijo `anc_admin_` para aislarlo de las tablas Core heredadas en ANC Platform Core.
+- [x] Generar y aplicar una migración de staging que cree exclusivamente las tablas `anc_admin_*` sin modificar tablas Core existentes.
+- [x] Añadir y validar una ruta de salud de staging que confirme la conectividad serverless con Neon sin exponer datos ni secretos.
+- [x] Diagnosticar y corregir el error `FUNCTION_INVOCATION_FAILED` del Preview serverless de ANC antes de activar rutas administrativas o pagos.
+- [x] Analizar y resolver el error persistente del Preview posterior al empaquetado, verificando dependencias y configuración de runtime sin tocar datos de staging.
+- [x] Registrar en ANC staging el cliente, proyecto, acuerdo de comisión del 1,5 % y fuente firmada exclusivos de Natalia antes de habilitar el puente de pagos.
+- [ ] Configurar el portal de Natalia únicamente con la URL del Preview ANC y las credenciales firmadas de su fuente de ventas, sin almacenar secretos de Mercado Pago.
+- [x] Proporcionar una consola temporal protegida para ejecutar una sola vez el bootstrap de Natalia con el token guardado en Vercel, sin compartirlo por chat.
+- [x] Proporcionar una consola temporal protegida para ejecutar una sola vez el bootstrap de Natalia con el token guardado en Vercel, sin compartirlo por chat.
+- [ ] Configurar un bypass de protección de Vercel exclusivo de Preview para que el servidor de Natalia se comunique con ANC staging sin hacer públicas las APIs.
+- [ ] Configurar las variables OAuth requeridas por el Admin ANC antes de activar el acceso administrativo central fuera de staging.
 - [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
 - [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.

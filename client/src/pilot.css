@@ -1,20 +1,11 @@
 .pilot-status {
   margin: 0 0 1.4rem;
   min-height: 2.2em;
-  color: #ded6d4;
+  color: color-mix(in srgb, var(--soft-blush) 86%, transparent);
   font-size: 0.72rem;
   line-height: 1.5;
 }
 
-.pilot-status--ready {
-  color: #cfc6c4;
-}
-
-.pilot-status--loading {
-  color: #fce984;
-}
-
-.pilot-status--fallback,
-.pilot-status--empty {
-  color: #f1b8c1;
-}
+.pilot-status--ready { color: color-mix(in srgb, var(--pastel-pink) 88%, transparent); }
+.pilot-status--loading { color: var(--baby-pink); }
+.pilot-status--fallback, .pilot-status--empty { color: var(--bubblegum-tint); }

@@ -10,6 +10,11 @@ function config() {
   return { baseUrl, sourceKey, sourceSecret };
 }
 
+export function ancPreviewBypassHeaders(): Record<string, string> {
+  const bypassSecret = process.env.ANC_VERCEL_BYPASS_SECRET?.trim();
+  return bypassSecret ? { "x-vercel-protection-bypass": bypassSecret } : {};
+}
+
 export function signAncPaymentPayload(secret: string, payload: string) {
   return `sha256=${createHmac("sha256", secret).update(payload).digest("hex")}`;
 }
@@ -23,6 +28,7 @@ async function requestAncPaymentBridge<T>(path: string, action: "connect" | "sta
       "content-type": "application/json",
       "x-anc-source": sourceKey,
       "x-anc-signature": signAncPaymentPayload(sourceSecret, body),
+      ...ancPreviewBypassHeaders(),
     },
     body,
   });

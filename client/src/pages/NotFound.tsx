@@ -1,52 +1,21 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, Home } from "lucide-react";
+import { ArrowUpRight, CircleAlert, Home } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function NotFound() {
   const [, setLocation] = useLocation();
 
-  const handleGoHome = () => {
-    setLocation("/");
-  };
-
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-      <Card className="w-full max-w-lg mx-4 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardContent className="pt-8 pb-8 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-red-100 rounded-full animate-pulse" />
-              <AlertCircle className="relative h-16 w-16 text-red-500" />
-            </div>
-          </div>
-
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">404</h1>
-
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">
-            Page Not Found
-          </h2>
-
-          <p className="text-slate-600 mb-8 leading-relaxed">
-            Sorry, the page you are looking for doesn't exist.
-            <br />
-            It may have been moved or deleted.
-          </p>
-
-          <div
-            id="not-found-button-group"
-            className="flex flex-col sm:flex-row gap-3 justify-center"
-          >
-            <Button
-              onClick={handleGoHome}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Go Home
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <main className="grid min-h-screen place-items-center overflow-hidden bg-[#351826] px-5 py-10 text-[#351826]">
+      <section className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-[#FDA8BF]/60 bg-[#FFF8FA] p-7 shadow-[0_24px_70px_rgba(0,0,0,.25)] sm:p-12">
+        <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[#FDC3D1]" aria-hidden="true" />
+        <div className="relative">
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-[#FFDBDB] text-[#8E3556]"><CircleAlert size={27} /></div>
+          <p className="mt-8 text-xs font-bold uppercase tracking-[.22em] text-[#8E3556]">Error 404</p>
+          <h1 className="mt-3 max-w-lg font-serif text-5xl italic leading-[.88] sm:text-6xl">Esta página <span className="text-[#FF5C89]">no está aquí.</span></h1>
+          <p className="mt-6 max-w-md text-sm leading-6 text-[#75495B]">Puede que el enlace haya cambiado o que la dirección no exista. Vuelve al sitio principal para conocer los servicios, resolver dudas o reservar una evaluación.</p>
+          <button type="button" onClick={() => setLocation("/")} className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#351826] px-5 py-3 text-sm font-bold text-[#FFDBDB] transition hover:bg-[#542438] active:scale-[.98]"><Home size={16} /> Volver al inicio <ArrowUpRight size={16} /></button>
+        </div>
+      </section>
+    </main>
   );
 }
