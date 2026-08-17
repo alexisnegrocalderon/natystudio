@@ -137,5 +137,7 @@
 - [ ] Configurar las variables OAuth requeridas por el Admin ANC antes de activar el acceso administrativo central fuera de staging.
 - [ ] Consolidar los endpoints API de Natalia en una sola función serverless con enrutamiento interno para cumplir el límite de 12 funciones de Vercel Hobby.
 - [ ] Restaurar el fallback SPA para que `/admin` y demás rutas del portal carguen la aplicación React sin interferir con `/api/*`.
+- [ ] Diagnosticar y corregir el error técnico del inicio de sesión de Natalia en Preview tras consolidar las rutas API.
+- [ ] Empaquetar el enrutador API consolidado y sus dependencias dentro de la función serverless para eliminar el error `ERR_MODULE_NOT_FOUND` de Vercel.
 - [ ] Implementar paginación o carga incremental para que el módulo Reservas permita consultar todas las reservas sin el límite actual de 100 registros.
 - [ ] Sustituir los estados de pago locales temporales por los estados confirmados que entregue ANC después de completar el puente central.

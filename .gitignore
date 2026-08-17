@@ -6,6 +6,7 @@
 dist/
 build/
 *.dist
+api/.natalia-api.cjs
 
 # Environment variables
 .env
