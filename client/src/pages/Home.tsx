@@ -19,7 +19,7 @@ import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, n
 import { BookingModal } from "@/components/BookingModal";
 import "../pilot.css";
 
-const LOGO_MASK_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/ygEfsdmCaFUfgfHM.jpg";
+const LOGO_MASK_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/YaLBvLEwDDyScDkT.png";
 const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
 const HERO_VIDEO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/kWAEdsyipIOyXTPc.mp4";
 const HERO_POSTER_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/sMWaMNNHcITBqwMe.jpg";
