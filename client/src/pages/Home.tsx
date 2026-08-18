@@ -19,12 +19,12 @@ import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, n
 import { BookingModal } from "@/components/BookingModal";
 import "../pilot.css";
 
-const LOGO_URL = "/manus-storage/natalia-rodriguez-studio-logo-transparent_cb9d0eb2.png";
+const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/rZKwwEEETGBvowjz.png";
 const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
-const HERO_VIDEO_URL = "/manus-storage/natalia-macro-skin-hero_d9e924bc.mp4";
-const HERO_POSTER_URL = "/manus-storage/natalia-editorial-hero-poster_eb0a1d2c.jpg";
-const TEXTURE_URL = "/manus-storage/natalia-editorial-texture-pink_97e2613b.jpg";
-const ORBIT_URL = "/manus-storage/natalia-editorial-orbit_fd4ae829.jpg";
+const HERO_VIDEO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/kWAEdsyipIOyXTPc.mp4";
+const HERO_POSTER_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/sMWaMNNHcITBqwMe.jpg";
+const TEXTURE_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/JuIVWWSGSdgiXIAX.jpg";
+const ORBIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/tabuTBhASrJsAWlf.jpg";
 const bookingUrl = whatsappWithMessage("Hola Natalia, quiero reservar una evaluación para retiro de acrocordones.");
 const questionUrl = whatsappWithMessage("Hola Natalia, tengo una pregunta antes de reservar una evaluación.");
 

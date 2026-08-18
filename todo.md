@@ -177,3 +177,4 @@
 - [ ] Validar el rediseño en desktop, tablet y móvil, con foco visible, reducción de movimiento y build de Preview correcto.
 - [x] Sustituir las rutas locales `/manus-storage/` por URLs persistentes de assets web y comprobar su carga desde el Preview de Vercel.
 - [x] Reemplazar el logo temporal por un asset transparente y hacerlo protagonista del hero sin comprometer navegación, contraste ni responsividad.
+- [x] Diagnosticar y corregir la entrega de video e imágenes editoriales que siguen invisibles en el Preview de Vercel.
