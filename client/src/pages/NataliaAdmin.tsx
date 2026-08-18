@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { BookOpen, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, FileText, LayoutDashboard, LogOut, Plus, Settings2, Sparkles, Trash2, UsersRound } from "lucide-react";
+import "./nataliaAdmin.css";
 
 type AdminUser = { id: number; email: string; role: "owner" | "manager" };
 type PaymentMode = "none" | "deposit" | "full_payment";

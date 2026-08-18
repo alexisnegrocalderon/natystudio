@@ -9,23 +9,23 @@ import {
   MapPin,
   Menu,
   MessageCircle,
-  Plus,
   ShieldCheck,
   Sparkles,
-  Stethoscope,
   X,
 } from "lucide-react";
 import { COURSE_SECTION_ID, getPilotCatalogState, INSTAGRAM_URL, whatsappWithMessage } from "@/lib/landing";
 import { trpc } from "@/lib/trpc";
-import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, languages, navItems, serviceContent, type Language } from "@/content/natyContent";
-import { PilotServiceCard } from "@/components/PilotServiceCard";
+import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, navItems, serviceContent } from "@/content/natyContent";
 import { BookingModal } from "@/components/BookingModal";
 import "../pilot.css";
 
 const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/gimEZJCjXoLkQZdV.jpeg";
 const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
+const HERO_VIDEO_URL = "/manus-storage/natalia-macro-skin-hero_12cf4a5f.mp4";
+const HERO_POSTER_URL = "/manus-storage/natalia-editorial-hero-poster_42db3d86.jpg";
+const TEXTURE_URL = "/manus-storage/natalia-editorial-texture-pink_2a3badef.jpg";
+const ORBIT_URL = "/manus-storage/natalia-editorial-orbit_f2d9b696.jpg";
 const bookingUrl = whatsappWithMessage("Hola Natalia, quiero reservar una evaluación para retiro de acrocordones.");
-const courseUrl = whatsappWithMessage("Hola Natalia, me interesa recibir información sobre la formación para profesionales.");
 const questionUrl = whatsappWithMessage("Hola Natalia, tengo una pregunta antes de reservar una evaluación.");
 
 type PreviewService = {
@@ -35,6 +35,8 @@ type PreviewService = {
   priceNote: string;
   durationNote: string;
 };
+
+type PublishedLandingCopy = { heroTitle?: string; heroSubtitle?: string; about?: string };
 
 function usePreviewCatalog(enabled: boolean) {
   const [services, setServices] = useState<PreviewService[] | undefined>();
@@ -56,113 +58,133 @@ function usePreviewCatalog(enabled: boolean) {
         setIsError(true);
       })
       .finally(() => setIsLoading(false));
-
     return () => controller.abort();
   }, [enabled]);
 
   return { services, isLoading, isError };
 }
 
-type PublishedLandingCopy = { heroTitle?: string; heroSubtitle?: string; about?: string };
-
 function usePublishedLandingCopy() {
   const [copy, setCopy] = useState<PublishedLandingCopy | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/landing-content", { signal: controller.signal })
-      .then((response) => response.ok ? response.json() as Promise<{ content?: PublishedLandingCopy | null }> : null)
+      .then((response) => (response.ok ? response.json() as Promise<{ content?: PublishedLandingCopy | null }> : null))
       .then((payload) => { if (payload?.content) setCopy(payload.content); })
-      .catch((error: unknown) => { if (!(error instanceof DOMException && error.name === "AbortError")) setCopy(null); });
+      .catch(() => setCopy(null));
     return () => controller.abort();
   }, []);
   return copy;
 }
 
-function WhatsAppCTA({ children, href = bookingUrl, inverse = false }: { children: React.ReactNode; href?: string; inverse?: boolean }) {
-  return <a className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} href={href} target="_blank" rel="noreferrer"><span>{children}</span><ArrowUpRight size={18} /></a>;
+function BookingCTA({ children, onClick, tone = "dark" }: { children: React.ReactNode; onClick: () => void; tone?: "dark" | "light" | "pink" }) {
+  return <button type="button" className={`nr-button nr-button--${tone}`} onClick={onClick}><span>{children}</span><ArrowUpRight size={17} /></button>;
 }
 
-function BookingCTA({ children, inverse = false, onClick }: { children: React.ReactNode; inverse?: boolean; onClick: () => void }) {
-  return <button type="button" className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} onClick={onClick}><span>{children}</span><ArrowUpRight size={18} /></button>;
-}
-
-function Logo({ compact = false }: { compact?: boolean }) {
-  return <a href="#inicio" className={`nr-logo ${compact ? "nr-logo--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></a>;
+function Wordmark({ compact = false }: { compact?: boolean }) {
+  return <a href="#inicio" className={`nr-wordmark ${compact ? "nr-wordmark--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></a>;
 }
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
-  const [activeLanguage, setActiveLanguage] = useState<Language>("ES");
   const pilotCatalogQuery = trpc.nataliaPilot.services.useQuery();
   const previewCatalog = usePreviewCatalog(pilotCatalogQuery.isError);
   const publishedCopy = usePublishedLandingCopy();
   const pilotServices = pilotCatalogQuery.data ?? previewCatalog.services;
-  const isPilotCatalogError = pilotCatalogQuery.isError && previewCatalog.isError;
-  const isPilotCatalogLoading = pilotCatalogQuery.isLoading || (pilotCatalogQuery.isError && previewCatalog.isLoading);
-  const pilotService = pilotServices?.[0];
-  const pilotCatalogState = getPilotCatalogState({
-    isLoading: isPilotCatalogLoading,
-    isError: isPilotCatalogError,
-    hasService: Boolean(pilotService),
+  const primaryService = pilotServices?.[0];
+  const catalogState = getPilotCatalogState({
+    isLoading: pilotCatalogQuery.isLoading || (pilotCatalogQuery.isError && previewCatalog.isLoading),
+    isError: pilotCatalogQuery.isError && previewCatalog.isError,
+    hasService: Boolean(primaryService),
   });
-  const pilotStatus = {
-    loading: "Actualizando información del servicio…",
-    fallback: "Mostramos información de respaldo mientras se restablece el catálogo.",
-    empty: "El catálogo está en actualización. Agenda tu evaluación para recibir orientación.",
-    ready: "Información disponible desde el entorno de preview.",
-  }[pilotCatalogState];
+
+  const service = primaryService ?? {
+    slug: "evaluacion",
+    name: serviceContent.title,
+    description: serviceContent.description,
+    priceNote: serviceContent.value,
+    durationNote: serviceContent.duration,
+  };
 
   return (
     <main className="nr-site">
       <header className="nr-header">
-        <Logo compact />
-        <nav className="nr-nav" aria-label="Navegación principal">{navItems.map(([label, href]) => <a key={href} href={href}>{label}</a>)}</nav>
-        <div className="nr-header-tools"><div className="nr-languages" aria-label="Selector de idioma">{languages.map((language) => <button key={language} type="button" aria-pressed={activeLanguage === language} onClick={() => setActiveLanguage(language)}>{language}</button>)}</div><BookingCTA inverse onClick={() => setBookingOpen(true)}>Reservar</BookingCTA></div>
+        <Wordmark compact />
+        <nav className="nr-nav" aria-label="Navegación principal">
+          {navItems.map(([label, href]) => <a key={href} href={href}>{label}</a>)}
+        </nav>
+        <div className="nr-header-actions">
+          <a className="nr-admin-link" href="/admin">Mi estudio</a>
+          <BookingCTA tone="pink" onClick={() => setBookingOpen(true)}>Reservar</BookingCTA>
+        </div>
         <button className="nr-menu" type="button" aria-expanded={menuOpen} aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={23} /> : <Menu size={23} />}</button>
-        {menuOpen && <div className="nr-mobile-nav">{navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}<BookingCTA inverse onClick={() => { setMenuOpen(false); setBookingOpen(true); }}>Reservar con Natalia</BookingCTA></div>}
+        {menuOpen ? <div className="nr-mobile-nav">
+          {navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}
+          <BookingCTA tone="pink" onClick={() => { setMenuOpen(false); setBookingOpen(true); }}>Reservar mi hora</BookingCTA>
+        </div> : null}
       </header>
 
       <section id="inicio" className="nr-hero">
-        <div className="nr-hero-rail"><span>ENFERMERA ESTÉTICA</span><span>VALPARAÍSO · CHILE</span><span className="rail-star">✦</span></div>
-        <div className="nr-hero-main">
-          <p className="nr-overline">NATALIA RODRÍGUEZ STUDIO</p>
-          <h1 className="whitespace-pre-line">{publishedCopy?.heroTitle || <>CUIDADO<br />PARA TU<br /><em>PIEL.</em></>}</h1>
-          <div className="nr-hero-bottom"><p>{publishedCopy?.heroSubtitle || "Una atención cercana, profesional y clara para acompañarte desde la primera consulta."}</p><BookingCTA inverse onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA></div>
+        <video className="nr-hero-video" autoPlay muted loop playsInline poster={HERO_POSTER_URL} aria-hidden="true">
+          <source src={HERO_VIDEO_URL} type="video/mp4" />
+        </video>
+        <div className="nr-hero-overlay" />
+        <div className="nr-hero-grid">
+          <div className="nr-hero-copy">
+            <div className="nr-kicker"><Sparkles size={14} /> Estética profesional · Valparaíso</div>
+            <div className="nr-hero-logo-panel"><Wordmark /></div>
+            <p className="nr-eyebrow">CUIDADO QUE SE SIENTE CERCA</p>
+            <h1>{publishedCopy?.heroTitle || <>Tu piel,<br /><em>tu momento.</em></>}</h1>
+            <p className="nr-hero-description">{publishedCopy?.heroSubtitle || "Una atención cercana, técnica y delicada para que vuelvas a sentirte cómoda en tu propia piel."}</p>
+            <div className="nr-hero-cta-row"><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA><a className="nr-text-link" href="#servicios">Conocer servicios <ArrowDownRight size={17} /></a></div>
+          </div>
+          <aside className="nr-hero-note"><span>Agenda</span><strong>Abierta</strong><p>Elige tu atención, revisa los cupos y reserva desde aquí.</p><div className="nr-orbit-dot" /></aside>
+          <div className="nr-hero-scroll">Desliza para descubrir <span>↓</span></div>
         </div>
-        <div className="nr-hero-media"><div className="media-title">TU ESPACIO<br />DE CUIDADO</div><div className="media-photo"><img src={PORTRAIT_URL} alt="Natalia Rodríguez, enfermera estética" /></div><div className="media-sticker"><span>AGENDA</span><strong>ABIERTA</strong><Plus size={16} /></div></div>
       </section>
 
-      <section className="nr-marquee" aria-label="Especialidad de Natalia Rodríguez Studio"><span>RETIRO DE ACROCORDONES</span><i>✦</i><span>ATENCIÓN PERSONALIZADA</span><i>✦</i><span>FORMACIÓN PROFESIONAL</span></section>
+      <section className="nr-ticker" aria-label="Especialidades"><span>ATENCIÓN PERSONALIZADA</span><i>✦</i><span>RETIRO DE ACROCORDONES</span><i>✦</i><span>FORMACIÓN PROFESIONAL</span><i>✦</i><span>VALPARAÍSO, CHILE</span></section>
 
-      <section className="nr-intro-grid">
-        <div className="intro-statement"><p className="nr-overline">01 · ATENCIÓN PRESENCIAL</p><h2>MENOS<br />DUDAS.<br /><em>MÁS CLARIDAD.</em></h2></div>
-        <PilotServiceCard state={pilotCatalogState} service={pilotService} fallback={{ title: serviceContent.title, description: serviceContent.description, value: serviceContent.value, duration: serviceContent.duration }} statusMessage={pilotStatus}><BookingCTA onClick={() => setBookingOpen(true)}>Reservar mi evaluación</BookingCTA></PilotServiceCard>
-        <article className="intro-steps"><span className="block-number">EL PROCESO</span><ol><li><span>01</span><p><strong>Elige tu hora</strong>Revisa los cupos disponibles directamente en la agenda.</p></li><li><span>02</span><p><strong>Confirma tus datos</strong>Tu cupo queda reservado durante el proceso.</p></li><li><span>03</span><p><strong>Recibes confirmación</strong>Tu atención queda registrada con sus indicaciones.</p></li></ol></article>
+      <section id="servicios" className="nr-section nr-offer">
+        <div className="nr-section-heading"><div><p className="nr-eyebrow">01 · SERVICIOS</p><h2>Un espacio para<br /><em>sentirte bien.</em></h2></div><p>Elige la atención que necesitas. Todo comienza con una conversación clara y una agenda pensada para ti.</p></div>
+        <div className="nr-bento nr-offer-bento">
+          <article className="nr-bento-service">
+            <div className="nr-card-top"><span>Atención destacada</span><span className={`nr-live-dot nr-live-dot--${catalogState}`} aria-label="Estado del catálogo" /></div>
+            <h3>{service.name}</h3>
+            <p>{service.description}</p>
+            <div className="nr-service-meta"><span>{service.priceNote}</span><span>{service.durationNote}</span></div>
+            <BookingCTA tone="light" onClick={() => setBookingOpen(true)}>Ver disponibilidad</BookingCTA>
+          </article>
+          <figure className="nr-bento-image nr-bento-image--texture"><img src={TEXTURE_URL} alt="Textura editorial rosada de Natalia Rodríguez Studio" /></figure>
+          <article className="nr-bento-process"><p className="nr-eyebrow">Tu reserva</p><ol><li><span>01</span><strong>Elige tu atención</strong></li><li><span>02</span><strong>Escoge tu horario</strong></li><li><span>03</span><strong>Confirma de forma segura</strong></li></ol><BookingCTA tone="pink" onClick={() => setBookingOpen(true)}>Reservar ahora</BookingCTA></article>
+          <figure className="nr-bento-image nr-bento-image--orbit"><img src={ORBIT_URL} alt="Composición abstracta rosada" /><figcaption>Delicadeza<br />en cada detalle.</figcaption></figure>
+        </div>
       </section>
 
-      <section id="sobre-mi" className="nr-about">
-        <div className="nr-about-panel"><Logo /><div className="panel-pink-circle" /><span>PROFESIONAL<br />Y CERCANA.</span></div>
-        <div className="nr-about-copy"><p className="nr-overline">02 · CONOCE A NATALIA</p><h2>EL CONOCIMIENTO<br />TAMBIÉN SE NOTA<br /><em>EN CÓMO TE CUIDAN.</em></h2>{publishedCopy?.about ? <p className="body-copy whitespace-pre-line">{publishedCopy.about}</p> : aboutContent.paragraphs.map((paragraph) => <p className="body-copy" key={paragraph}>{paragraph}</p>)}<div className="nr-checks">{aboutContent.points.map((point) => <p key={point}><Check size={17} />{point}</p>)}</div><WhatsAppCTA inverse>Hablar con Natalia</WhatsAppCTA></div>
+      <section id="sobre-mi" className="nr-section nr-about">
+        <div className="nr-about-image"><img src={PORTRAIT_URL} alt="Natalia Rodríguez, enfermera estética" /><div className="nr-about-stamp"><span>NR</span><small>STUDIO</small></div></div>
+        <div className="nr-about-copy"><p className="nr-eyebrow">02 · CONOCE A NATALIA</p><h2>Tu piel merece una mirada<br /><em>profesional y cercana.</em></h2>{publishedCopy?.about ? <p className="nr-body-copy">{publishedCopy.about}</p> : aboutContent.paragraphs.map((paragraph) => <p className="nr-body-copy" key={paragraph}>{paragraph}</p>)}<div className="nr-check-list">{aboutContent.points.map((point) => <p key={point}><Check size={17} />{point}</p>)}</div><a className="nr-text-link nr-text-link--dark" href={bookingUrl} target="_blank" rel="noreferrer">Hablar con Natalia <ArrowUpRight size={17} /></a></div>
       </section>
 
-      <section id="resultados" className="nr-results">
-        <div className="results-heading"><p className="nr-overline">03 · PRIVACIDAD Y RESULTADOS</p><h2>LO MÁS IMPORTANTE<br />ES QUE TE SIENTAS<br /><em>SEGURA.</em></h2></div>
-        <div className="results-content"><p>Las fotografías de resultados se publican solamente con autorización. Mientras incorporamos nuevos casos, puedes conocer el trabajo de Natalia en Instagram.</p><a className="instagram-card" href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={28} /><span>VER EL TRABAJO<br /><strong>EN INSTAGRAM</strong></span><ArrowDownRight size={23} /></a><div className="case-grid">{gallerySlots.map((slot, index) => <article className={`nr-case case-${index + 1}`} key={`${slot.caseLabel}-${slot.state}`}><span>{slot.caseLabel}</span><ShieldCheck size={21} /><strong>{slot.state}</strong><p>{slot.note}</p></article>)}</div></div>
+      <section id="resultados" className="nr-section nr-results">
+        <div className="nr-results-title"><p className="nr-eyebrow">03 · PRIVACIDAD Y RESULTADOS</p><h2>Todo cuidado comienza<br /><em>con confianza.</em></h2><p>Las fotografías de resultados se comparten solo con autorización. Mientras incorporamos nuevos casos, puedes conocer el trabajo de Natalia en Instagram.</p><a className="nr-instagram" href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={21} /><span>Ver el trabajo de Natalia</span><ArrowUpRight size={18} /></a></div>
+        <div className="nr-results-grid">{gallerySlots.map((slot, index) => <article key={slot.caseLabel} className={`nr-result-card nr-result-card--${index + 1}`}><span>{slot.caseLabel}</span><ShieldCheck size={20} /><strong>{slot.state}</strong><p>{slot.note}</p></article>)}</div>
       </section>
 
-      <section id={COURSE_SECTION_ID} className="nr-course">
-        <div className="course-sideword">FORMACIÓN</div><div className="course-main"><p className="nr-overline">04 · PARA PROFESIONALES</p><h2>APRENDE<br />CON UNA MIRADA<br /><em>PROFESIONAL.</em></h2><p>{courseContent.description}</p><WhatsAppCTA href={courseUrl} inverse>Quiero información</WhatsAppCTA></div><div className="course-meta"><GraduationCap size={31} /><p><span>DIRIGIDO A</span>{courseContent.audience}</p><p><span>MODALIDAD</span>{courseContent.modality}</p><div className="course-mark">NR<br /><small>STUDIO</small></div></div>
+      <section id={COURSE_SECTION_ID} className="nr-section nr-course">
+        <div className="nr-course-image"><img src={ORBIT_URL} alt="Textura temporal de formación profesional" /></div>
+        <div className="nr-course-copy"><p className="nr-eyebrow">04 · FORMACIÓN PROFESIONAL</p><GraduationCap size={31} /><h2>Aprende desde una mirada<br /><em>clara y aplicada.</em></h2><p>{courseContent.description}</p><div className="nr-course-details"><span><b>Dirigido a</b>{courseContent.audience}</span><span><b>Modalidad</b>{courseContent.modality}</span></div><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Conocer formación</BookingCTA></div>
       </section>
 
-      <section id="preguntas" className="nr-faq">
-        <div className="faq-intro"><p className="nr-overline">05 · PREGUNTAS</p><h2>ANTES DE<br /><em>RESERVAR.</em></h2><p>Escríbenos si necesitas una orientación adicional. Natalia está disponible para ayudarte.</p><WhatsAppCTA href={questionUrl}>Hacer una consulta</WhatsAppCTA></div>
-        <div className="nr-accordion">{faqContent.items.map((item, index) => <details key={item.question}><summary><span>0{index + 1}</span>{item.question}<ChevronDown size={20} /></summary><p>{item.answer}</p></details>)}</div>
+      <section id="preguntas" className="nr-section nr-faq">
+        <div className="nr-faq-intro"><p className="nr-eyebrow">05 · PREGUNTAS FRECUENTES</p><h2>Antes de reservar,<br /><em>conversemos.</em></h2><p>Estamos aquí para que agendes con toda la información que necesitas.</p><a className="nr-text-link nr-text-link--dark" href={questionUrl} target="_blank" rel="noreferrer">Hacer una consulta <ArrowUpRight size={17} /></a></div>
+        <div className="nr-accordion">{faqContent.items.map((item, index) => <details key={item.question}><summary><span>0{index + 1}</span>{item.question}<ChevronDown size={19} /></summary><p>{item.answer}</p></details>)}</div>
       </section>
 
-      <section className="nr-final"><div className="final-logo"><Logo /></div><div><p className="nr-overline">TU PRÓXIMA ATENCIÓN</p><h2>RESERVA CON<br /><em>NATALIA.</em></h2><p>Elige tu servicio, revisa la agenda disponible y confirma tu solicitud sin salir del sitio.</p><BookingCTA onClick={() => setBookingOpen(true)}>Reservar mi hora</BookingCTA></div><Sparkles className="final-sparkle" size={28} /></section>
+      <section className="nr-final-cta"><div className="nr-final-content"><p className="nr-eyebrow">TU PRÓXIMA ATENCIÓN</p><h2>Haz espacio para<br /><em>sentirte bien.</em></h2><p>Revisa la agenda disponible y reserva tu atención sin salir del sitio.</p><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Reservar mi hora</BookingCTA></div><div className="nr-final-visual"><img src={TEXTURE_URL} alt="Textura rosada abstracta" /><div className="nr-final-bubble">Tu<br />momento<br />empieza<br />aquí.</div></div></section>
 
-      <footer className="nr-footer"><div className="footer-top"><Logo compact /><p>{footerContent.description}</p><div><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div><div className="footer-bottom"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} Natalia Rodríguez Studio</span></div></footer>
+      <footer className="nr-footer"><div className="nr-footer-main"><Wordmark compact /><p>{footerContent.description}</p><div className="nr-footer-links"><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div><div className="nr-footer-bottom"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} Natalia Rodríguez Studio</span></div></footer>
       <BookingModal open={bookingOpen} onOpenChange={setBookingOpen} services={pilotServices ?? []} />
     </main>
   );

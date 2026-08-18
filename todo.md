@@ -167,6 +167,11 @@
 - [ ] Conectar reservas y cursos con checkout sandbox centralizado en ANC y estados de pago verificados, sin activar cobros reales.
 - [ ] Mantener el checkout iniciado desde Naty Studio y limitar la participación visible de ANC a la conciliación privada y a la comisión fija del 1,5 % por transacción.
 - [ ] Integrar un formulario de pago de Mercado Pago visualmente dentro de Naty Studio usando únicamente credenciales públicas permitidas y preferencias creadas server-side por ANC.
-- [ ] Mantener MySQL restringido al Control Plane interno de ANC y Neon como base aislada para la operación y datos de Natalia durante la integración de pagos.
+- [x] Rebasar Payment Brick sobre el estándar Neon central de ANC cuando concluya la migración concurrente, manteniendo aislados los datos operativos de Natalia.
 - [ ] Añadir confirmaciones por correo y auditar cambios de agenda, reserva, curso, contenido e inscripción.
 - [ ] Validar el flujo completo en Preview, proteger secretos y documentar los gates requeridos antes de pagos reales.
+- [x] Preparar video hero, poster y recursos temporales externos para la identidad editorial rosada, listos para sustituir por el logo transparente y fotos autorizadas.
+- [x] Reconstruir la landing pública en composición bento responsive conservando catálogo, contenido publicado, anclas y reservas.
+- [x] Reestilizar el embudo de reserva y el contenedor de Payment Brick sin alterar tokenización, API ni el modo sandbox.
+- [x] Reestilizar login, resumen, agenda, servicios, reservas, cursos, pagos y contenido del Admin de Natalia con el mismo sistema visual.
+- [ ] Validar el rediseño en desktop, tablet y móvil, con foco visible, reducción de movimiento y build de Preview correcto.

@@ -1,0 +1,10 @@
+.nr-booking-modal { overflow: hidden; border-radius: 30px !important; border-color: var(--nr-line) !important; background: var(--nr-cream) !important; font-family: "Manrope", Arial, sans-serif; }
+.nr-booking-modal [data-slot="dialog-close"] { z-index: 2; top: 1rem; right: 1rem; color: var(--nr-soft); }
+.nr-booking-header { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--nr-ink), var(--nr-wine)) !important; }
+.nr-booking-header::after { content: ""; position: absolute; width: 260px; height: 260px; right: -95px; bottom: -150px; border-radius: 50%; background: var(--nr-pink); opacity: .72; }
+.nr-booking-header > * { position: relative; z-index: 1; }
+.nr-booking-modal h3, .nr-booking-modal [data-slot="dialog-title"] { font-family: "Cormorant Garamond", Georgia, serif !important; font-weight: 600; letter-spacing: -.035em; }
+.nr-booking-content { background: radial-gradient(circle at 100% 0, rgb(253 195 209 / .42), transparent 30%), var(--nr-cream); }
+.nr-booking-modal button { transition-timing-function: var(--nr-ease); }
+.nr-booking-modal .mercado-pago-payment-brick { border-radius: 18px; border-color: var(--nr-line); background: rgb(255 255 255 / .84); box-shadow: 0 12px 30px rgb(76 29 49 / .09); }
+@media (max-width: 640px) { .nr-booking-modal { max-height: 92svh !important; border-radius: 25px !important; }.nr-booking-header { padding: 1.35rem !important; }.nr-booking-content { padding: 1.25rem !important; } }

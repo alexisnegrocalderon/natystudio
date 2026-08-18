@@ -6,17 +6,19 @@ const stylesheet = readFileSync(resolve(process.cwd(), "client/src/index.css"), 
 
 describe("sistema visual de Natalia Rodríguez Studio", () => {
   it("mantiene Pastel Pink como color base y conserva la escala rosa complementaria", () => {
-    expect(stylesheet).toContain("--pastel-pink: #fdc3d1");
-    expect(stylesheet).toContain("--soft-blush: #ffdbdb");
-    expect(stylesheet).toContain("--baby-pink: #fda8bf");
-    expect(stylesheet).toContain("--bubblegum-tint: #fb8cac");
-    expect(stylesheet).toContain("--bubblegum-pink: #ff5c89");
+    expect(stylesheet).toContain("--nr-pastel: #fdc3d1");
+    expect(stylesheet).toContain("--nr-soft: #ffdbdb");
+    expect(stylesheet).toContain("--nr-baby: #fda8bf");
+    expect(stylesheet).toContain("--nr-tint: #fb8cac");
+    expect(stylesheet).toContain("--nr-pink: #ff5c89");
   });
 
-  it("aplica la nueva dirección visual a la experiencia pública y a sus estados de interacción", () => {
-    expect(stylesheet).toContain(".nr-site { overflow: hidden; background: var(--pastel-pink);");
-    expect(stylesheet).toContain(".nr-hero { display: grid;");
-    expect(stylesheet).toContain(".nr-cta:hover { transform: translateY(-2px); background: var(--bubblegum-pink);");
-    expect(stylesheet).toContain(":focus-visible { outline: 3px solid var(--bubblegum-pink);");
+  it("aplica la dirección editorial bento y conserva los estados de interacción accesibles", () => {
+    expect(stylesheet).toContain(".nr-site { overflow: clip; background: var(--nr-cream);");
+    expect(stylesheet).toContain(".nr-hero { min-height: min(910px, 100svh);");
+    expect(stylesheet).toContain(".nr-bento { display: grid;");
+    expect(stylesheet).toContain(".nr-button:hover { transform: translateY(-2px);");
+    expect(stylesheet).toContain(":focus-visible { outline: 3px solid var(--nr-pink);");
+    expect(stylesheet).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });
