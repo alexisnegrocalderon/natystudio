@@ -19,7 +19,7 @@ import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, n
 import { BookingModal } from "@/components/BookingModal";
 import "../pilot.css";
 
-const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/rZKwwEEETGBvowjz.png";
+const LOGO_MASK_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/ygEfsdmCaFUfgfHM.jpg";
 const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
 const HERO_VIDEO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/kWAEdsyipIOyXTPc.mp4";
 const HERO_POSTER_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/sMWaMNNHcITBqwMe.jpg";
@@ -82,7 +82,7 @@ function BookingCTA({ children, onClick, tone = "dark" }: { children: React.Reac
 }
 
 function Wordmark({ compact = false }: { compact?: boolean }) {
-  return <a href="#inicio" className={`nr-wordmark ${compact ? "nr-wordmark--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></a>;
+  return <a href="#inicio" className={`nr-wordmark ${compact ? "nr-wordmark--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><span className="nr-wordmark-mark" style={{ maskImage: `url(${LOGO_MASK_URL})`, WebkitMaskImage: `url(${LOGO_MASK_URL})` }} /></a>;
 }
 
 export default function Home() {
@@ -131,7 +131,7 @@ export default function Home() {
         </video>
         <div className="nr-hero-overlay" />
         <div className="nr-hero-grid">
-          <div className="nr-hero-logo-stage" aria-label="Natalia Rodríguez Studio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></div>
+          <div className="nr-hero-logo-stage" role="img" aria-label="Natalia Rodríguez Studio"><span style={{ maskImage: `url(${LOGO_MASK_URL})`, WebkitMaskImage: `url(${LOGO_MASK_URL})` }} /></div>
           <div className="nr-hero-copy">
             <div className="nr-kicker"><Sparkles size={14} /> Estética profesional · Valparaíso</div>
             <p className="nr-eyebrow">CUIDADO QUE SE SIENTE CERCA</p>

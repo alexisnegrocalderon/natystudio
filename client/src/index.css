@@ -33,7 +33,7 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .nr-site { overflow: clip; background: var(--nr-cream); }
 .nr-header { width: min(1440px, calc(100% - 2rem)); height: 78px; padding: 0 1.1rem 0 1.35rem; position: absolute; z-index: 20; top: 1rem; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 1rem; border: 1px solid rgb(255 255 255 / .45); border-radius: 24px; background: rgb(255 249 250 / .82); box-shadow: 0 14px 36px rgb(63 20 37 / .12); backdrop-filter: blur(18px); }
 .nr-wordmark { display: inline-flex; width: 190px; height: 68px; align-items: center; overflow: hidden; flex: 0 0 auto; }
-.nr-wordmark img { width: 100%; height: 100%; object-fit: cover; object-position: center 38%; mix-blend-mode: normal; }
+.nr-wordmark-mark, .nr-hero-logo-stage > span { width: 100%; height: 100%; display: block; background: linear-gradient(125deg, #f9d1d8 10%, #d88c98 52%, #ffe5e9 100%); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-position: center; mask-position: center; -webkit-mask-mode: luminance; mask-mode: luminance; }
 .nr-wordmark--compact { width: 117px; height: 50px; }
 .nr-nav { display: flex; justify-content: center; align-items: center; gap: clamp(.65rem, 1.9vw, 1.75rem); flex: 1; }
 .nr-nav a, .nr-admin-link { color: var(--nr-wine); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; transition: color .18s var(--nr-ease); }
@@ -63,7 +63,6 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .nr-hero::after { content: ""; position: absolute; z-index: -1; width: 54vw; aspect-ratio: 1; right: -17vw; top: 8%; border-radius: 50%; background: radial-gradient(circle at 40% 40%, rgb(255 255 255 / .64), rgb(255 219 219 / 0) 66%); filter: blur(2px); }
 .nr-hero-grid { width: min(1420px, 100%); min-height: 690px; margin: auto; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 250px; grid-template-rows: 1fr auto; gap: 1.5rem; padding-top: clamp(9rem, 20vw, 18rem); }
 .nr-hero-logo-stage { width: min(930px, 78vw); height: clamp(225px, 24vw, 360px); position: absolute; z-index: 1; top: clamp(.35rem, 2vw, 1.75rem); left: 50%; overflow: hidden; transform: translateX(-50%); pointer-events: none; filter: drop-shadow(0 16px 28px rgb(76 29 49 / .16)); }
-.nr-hero-logo-stage img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 38%; }
 .nr-hero-copy { position: relative; z-index: 2; align-self: center; max-width: 790px; padding: 2rem clamp(.5rem, 3vw, 4rem); }
 .nr-kicker { width: fit-content; display: inline-flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: rgb(255 249 250 / .74); border: 1px solid rgb(76 29 49 / .14); border-radius: 999px; color: var(--nr-wine); font-family: "DM Mono", monospace; font-size: .57rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .nr-hero-copy .nr-eyebrow { margin: 0 0 .75rem; color: var(--nr-wine); }
