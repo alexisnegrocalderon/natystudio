@@ -179,3 +179,4 @@
 - [x] Reemplazar el logo temporal por un asset transparente y hacerlo protagonista del hero sin comprometer navegación, contraste ni responsividad.
 - [x] Diagnosticar y corregir la entrega de video e imágenes editoriales que siguen invisibles en el Preview de Vercel.
 - [x] Reemplazar el damero incrustado del logo por un PNG con transparencia alfa real y volver a verificar el hero en Preview.
+- [x] Restaurar un logo blanco visible y centrado en el hero, y reducir el filtro rosado para revelar mejor la textura de piel y el acrocordón.

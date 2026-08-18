@@ -82,7 +82,7 @@ function BookingCTA({ children, onClick, tone = "dark" }: { children: React.Reac
 }
 
 function Wordmark({ compact = false }: { compact?: boolean }) {
-  return <a href="#inicio" className={`nr-wordmark ${compact ? "nr-wordmark--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><span className="nr-wordmark-mark" style={{ maskImage: `url(${LOGO_MASK_URL})`, WebkitMaskImage: `url(${LOGO_MASK_URL})` }} /></a>;
+  return <a href="#inicio" className={`nr-wordmark ${compact ? "nr-wordmark--compact" : ""}`} aria-label="Natalia Rodríguez Studio, inicio"><span className="nr-wordmark-title">Natalia <b>Rodríguez</b><small>Studio</small></span></a>;
 }
 
 export default function Home() {
@@ -131,7 +131,7 @@ export default function Home() {
         </video>
         <div className="nr-hero-overlay" />
         <div className="nr-hero-grid">
-          <div className="nr-hero-logo-stage" role="img" aria-label="Natalia Rodríguez Studio"><span style={{ maskImage: `url(${LOGO_MASK_URL})`, WebkitMaskImage: `url(${LOGO_MASK_URL})` }} /></div>
+          <div className="nr-hero-logo-stage"><img className="nr-hero-logo-image" src={LOGO_MASK_URL} alt="Natalia Rodríguez Studio" /></div>
           <div className="nr-hero-copy">
             <div className="nr-kicker"><Sparkles size={14} /> Estética profesional · Valparaíso</div>
             <p className="nr-eyebrow">CUIDADO QUE SE SIENTE CERCA</p>
