@@ -19,18 +19,18 @@ export function signAncPaymentPayload(secret: string, payload: string) {
   return `sha256=${createHmac("sha256", secret).update(payload).digest("hex")}`;
 }
 
-async function requestAncPaymentBridge<T>(path: string, action: "connect" | "status") {
+async function requestAncPaymentBridge<T>(path: string, body: Record<string, unknown>) {
   const { baseUrl, sourceKey, sourceSecret } = config();
-  const body = JSON.stringify({ action, portal: "natalia-rodriguez-studio" });
+  const rawBody = JSON.stringify(body);
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-anc-source": sourceKey,
-      "x-anc-signature": signAncPaymentPayload(sourceSecret, body),
+      "x-anc-signature": signAncPaymentPayload(sourceSecret, rawBody),
       ...ancPreviewBypassHeaders(),
     },
-    body,
+    body: rawBody,
   });
   const payload = await response.json() as T & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? "ANC no pudo completar la operación de pagos.");
@@ -38,9 +38,17 @@ async function requestAncPaymentBridge<T>(path: string, action: "connect" | "sta
 }
 
 export async function startNataliaMercadoPagoConnection() {
-  return requestAncPaymentBridge<{ authorizationUrl: string; connectionId: number; connectionStatus: "pending" }>("/api/client/payments/mercadopago/connect", "connect");
+  return requestAncPaymentBridge<{ authorizationUrl: string; connectionId: number; connectionStatus: "pending" }>("/api/client/payments/mercadopago/connect", { action: "connect", portal: "natalia-rodriguez-studio" });
 }
 
 export async function getNataliaMercadoPagoConnectionStatus() {
-  return requestAncPaymentBridge<{ connection: AncConnection }>("/api/client/payments/mercadopago/status", "status");
+  return requestAncPaymentBridge<{ connection: AncConnection }>("/api/client/payments/mercadopago/status", { action: "status", portal: "natalia-rodriguez-studio" });
+}
+
+export async function createNataliaMercadoPagoCheckout(input: { externalOrderId: string; title: string; quantity: number; unitPrice: string }) {
+  return requestAncPaymentBridge<{ preferenceId: string; checkoutUrl: string; marketplaceFee: number; connectionId: number }>("/api/mercadopago/checkout", input);
+}
+
+export async function getNataliaMercadoPagoCheckoutStatus(externalOrderId: string) {
+  return requestAncPaymentBridge<{ order: { externalOrderId: string; paymentId?: string; status: "pending" | "paid" | "refunded" | "voided"; paidAt?: string | null } }>("/api/client/payments/mercadopago/orders/status", { externalOrderId });
 }

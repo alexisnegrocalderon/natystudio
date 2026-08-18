@@ -63,6 +63,21 @@ function usePreviewCatalog(enabled: boolean) {
   return { services, isLoading, isError };
 }
 
+type PublishedLandingCopy = { heroTitle?: string; heroSubtitle?: string; about?: string };
+
+function usePublishedLandingCopy() {
+  const [copy, setCopy] = useState<PublishedLandingCopy | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/landing-content", { signal: controller.signal })
+      .then((response) => response.ok ? response.json() as Promise<{ content?: PublishedLandingCopy | null }> : null)
+      .then((payload) => { if (payload?.content) setCopy(payload.content); })
+      .catch((error: unknown) => { if (!(error instanceof DOMException && error.name === "AbortError")) setCopy(null); });
+    return () => controller.abort();
+  }, []);
+  return copy;
+}
+
 function WhatsAppCTA({ children, href = bookingUrl, inverse = false }: { children: React.ReactNode; href?: string; inverse?: boolean }) {
   return <a className={`nr-cta ${inverse ? "nr-cta--inverse" : ""}`} href={href} target="_blank" rel="noreferrer"><span>{children}</span><ArrowUpRight size={18} /></a>;
 }
@@ -81,6 +96,7 @@ export default function Home() {
   const [activeLanguage, setActiveLanguage] = useState<Language>("ES");
   const pilotCatalogQuery = trpc.nataliaPilot.services.useQuery();
   const previewCatalog = usePreviewCatalog(pilotCatalogQuery.isError);
+  const publishedCopy = usePublishedLandingCopy();
   const pilotServices = pilotCatalogQuery.data ?? previewCatalog.services;
   const isPilotCatalogError = pilotCatalogQuery.isError && previewCatalog.isError;
   const isPilotCatalogLoading = pilotCatalogQuery.isLoading || (pilotCatalogQuery.isError && previewCatalog.isLoading);
@@ -111,8 +127,8 @@ export default function Home() {
         <div className="nr-hero-rail"><span>ENFERMERA ESTÉTICA</span><span>VALPARAÍSO · CHILE</span><span className="rail-star">✦</span></div>
         <div className="nr-hero-main">
           <p className="nr-overline">NATALIA RODRÍGUEZ STUDIO</p>
-          <h1>CUIDADO<br />PARA TU<br /><em>PIEL.</em></h1>
-          <div className="nr-hero-bottom"><p>Una atención cercana, profesional y clara para acompañarte desde la primera consulta.</p><BookingCTA inverse onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA></div>
+          <h1 className="whitespace-pre-line">{publishedCopy?.heroTitle || <>CUIDADO<br />PARA TU<br /><em>PIEL.</em></>}</h1>
+          <div className="nr-hero-bottom"><p>{publishedCopy?.heroSubtitle || "Una atención cercana, profesional y clara para acompañarte desde la primera consulta."}</p><BookingCTA inverse onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA></div>
         </div>
         <div className="nr-hero-media"><div className="media-title">TU ESPACIO<br />DE CUIDADO</div><div className="media-photo"><img src={PORTRAIT_URL} alt="Natalia Rodríguez, enfermera estética" /></div><div className="media-sticker"><span>AGENDA</span><strong>ABIERTA</strong><Plus size={16} /></div></div>
       </section>
@@ -127,7 +143,7 @@ export default function Home() {
 
       <section id="sobre-mi" className="nr-about">
         <div className="nr-about-panel"><Logo /><div className="panel-pink-circle" /><span>PROFESIONAL<br />Y CERCANA.</span></div>
-        <div className="nr-about-copy"><p className="nr-overline">02 · CONOCE A NATALIA</p><h2>EL CONOCIMIENTO<br />TAMBIÉN SE NOTA<br /><em>EN CÓMO TE CUIDAN.</em></h2>{aboutContent.paragraphs.map((paragraph) => <p className="body-copy" key={paragraph}>{paragraph}</p>)}<div className="nr-checks">{aboutContent.points.map((point) => <p key={point}><Check size={17} />{point}</p>)}</div><WhatsAppCTA inverse>Hablar con Natalia</WhatsAppCTA></div>
+        <div className="nr-about-copy"><p className="nr-overline">02 · CONOCE A NATALIA</p><h2>EL CONOCIMIENTO<br />TAMBIÉN SE NOTA<br /><em>EN CÓMO TE CUIDAN.</em></h2>{publishedCopy?.about ? <p className="body-copy whitespace-pre-line">{publishedCopy.about}</p> : aboutContent.paragraphs.map((paragraph) => <p className="body-copy" key={paragraph}>{paragraph}</p>)}<div className="nr-checks">{aboutContent.points.map((point) => <p key={point}><Check size={17} />{point}</p>)}</div><WhatsAppCTA inverse>Hablar con Natalia</WhatsAppCTA></div>
       </section>
 
       <section id="resultados" className="nr-results">

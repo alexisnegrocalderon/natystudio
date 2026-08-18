@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createNataliaAdminSession, getNataliaAdminSession, parsePortalCookie, portalSessionCookie, revokeNataliaAdminSession } from "./nataliaAdmin";
-import { createNataliaAvailability, createNataliaCourse, listNataliaAvailability, listNataliaCourses, updateNataliaService } from "./nataliaAdmin";
-import { countNataliaBookings, listNataliaBookings } from "./nataliaBooking";
+import { createNataliaAvailability, createNataliaCourse, createNataliaScheduleException, createNataliaWeeklyScheduleRule, deleteNataliaScheduleException, deleteNataliaWeeklyScheduleRule, listNataliaAdminServices, listNataliaAvailability, listNataliaCourses, listNataliaScheduleExceptions, listNataliaSiteContent, listNataliaWeeklySchedule, saveNataliaCourse, saveNataliaService as saveNataliaServiceRecord, saveNataliaSiteContent, updateNataliaBookingStatus } from "./nataliaAdmin";
+import { countNataliaBookings, listNataliaBookings, syncNataliaBookingPayment } from "./nataliaBooking";
 import { getNataliaMercadoPagoConnectionStatus, startNataliaMercadoPagoConnection } from "./ancPaymentBridge";
 import { getPilotOverview, listPilotServices } from "./nataliaPilot";
 
@@ -55,15 +55,18 @@ export async function nataliaAdminMe(req: RequestLike, res: ResponseLike) {
 export async function nataliaAdminDashboard(req: RequestLike, res: ResponseLike) {
   const user = await requireNataliaAdmin(req, res);
   if (!user) return;
-  const [overview, services, availability, courses, bookings, bookingsTotal] = await Promise.all([getPilotOverview(), listPilotServices(), listNataliaAvailability(), listNataliaCourses(), listNataliaBookings({ limit: 50 }), countNataliaBookings()]);
-  return res.status(200).json({ overview, services, availability, courses, bookings, bookingsTotal });
+  const [overview, services, availability, courses, bookings, bookingsTotal, weeklySchedule, scheduleExceptions, siteContent] = await Promise.all([
+    getPilotOverview(), listNataliaAdminServices(), listNataliaAvailability(), listNataliaCourses(), listNataliaBookings({ limit: 50 }), countNataliaBookings(),
+    listNataliaWeeklySchedule(), listNataliaScheduleExceptions(), listNataliaSiteContent(),
+  ]);
+  return res.status(200).json({ overview, services, availability, courses, bookings, bookingsTotal, weeklySchedule, scheduleExceptions, siteContent });
 }
 
 export async function saveNataliaService(req: RequestLike, res: ResponseLike) {
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
   if (!(await requireNataliaAdmin(req, res))) return;
   try {
-    return res.status(200).json({ service: await updateNataliaService(bodyObject(req.body) as any) });
+    return res.status(200).json({ service: await saveNataliaServiceRecord(bodyObject(req.body) as any) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar el servicio." });
   }
@@ -83,9 +86,86 @@ export async function addNataliaCourse(req: RequestLike, res: ResponseLike) {
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
   if (!(await requireNataliaAdmin(req, res))) return;
   try {
-    return res.status(201).json({ course: await createNataliaCourse(bodyObject(req.body) as any) });
+    const body = bodyObject(req.body);
+    const course = body.id ? await saveNataliaCourse(body as any) : await createNataliaCourse(body as any);
+    return res.status(201).json({ course });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar el curso." });
+  }
+}
+
+export async function addNataliaWeeklyScheduleRule(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  if (!(await requireNataliaAdmin(req, res))) return;
+  try {
+    return res.status(201).json({ rule: await createNataliaWeeklyScheduleRule(bodyObject(req.body) as any) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar la regla de agenda." });
+  }
+}
+
+export async function removeNataliaWeeklyScheduleRule(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  if (!(await requireNataliaAdmin(req, res))) return;
+  try {
+    return res.status(200).json(await deleteNataliaWeeklyScheduleRule(Number(bodyObject(req.body).id)));
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible eliminar la regla de agenda." });
+  }
+}
+
+export async function addNataliaScheduleException(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  if (!(await requireNataliaAdmin(req, res))) return;
+  try {
+    return res.status(201).json({ exception: await createNataliaScheduleException(bodyObject(req.body) as any) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar la excepción." });
+  }
+}
+
+export async function removeNataliaScheduleException(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  if (!(await requireNataliaAdmin(req, res))) return;
+  try {
+    return res.status(200).json(await deleteNataliaScheduleException(Number(bodyObject(req.body).id)));
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible eliminar la excepción." });
+  }
+}
+
+export async function saveNataliaContent(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireNataliaAdmin(req, res);
+  if (!user) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(200).json({ content: await saveNataliaSiteContent({ contentKey: String(body.contentKey ?? ""), contentValue: body.contentValue, publish: Boolean(body.publish), adminId: user.id }) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar el contenido." });
+  }
+}
+
+export async function changeNataliaBookingStatus(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireNataliaAdmin(req, res);
+  if (!user) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(200).json({ booking: await updateNataliaBookingStatus({ bookingId: Number(body.bookingId), status: String(body.status) as any, note: typeof body.note === "string" ? body.note : undefined, adminId: user.id }) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible actualizar la reserva." });
+  }
+}
+
+export async function syncNataliaBookingPaymentStatus(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  if (!(await requireNataliaAdmin(req, res))) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(200).json({ result: await syncNataliaBookingPayment(Number(body.bookingId)) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible sincronizar el pago." });
   }
 }
 
@@ -117,6 +197,13 @@ export function registerNataliaAdminRoutes(app: Express) {
   app.post("/api/admin/services", saveNataliaService);
   app.post("/api/admin/availability", addNataliaAvailability);
   app.post("/api/admin/courses", addNataliaCourse);
+  app.post("/api/admin/schedule/rules", addNataliaWeeklyScheduleRule);
+  app.post("/api/admin/schedule/rules/delete", removeNataliaWeeklyScheduleRule);
+  app.post("/api/admin/schedule/exceptions", addNataliaScheduleException);
+  app.post("/api/admin/schedule/exceptions/delete", removeNataliaScheduleException);
+  app.post("/api/admin/content", saveNataliaContent);
+  app.post("/api/admin/bookings/status", changeNataliaBookingStatus);
+  app.post("/api/admin/bookings/payment-sync", syncNataliaBookingPaymentStatus);
   app.get("/api/admin/payments/mercadopago", getNataliaPaymentConnection);
   app.post("/api/admin/payments/mercadopago/connect", startNataliaPaymentConnection);
 }

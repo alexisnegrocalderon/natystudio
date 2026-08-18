@@ -149,4 +149,21 @@
 - [x] Alinear `ANC_SALES_SOURCE_KEY` y `ANC_SALES_SOURCE_SECRET` con la fuente firmada creada para Natalia en ANC staging antes de solicitar OAuth de Mercado Pago.
 - [x] Reemplazar en Preview el secreto de fuente de ventas por el `sourceSecret` exacto emitido por el bootstrap de Natalia, sin exponerlo en chat.
 - [x] Implementar una rotación de un solo uso y protegida para la fuente firmada de Natalia en ANC staging si el secreto original no está disponible.
-- [ ] Corregir el endpoint OAuth de Mercado Pago en ANC staging para que el botón de conexión de Natalia no devuelva `api_route_not_found`.
+- [x] Corregir el endpoint OAuth de Mercado Pago en ANC staging para que el botón de conexión de Natalia no devuelva `api_route_not_found`.
+- [x] Configurar `MERCADOPAGO_CLIENT_ID`, `MERCADOPAGO_CLIENT_SECRET` y el retorno OAuth exclusivamente en el Preview central de ANC antes de autorizar la cuenta de Natalia.
+- [x] Hacer configurable y registrar el callback OAuth HTTPS de ANC staging en la aplicación de Mercado Pago antes de iniciar la autorización de Natalia.
+- [x] Añadir y validar un indicador server-side de sandbox para que el intercambio OAuth de Natalia no emita tokens de operación real.
+- [x] Actualizar `ANC_PAYMENTS_BASE_URL` del Preview de Natalia para usar `https://api.ancdigital.cl` como backend central OAuth estable.
+- [x] Diagnosticar el redeploy fallido de `main` en Vercel sin modificar producción y redeplegar exclusivamente `preview/natalia-pilot` tras actualizar su backend central.
+- [x] Asociar y verificar un dominio personalizado público de ANC para el callback OAuth, manteniendo protegidos los despliegues Preview de Vercel.
+- [x] Alinear `api.ancdigital.cl` con un despliegue público de la API central ANC que responda `/api/health` antes de registrar el callback OAuth.
+- [x] Asegurar que el dominio público de callback use exclusivamente las variables y la base Neon de staging de ANC mientras el piloto no esté autorizado para producción real.
+- [x] Configurar en el entorno Production de ANC las variables server-side mínimas del entorno staging y verificar `/api/health/database` antes de cargar OAuth.
+- [ ] Extender el modelo de servicios con creación, archivado, orden y modalidades de cobro server-side, preservando reservas históricas.
+- [ ] Implementar reglas de agenda semanal, descansos, bloqueos y disponibilidad calculada en America/Santiago sin afectar holds o reservas existentes.
+- [ ] Completar la gestión de reservas con filtros, detalle, confirmación, cancelación, atención y reprogramación trazable.
+- [ ] Convertir los textos públicos iniciales en contenido administrable con borrador y publicación controlada a Preview.
+- [ ] Completar CRUD de cursos, estados de publicación, inscripciones y área privada inicial de alumnas.
+- [ ] Conectar reservas y cursos con checkout sandbox centralizado en ANC y estados de pago verificados, sin activar cobros reales.
+- [ ] Añadir confirmaciones por correo y auditar cambios de agenda, reserva, curso, contenido e inscripción.
+- [ ] Validar el flujo completo en Preview, proteger secretos y documentar los gates requeridos antes de pagos reales.

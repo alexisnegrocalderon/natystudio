@@ -1,14 +1,21 @@
 import { neon } from "@neondatabase/serverless";
 import {
+  addNataliaScheduleException,
+  addNataliaWeeklyScheduleRule,
   addNataliaAvailability,
   addNataliaCourse,
+  changeNataliaBookingStatus,
   getNataliaPaymentConnection,
   loginNataliaAdmin,
   logoutNataliaAdmin,
   nataliaAdminDashboard,
   nataliaAdminMe,
+  removeNataliaScheduleException,
+  removeNataliaWeeklyScheduleRule,
   saveNataliaService,
+  saveNataliaContent,
   startNataliaPaymentConnection,
+  syncNataliaBookingPaymentStatus,
 } from "./nataliaAdminApi";
 import { createPublicBooking, holdPublicSlot, listAdminBookings, listPublicSlots } from "./nataliaBookingApi";
 
@@ -48,6 +55,25 @@ async function pilotServices(req: ApiRequest, res: ApiResponse) {
   }
 }
 
+async function pilotLandingContent(req: ApiRequest, res: ApiResponse) {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
+  const databaseUrl = process.env.NEON_DATABASE_URL;
+  if (!databaseUrl) return res.status(503).json({ error: "pilot_database_not_configured" });
+  try {
+    const sql = neon(databaseUrl);
+    const [content] = await sql`
+      SELECT content_value AS "contentValue", updated_at AS "updatedAt"
+      FROM pilot_site_content
+      WHERE content_key = ${"landing.copy"} AND publication_status = ${"published"}
+      LIMIT 1
+    `;
+    return res.status(200).json({ content: content?.contentValue ?? null, updatedAt: content?.updatedAt ?? null });
+  } catch {
+    return res.status(502).json({ error: "pilot_content_unavailable" });
+  }
+}
+
 function requestPath(req: ApiRequest & { query?: Record<string, string | string[] | undefined> }) {
   const queryPath = req.query?.path ?? new URL(req.url ?? "/api", "https://natalia.local").searchParams.get("path");
   if (typeof queryPath === "string" && queryPath) return `/${queryPath.replace(/^\/+/, "")}`;
@@ -59,6 +85,7 @@ export async function handleNataliaVercelApi(req: any, res: any) {
   const path = requestPath(req);
   if (path === "/health") return res.status(200).json({ service: "natalia-pilot-preview", status: "ready" });
   if (path === "/pilot-services") return pilotServices(req, res);
+  if (path === "/landing-content") return pilotLandingContent(req, res);
   if (path === "/slots") return listPublicSlots(req, res);
   if (path === "/slots/hold") return holdPublicSlot(req, res);
   if (path === "/bookings") return createPublicBooking(req, res);
@@ -69,7 +96,14 @@ export async function handleNataliaVercelApi(req: any, res: any) {
   if (path === "/admin/services") return saveNataliaService(req, res);
   if (path === "/admin/availability") return addNataliaAvailability(req, res);
   if (path === "/admin/courses") return addNataliaCourse(req, res);
+  if (path === "/admin/schedule/rules") return addNataliaWeeklyScheduleRule(req, res);
+  if (path === "/admin/schedule/rules/delete") return removeNataliaWeeklyScheduleRule(req, res);
+  if (path === "/admin/schedule/exceptions") return addNataliaScheduleException(req, res);
+  if (path === "/admin/schedule/exceptions/delete") return removeNataliaScheduleException(req, res);
+  if (path === "/admin/content") return saveNataliaContent(req, res);
   if (path === "/admin/bookings") return listAdminBookings(req, res);
+  if (path === "/admin/bookings/status") return changeNataliaBookingStatus(req, res);
+  if (path === "/admin/bookings/payment-sync") return syncNataliaBookingPaymentStatus(req, res);
   if (path === "/admin/payments/mercadopago") {
     return req.method === "GET" ? getNataliaPaymentConnection(req, res) : startNataliaPaymentConnection(req, res);
   }
