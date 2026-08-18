@@ -237,12 +237,146 @@ export async function saveNataliaService(input: AdminServiceInput) {
 export async function listNataliaAvailability() {
   const sql = getSql();
   return sql`
-    SELECT id, starts_at AS "startsAt", ends_at AS "endsAt", status, note, hold_expires_at AS "holdExpiresAt"
+    SELECT id, starts_at AS "startsAt", ends_at AS "endsAt", status, note, hold_expires_at AS "holdExpiresAt",
+      is_liberated_slot AS "isLiberatedSlot", liberated_at AS "liberatedAt", liberation_note AS "liberationNote"
     FROM pilot_availability_slots
     WHERE starts_at >= NOW() - INTERVAL '1 day'
     ORDER BY starts_at ASC
     LIMIT 80
   `;
+}
+
+export async function getNataliaAgendaSettings() {
+  const sql = getSql();
+  const [settings] = await sql`
+    SELECT public_booking_enabled AS "publicBookingEnabled", booking_window_days AS "bookingWindowDays", waitlist_enabled AS "waitlistEnabled"
+    FROM pilot_public_booking_settings WHERE id = 1 LIMIT 1
+  `;
+  return {
+    publicBookingEnabled: Boolean(settings?.publicBookingEnabled ?? true),
+    bookingWindowDays: Number(settings?.bookingWindowDays ?? 14),
+    waitlistEnabled: Boolean(settings?.waitlistEnabled ?? true),
+  };
+}
+
+export async function saveNataliaAgendaSettings(input: { publicBookingEnabled: boolean; bookingWindowDays: number; waitlistEnabled: boolean; adminId: number }) {
+  const bookingWindowDays = Math.floor(Number(input.bookingWindowDays));
+  if (!Number.isInteger(bookingWindowDays) || bookingWindowDays < 1 || bookingWindowDays > 90) throw new Error("La ventana de reserva debe estar entre 1 y 90 días.");
+  const sql = getSql();
+  const [settings] = await sql`
+    UPDATE pilot_public_booking_settings
+    SET public_booking_enabled = ${Boolean(input.publicBookingEnabled)}, booking_window_days = ${bookingWindowDays}, waitlist_enabled = ${Boolean(input.waitlistEnabled)}, updated_by_admin_id = ${input.adminId}, updated_at = NOW()
+    WHERE id = 1
+    RETURNING public_booking_enabled AS "publicBookingEnabled", booking_window_days AS "bookingWindowDays", waitlist_enabled AS "waitlistEnabled"
+  `;
+  await sql`
+    INSERT INTO pilot_agenda_audit (actor_admin_id, event_type, payload)
+    VALUES (${input.adminId}, ${"agenda_settings_updated"}, ${JSON.stringify({ publicBookingEnabled: Boolean(input.publicBookingEnabled), bookingWindowDays, waitlistEnabled: Boolean(input.waitlistEnabled) })}::jsonb)
+  `;
+  return settings;
+}
+
+export async function releaseNataliaAvailability(input: { startsAt: string; endsAt: string; note?: string; adminId: number }) {
+  const startsAt = new Date(input.startsAt);
+  const endsAt = new Date(input.endsAt);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt || startsAt <= new Date()) throw new Error("El cupo liberado no es válido.");
+  const note = input.note?.trim().slice(0, 500) || null;
+  const sql = getSql();
+  const [slot] = await sql`
+    INSERT INTO pilot_availability_slots (starts_at, ends_at, status, note, is_liberated_slot, liberated_at, liberated_by_admin_id, liberation_note)
+    VALUES (${startsAt.toISOString()}, ${endsAt.toISOString()}, ${"available"}, ${note}, TRUE, NOW(), ${input.adminId}, ${note})
+    RETURNING id, starts_at AS "startsAt", ends_at AS "endsAt", status, is_liberated_slot AS "isLiberatedSlot", liberation_note AS "liberationNote"
+  `;
+  await sql`
+    INSERT INTO pilot_agenda_audit (actor_admin_id, event_type, slot_id, payload)
+    VALUES (${input.adminId}, ${"slot_liberated"}, ${Number(slot.id)}, ${JSON.stringify({ note })}::jsonb)
+  `;
+  return slot;
+}
+
+export async function listNataliaWaitlistEntries() {
+  const sql = getSql();
+  return sql`
+    SELECT w.id, w.full_name AS "fullName", w.email, w.whatsapp, w.consent_email AS "consentEmail", w.consented_at AS "consentedAt",
+      w.status, w.priority, w.admin_note AS "adminNote", w.created_at AS "createdAt", s.name AS "serviceName"
+    FROM pilot_waitlist_entries w
+    LEFT JOIN pilot_services s ON s.id = w.service_id
+    WHERE w.status IN (${"active"}, ${"notified"})
+    ORDER BY w.priority DESC, w.created_at ASC
+    LIMIT 200
+  `;
+}
+
+export function buildNataliaWaitlistEmail(input: { fullName: string; startsAt: string }) {
+  const firstName = input.fullName.trim().split(/\s+/)[0] || "hola";
+  const date = new Intl.DateTimeFormat("es-CL", { dateStyle: "full", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(input.startsAt));
+  return {
+    subject: "Se liberó un cupo para tu atención con Natalia Rodríguez",
+    text: `Hola ${firstName},\n\nNatalia liberó un cupo real para el ${date}. Puedes revisar la agenda y reservar desde el sitio de Natalia Rodríguez Studio.\n\nRecibes este aviso porque te uniste voluntariamente a la lista de espera. Si ya no deseas recibir avisos, responde a este correo solicitando la baja.`,
+  };
+}
+
+export async function draftNataliaWaitlistNotifications(input: { slotId: number; adminId: number }) {
+  const slotId = Math.floor(Number(input.slotId));
+  if (!Number.isInteger(slotId) || slotId < 1) throw new Error("El cupo no es válido.");
+  const sql = getSql();
+  const [slot] = await sql`
+    SELECT id, starts_at AS "startsAt", status, is_liberated_slot AS "isLiberatedSlot"
+    FROM pilot_availability_slots WHERE id = ${slotId} LIMIT 1
+  `;
+  if (!slot || slot.status !== "available" || !slot.isLiberatedSlot || new Date(slot.startsAt) <= new Date()) throw new Error("Solo puedes avisar sobre un cupo liberado, disponible y futuro.");
+  const entries = await sql`
+    SELECT id, full_name AS "fullName" FROM pilot_waitlist_entries
+    WHERE status = ${"active"} AND consent_email = TRUE
+    ORDER BY priority DESC, created_at ASC
+    LIMIT 200
+  `;
+  let drafted = 0;
+  for (const entry of entries) {
+    const email = buildNataliaWaitlistEmail({ fullName: String(entry.fullName), startsAt: String(slot.startsAt) });
+    const [created] = await sql`
+      INSERT INTO pilot_waitlist_notifications (waitlist_entry_id, slot_id, status, subject, body_snapshot, created_by_admin_id)
+      VALUES (${Number(entry.id)}, ${slotId}, ${"draft"}, ${email.subject}, ${email.text}, ${input.adminId})
+      ON CONFLICT (waitlist_entry_id, slot_id, channel) DO NOTHING
+      RETURNING id
+    `;
+    if (created) drafted += 1;
+  }
+  await sql`
+    INSERT INTO pilot_agenda_audit (actor_admin_id, event_type, slot_id, payload)
+    VALUES (${input.adminId}, ${"waitlist_notifications_drafted"}, ${slotId}, ${JSON.stringify({ drafted })}::jsonb)
+  `;
+  return { drafted, totalEligible: entries.length };
+}
+
+export async function sendNataliaWaitlistNotifications(input: { slotId: number; adminId: number }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.NATALIA_NOTIFICATION_FROM_EMAIL;
+  if (!apiKey || !from) return { sent: 0, blocked: true, reason: "sender_not_configured" as const };
+  const sql = getSql();
+  const notifications = await sql`
+    SELECT n.id, n.subject, n.body_snapshot AS "bodySnapshot", w.email
+    FROM pilot_waitlist_notifications n
+    JOIN pilot_waitlist_entries w ON w.id = n.waitlist_entry_id
+    JOIN pilot_availability_slots s ON s.id = n.slot_id
+    WHERE n.slot_id = ${Math.floor(Number(input.slotId))} AND n.status = ${"draft"}
+      AND w.status = ${"active"} AND w.consent_email = TRUE AND s.status = ${"available"} AND s.starts_at > NOW()
+  `;
+  let sent = 0;
+  for (const notification of notifications) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [notification.email], subject: notification.subject, text: notification.bodySnapshot }) });
+      const payload = await response.json().catch(() => ({})) as { id?: string; message?: string };
+      if (!response.ok) throw new Error(payload.message || "Resend rechazó el envío.");
+      await sql`UPDATE pilot_waitlist_notifications SET status = ${"sent"}, provider_message_id = ${payload.id ?? null}, sent_at = NOW(), updated_at = NOW() WHERE id = ${Number(notification.id)}`;
+      await sql`UPDATE pilot_waitlist_entries SET status = ${"notified"}, updated_at = NOW() WHERE email = ${notification.email} AND status = ${"active"}`;
+      sent += 1;
+    } catch (error) {
+      await sql`UPDATE pilot_waitlist_notifications SET status = ${"failed"}, error_message = ${error instanceof Error ? error.message.slice(0, 500) : "send_failed"}, updated_at = NOW() WHERE id = ${Number(notification.id)}`;
+    }
+  }
+  await sql`INSERT INTO pilot_agenda_audit (actor_admin_id, event_type, slot_id, payload) VALUES (${input.adminId}, ${"waitlist_notifications_sent"}, ${Math.floor(Number(input.slotId))}, ${JSON.stringify({ sent, attempted: notifications.length })}::jsonb)`;
+  return { sent, blocked: false, attempted: notifications.length };
 }
 
 export async function createNataliaAvailability(input: AvailabilityInput) {

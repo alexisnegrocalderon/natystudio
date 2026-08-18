@@ -60,6 +60,15 @@ describe("handleNataliaVercelApi", () => {
     expect(waitlist.status).toHaveBeenCalledWith(405);
   });
 
+  it("mantiene protegidas y registradas las acciones de aviso de lista de espera", async () => {
+    const draft = response();
+    await handleNataliaVercelApi({ method: "POST", url: "/api/admin/agenda/waitlist/draft" }, draft);
+    expect(draft.status).toHaveBeenCalledWith(401);
+    const send = response();
+    await handleNataliaVercelApi({ method: "POST", url: "/api/admin/agenda/waitlist/send" }, send);
+    expect(send.status).toHaveBeenCalledWith(401);
+  });
+
   it("mantiene la respuesta segura si falta Neon en el catálogo", async () => {
     const previous = process.env.NEON_DATABASE_URL;
     delete process.env.NEON_DATABASE_URL;

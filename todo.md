@@ -187,8 +187,10 @@
 - [x] Añadir un CTA flotante de horas disponibles que abra la reserva y pago existentes con urgencia responsable y sin escasez ficticia.
 - [x] Reemplazar la tarjeta negra Agenda abierta por Agenda curada transparente conectada únicamente a próximo cupo real o lista de espera.
 - [x] Añadir ventana pública de reserva, cupos liberados y cálculo server-side de próximo cupo en America/Santiago sin afectar reservas existentes.
-- [ ] Crear lista de espera con servicio de interés, consentimiento explícito, estado, baja y auditoría en Neon aislado de Natalia.
+- [x] Crear lista de espera con servicio de interés, consentimiento explícito, estado, baja y auditoría en Neon aislado de Natalia.
 - [x] Exponer endpoints públicos mínimos de disponibilidad/lista de espera y acciones privadas para liberar cupos y administrar la lista.
-- [ ] Incorporar controles de agenda curada y lista de espera al Admin de Natalia sin exponer información de pacientes en la landing.
+- [x] Incorporar controles de agenda curada y lista de espera al Admin de Natalia sin exponer información de pacientes en la landing.
 - [ ] Preparar avisos de cupos liberados por correo con previsualización, deduplicación y envío solo tras confirmación de Natalia.
+- [ ] Configurar `RESEND_API_KEY` y remitente verificado directamente en Vercel Preview para validar el envío desde el entorno desplegado.
 - [ ] Validar que disponibilidad, urgencia y notificaciones se basen exclusivamente en cupos reales y consentimiento registrado.
+- [x] Conectar el resumen del Admin con las rutas privadas de borrador y envío para cada cupo real liberado, con regresión del enrutador serverless.

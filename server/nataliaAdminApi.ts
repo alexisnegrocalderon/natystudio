@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createNataliaAdminSession, getNataliaAdminSession, parsePortalCookie, portalSessionCookie, revokeNataliaAdminSession } from "./nataliaAdmin";
-import { createNataliaAvailability, createNataliaCourse, createNataliaScheduleException, createNataliaWeeklyScheduleRule, deleteNataliaScheduleException, deleteNataliaWeeklyScheduleRule, listNataliaAdminServices, listNataliaAvailability, listNataliaCourses, listNataliaScheduleExceptions, listNataliaSiteContent, listNataliaWeeklySchedule, saveNataliaCourse, saveNataliaService as saveNataliaServiceRecord, saveNataliaSiteContent, updateNataliaBookingStatus } from "./nataliaAdmin";
+import { createNataliaAvailability, createNataliaCourse, createNataliaScheduleException, createNataliaWeeklyScheduleRule, deleteNataliaScheduleException, deleteNataliaWeeklyScheduleRule, draftNataliaWaitlistNotifications, getNataliaAgendaSettings, listNataliaAdminServices, listNataliaAvailability, listNataliaCourses, listNataliaScheduleExceptions, listNataliaSiteContent, listNataliaWaitlistEntries, listNataliaWeeklySchedule, releaseNataliaAvailability, saveNataliaAgendaSettings, saveNataliaCourse, saveNataliaService as saveNataliaServiceRecord, saveNataliaSiteContent, sendNataliaWaitlistNotifications, updateNataliaBookingStatus } from "./nataliaAdmin";
 import { countNataliaBookings, listNataliaBookings, syncNataliaBookingPayment } from "./nataliaBooking";
 import { getNataliaMercadoPagoConnectionStatus, startNataliaMercadoPagoConnection } from "./ancPaymentBridge";
 import { getPilotOverview, listPilotServices } from "./nataliaPilot";
@@ -55,11 +55,11 @@ export async function nataliaAdminMe(req: RequestLike, res: ResponseLike) {
 export async function nataliaAdminDashboard(req: RequestLike, res: ResponseLike) {
   const user = await requireNataliaAdmin(req, res);
   if (!user) return;
-  const [overview, services, availability, courses, bookings, bookingsTotal, weeklySchedule, scheduleExceptions, siteContent] = await Promise.all([
+  const [overview, services, availability, courses, bookings, bookingsTotal, weeklySchedule, scheduleExceptions, siteContent, agendaSettings, waitlist] = await Promise.all([
     getPilotOverview(), listNataliaAdminServices(), listNataliaAvailability(), listNataliaCourses(), listNataliaBookings({ limit: 50 }), countNataliaBookings(),
-    listNataliaWeeklySchedule(), listNataliaScheduleExceptions(), listNataliaSiteContent(),
+    listNataliaWeeklySchedule(), listNataliaScheduleExceptions(), listNataliaSiteContent(), getNataliaAgendaSettings(), listNataliaWaitlistEntries(),
   ]);
-  return res.status(200).json({ overview, services, availability, courses, bookings, bookingsTotal, weeklySchedule, scheduleExceptions, siteContent });
+  return res.status(200).json({ overview, services, availability, courses, bookings, bookingsTotal, weeklySchedule, scheduleExceptions, siteContent, agendaSettings, waitlist });
 }
 
 export async function saveNataliaService(req: RequestLike, res: ResponseLike) {
@@ -79,6 +79,54 @@ export async function addNataliaAvailability(req: RequestLike, res: ResponseLike
     return res.status(201).json({ slot: await createNataliaAvailability(bodyObject(req.body) as any) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar el horario." });
+  }
+}
+
+export async function saveNataliaAgendaCuratedSettings(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireNataliaAdmin(req, res);
+  if (!user) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(200).json({ settings: await saveNataliaAgendaSettings({ publicBookingEnabled: Boolean(body.publicBookingEnabled), bookingWindowDays: Number(body.bookingWindowDays), waitlistEnabled: Boolean(body.waitlistEnabled), adminId: user.id }) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible guardar la agenda curada." });
+  }
+}
+
+export async function releaseNataliaAgendaSlot(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireNataliaAdmin(req, res);
+  if (!user) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(201).json({ slot: await releaseNataliaAvailability({ startsAt: String(body.startsAt ?? ""), endsAt: String(body.endsAt ?? ""), note: typeof body.note === "string" ? body.note : undefined, adminId: user.id }) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible liberar el cupo." });
+  }
+}
+
+export async function draftNataliaWaitlistEmails(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireNataliaAdmin(req, res);
+  if (!user) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(200).json({ result: await draftNataliaWaitlistNotifications({ slotId: Number(body.slotId), adminId: user.id }) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible preparar los avisos." });
+  }
+}
+
+export async function sendNataliaWaitlistEmails(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireNataliaAdmin(req, res);
+  if (!user) return;
+  try {
+    const body = bodyObject(req.body);
+    return res.status(200).json({ result: await sendNataliaWaitlistNotifications({ slotId: Number(body.slotId), adminId: user.id }) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "No fue posible enviar los avisos." });
   }
 }
 
@@ -196,6 +244,8 @@ export function registerNataliaAdminRoutes(app: Express) {
   app.get("/api/admin/dashboard", nataliaAdminDashboard);
   app.post("/api/admin/services", saveNataliaService);
   app.post("/api/admin/availability", addNataliaAvailability);
+  app.post("/api/admin/agenda/waitlist/draft", draftNataliaWaitlistEmails);
+  app.post("/api/admin/agenda/waitlist/send", sendNataliaWaitlistEmails);
   app.post("/api/admin/courses", addNataliaCourse);
   app.post("/api/admin/schedule/rules", addNataliaWeeklyScheduleRule);
   app.post("/api/admin/schedule/rules/delete", removeNataliaWeeklyScheduleRule);

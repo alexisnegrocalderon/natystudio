@@ -18,6 +18,7 @@ import { COURSE_SECTION_ID, getPilotCatalogState, INSTAGRAM_URL, whatsappWithMes
 import { trpc } from "@/lib/trpc";
 import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, navItems, serviceContent } from "@/content/natyContent";
 import { BookingModal } from "@/components/BookingModal";
+import { WaitlistModal } from "@/components/WaitlistModal";
 import "../pilot.css";
 
 const LOGO_MASK_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/YaLBvLEwDDyScDkT.png";
@@ -38,6 +39,7 @@ type PreviewService = {
 };
 
 type PublishedLandingCopy = { heroTitle?: string; heroSubtitle?: string; about?: string };
+type PublicAgenda = { publicBookingEnabled: boolean; bookingWindowDays: number; waitlistEnabled: boolean; nextSlot: { id: number; startsAt: string; endsAt: string; isLiberatedSlot: boolean } | null };
 
 function usePreviewCatalog(enabled: boolean) {
   const [services, setServices] = useState<PreviewService[] | undefined>();
@@ -78,6 +80,19 @@ function usePublishedLandingCopy() {
   return copy;
 }
 
+function usePublicAgenda() {
+  const [agenda, setAgenda] = useState<PublicAgenda | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/agenda", { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() as Promise<{ agenda?: PublicAgenda }> : null))
+      .then((payload) => { if (payload?.agenda) setAgenda(payload.agenda); })
+      .catch(() => setAgenda(null));
+    return () => controller.abort();
+  }, []);
+  return agenda;
+}
+
 function BookingCTA({ children, onClick, tone = "dark" }: { children: React.ReactNode; onClick: () => void; tone?: "dark" | "light" | "pink" }) {
   return <button type="button" className={`nr-button nr-button--${tone}`} onClick={onClick}><span>{children}</span><ArrowUpRight size={17} /></button>;
 }
@@ -89,9 +104,11 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
   const pilotCatalogQuery = trpc.nataliaPilot.services.useQuery();
   const previewCatalog = usePreviewCatalog(pilotCatalogQuery.isError);
   const publishedCopy = usePublishedLandingCopy();
+  const publicAgenda = usePublicAgenda();
   const pilotServices = pilotCatalogQuery.data ?? previewCatalog.services;
   const primaryService = pilotServices?.[0];
   const catalogState = getPilotCatalogState({
@@ -107,6 +124,9 @@ export default function Home() {
     priceNote: serviceContent.value,
     durationNote: serviceContent.duration,
   };
+  const nextSlotDate = publicAgenda?.nextSlot ? new Date(publicAgenda.nextSlot.startsAt) : null;
+  const agendaDate = nextSlotDate ? new Intl.DateTimeFormat("es-CL", { weekday: "short", day: "numeric", month: "short", timeZone: "America/Santiago" }).format(nextSlotDate) : null;
+  const agendaTime = nextSlotDate ? new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Santiago" }).format(nextSlotDate) : null;
 
   return (
     <main className="nr-site">
@@ -143,9 +163,9 @@ export default function Home() {
             <div className="nr-agenda-top"><span>Agenda curada</span><i>Disponibilidad real</i></div>
             <div className="nr-agenda-icon"><CalendarDays size={19} /></div>
             <p className="nr-agenda-label">Próximo cupo disponible</p>
-            <strong>Revisa<br /><em>horarios.</em></strong>
-            <p className="nr-agenda-description">Consulta los cupos activos y agenda tu atención con anticipación.</p>
-            <button type="button" className="nr-agenda-action" onClick={() => setBookingOpen(true)}>Ver agenda <ArrowUpRight size={16} /></button>
+            <strong>{agendaDate ? <>{agendaDate}<br /><em>{agendaTime}</em></> : <>{publicAgenda?.waitlistEnabled ? "Lista de" : "Agenda"}<br /><em>{publicAgenda?.waitlistEnabled ? "espera." : "cerrada."}</em></>}</strong>
+            <p className="nr-agenda-description">{agendaDate ? "Este es el primer cupo activo dentro de la ventana real de reserva." : publicAgenda?.waitlistEnabled ? "Déjanos tus datos y te avisaremos solo si Natalia libera un cupo real." : "La agenda no tiene cupos publicados en este momento."}</p>
+            <button type="button" className="nr-agenda-action" onClick={() => agendaDate ? setBookingOpen(true) : setWaitlistOpen(true)}>{agendaDate ? "Ver agenda" : "Unirme a la lista"} <ArrowUpRight size={16} /></button>
           </aside>
           <div className="nr-hero-scroll">Desliza para descubrir <span>↓</span></div>
         </div>
@@ -192,12 +212,13 @@ export default function Home() {
       <section className="nr-final-cta"><div className="nr-final-content"><p className="nr-eyebrow">TU PRÓXIMA ATENCIÓN</p><h2>Haz espacio para<br /><em>sentirte bien.</em></h2><p>Revisa la agenda disponible y reserva tu atención sin salir del sitio.</p><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Reservar mi hora</BookingCTA></div><div className="nr-final-visual"><img src={TEXTURE_URL} alt="Textura rosada abstracta" /><div className="nr-final-bubble">Tu<br />momento<br />empieza<br />aquí.</div></div></section>
 
       <footer className="nr-footer"><div className="nr-footer-main"><Wordmark compact /><p>{footerContent.description}</p><div className="nr-footer-links"><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div><div className="nr-footer-bottom"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} Natalia Rodríguez Studio</span></div></footer>
-      <button type="button" className="nr-availability-float" onClick={() => setBookingOpen(true)} aria-label="Ver horas disponibles y reservar">
+      <button type="button" className="nr-availability-float" onClick={() => agendaDate ? setBookingOpen(true) : setWaitlistOpen(true)} aria-label={agendaDate ? "Ver horas disponibles y reservar" : "Unirme a la lista de espera"}>
         <span className="nr-availability-pulse" aria-hidden="true" />
         <span><b>Horas</b><small>disponibles</small></span>
         <ArrowUpRight size={18} aria-hidden="true" />
       </button>
       <BookingModal open={bookingOpen} onOpenChange={setBookingOpen} services={pilotServices ?? []} />
+      <WaitlistModal open={waitlistOpen} onOpenChange={setWaitlistOpen} services={(pilotServices ?? []).map(({ slug, name }) => ({ slug, name }))} />
     </main>
   );
 }

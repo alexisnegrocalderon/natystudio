@@ -5,6 +5,7 @@ import {
   addNataliaAvailability,
   addNataliaCourse,
   changeNataliaBookingStatus,
+  draftNataliaWaitlistEmails,
   getNataliaPaymentConnection,
   loginNataliaAdmin,
   logoutNataliaAdmin,
@@ -12,8 +13,11 @@ import {
   nataliaAdminMe,
   removeNataliaScheduleException,
   removeNataliaWeeklyScheduleRule,
+  releaseNataliaAgendaSlot,
   saveNataliaService,
+  saveNataliaAgendaCuratedSettings,
   saveNataliaContent,
+  sendNataliaWaitlistEmails,
   startNataliaPaymentConnection,
   syncNataliaBookingPaymentStatus,
 } from "./nataliaAdminApi";
@@ -127,6 +131,10 @@ export async function handleNataliaVercelApi(req: any, res: any) {
   if (path === "/admin/dashboard") return nataliaAdminDashboard(req, res);
   if (path === "/admin/services") return saveNataliaService(req, res);
   if (path === "/admin/availability") return addNataliaAvailability(req, res);
+  if (path === "/admin/agenda/settings") return saveNataliaAgendaCuratedSettings(req, res);
+  if (path === "/admin/agenda/release") return releaseNataliaAgendaSlot(req, res);
+  if (path === "/admin/agenda/waitlist/draft") return draftNataliaWaitlistEmails(req, res);
+  if (path === "/admin/agenda/waitlist/send") return sendNataliaWaitlistEmails(req, res);
   if (path === "/admin/courses") return addNataliaCourse(req, res);
   if (path === "/admin/schedule/rules") return addNataliaWeeklyScheduleRule(req, res);
   if (path === "/admin/schedule/rules/delete") return removeNataliaWeeklyScheduleRule(req, res);
