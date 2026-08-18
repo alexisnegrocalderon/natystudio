@@ -53,13 +53,50 @@ async function releaseExpiredHolds() {
   `;
 }
 
+async function materializeWeeklyAvailability() {
+  const sql = getSql();
+  await sql`
+    WITH calendar AS (
+      SELECT generate_series(
+        date_trunc('day', NOW() AT TIME ZONE 'America/Santiago'),
+        date_trunc('day', NOW() AT TIME ZONE 'America/Santiago') + INTERVAL '56 days',
+        INTERVAL '1 day'
+      )::date AS local_date
+    ), candidates AS (
+      SELECT
+        ((c.local_date::timestamp + make_interval(mins => generated.start_minute)) AT TIME ZONE 'America/Santiago') AS starts_at,
+        ((c.local_date::timestamp + make_interval(mins => generated.start_minute + r.slot_duration_minutes)) AT TIME ZONE 'America/Santiago') AS ends_at
+      FROM calendar c
+      JOIN pilot_weekly_schedule_rules r ON r.weekday = EXTRACT(DOW FROM c.local_date)::smallint AND r.is_enabled = TRUE
+      CROSS JOIN LATERAL generate_series(r.starts_minute, r.ends_minute - r.slot_duration_minutes, r.slot_duration_minutes + r.buffer_minutes) AS generated(start_minute)
+    )
+    INSERT INTO pilot_availability_slots (starts_at, ends_at, status)
+    SELECT candidate.starts_at, candidate.ends_at, ${"available"}
+    FROM candidates candidate
+    WHERE candidate.starts_at > NOW()
+      AND NOT EXISTS (
+        SELECT 1 FROM pilot_schedule_exceptions exception
+        WHERE exception.kind = ${"blocked"} AND candidate.starts_at < exception.ends_at AND candidate.ends_at > exception.starts_at
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM pilot_availability_slots existing
+        WHERE existing.starts_at = candidate.starts_at AND existing.ends_at = candidate.ends_at
+      )
+  `;
+}
+
 export async function listPublicAvailability() {
   await releaseExpiredHolds();
+  await materializeWeeklyAvailability();
   const sql = getSql();
   return sql`
     SELECT id, starts_at AS "startsAt", ends_at AS "endsAt"
     FROM pilot_availability_slots
     WHERE status = ${"available"} AND starts_at > NOW()
+      AND NOT EXISTS (
+        SELECT 1 FROM pilot_schedule_exceptions exception
+        WHERE exception.kind = ${"blocked"} AND pilot_availability_slots.starts_at < exception.ends_at AND pilot_availability_slots.ends_at > exception.starts_at
+      )
     ORDER BY starts_at ASC
     LIMIT 80
   `;
