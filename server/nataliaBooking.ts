@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 import { normalizeWhatsApp } from "./nataliaPilot";
-import { createNataliaMercadoPagoCheckout, getNataliaMercadoPagoCheckoutStatus } from "./ancPaymentBridge";
+import { createNataliaMercadoPagoBrickPayment, getNataliaMercadoPagoBrickConfig, getNataliaMercadoPagoCheckoutStatus } from "./ancPaymentBridge";
 
 const HOLD_MINUTES = 15;
 
@@ -14,6 +14,16 @@ export type BookingConfirmationInput = {
   whatsapp: string;
   note?: string;
   idempotencyKey: string;
+};
+
+export type BookingBrickPaymentInput = {
+  bookingId: number;
+  idempotencyKey: string;
+  token: string;
+  installments: number;
+  paymentMethodId: string;
+  issuerId?: string | number;
+  payer: { email: string; identification?: { type: string; number: string } };
 };
 
 function getSql() {
@@ -171,19 +181,8 @@ export async function confirmSimulatedBooking(input: BookingConfirmationInput) {
       return { id: Number(booking.id), status: String(booking.status), createdAt: booking.createdAt, idempotent: false, checkoutUrl: null, paymentRequired: false };
     }
 
-    const externalOrderId = `naty-booking-${booking.id}-${randomBytes(9).toString("base64url")}`;
-    try {
-      const checkout = await createNataliaMercadoPagoCheckout({ externalOrderId, title: String(service.name), quantity: 1, unitPrice: String(chargedAmount) });
-      await sql`
-        INSERT INTO pilot_payment_attempts (booking_id, provider, status, amount_clp, anc_payment_id, anc_checkout_id, idempotency_key, metadata)
-        VALUES (${Number(booking.id)}, ${"mercado_pago"}, ${"pending"}, ${chargedAmount}, ${checkout.preferenceId}, ${checkout.preferenceId}, ${externalOrderId}, ${JSON.stringify({ marketplaceFee: checkout.marketplaceFee, connectionId: checkout.connectionId })}::jsonb)
-      `;
-      await sql`INSERT INTO pilot_notification_outbox (event_type, payload, delivery_status) VALUES (${"booking.checkout_created.staging"}, ${JSON.stringify({ bookingId: booking.id, slotId: slot.id, preferenceId: checkout.preferenceId })}::jsonb, ${"blocked"})`;
-      return { id: Number(booking.id), status: String(booking.status), createdAt: booking.createdAt, idempotent: false, checkoutUrl: checkout.checkoutUrl, paymentRequired: true };
-    } catch (checkoutError) {
-      await sql`UPDATE pilot_booking_requests SET status = ${"cancelled"}, status_reason = ${"checkout_creation_failed"} WHERE id = ${Number(booking.id)}`;
-      throw checkoutError;
-    }
+    await sql`INSERT INTO pilot_notification_outbox (event_type, payload, delivery_status) VALUES (${"booking.payment_session_created.staging"}, ${JSON.stringify({ bookingId: booking.id, slotId: slot.id, amountClp: chargedAmount })}::jsonb, ${"blocked"})`;
+    return { id: Number(booking.id), status: String(booking.status), createdAt: booking.createdAt, idempotent: false, checkoutUrl: null, paymentRequired: true, paymentSession: { bookingId: Number(booking.id), amountClp: chargedAmount, title: String(service.name), currency: "CLP" } };
   } catch (error) {
     const [retried] = await sql`
       SELECT id, status, created_at AS "createdAt"
@@ -194,6 +193,55 @@ export async function confirmSimulatedBooking(input: BookingConfirmationInput) {
     if (retried) return { id: Number(retried.id), status: String(retried.status), createdAt: retried.createdAt, idempotent: true };
     throw error;
   }
+}
+
+export async function getPublicBookingBrickConfig(bookingId: number) {
+  if (!Number.isInteger(bookingId) || bookingId < 1) throw new Error("La reserva no es válida.");
+  const sql = getSql();
+  const [booking] = await sql`
+    SELECT b.id, b.status, s.name AS "serviceName", s.payment_amount_clp AS "amountClp"
+    FROM pilot_booking_requests b JOIN pilot_services s ON s.id = b.service_id
+    WHERE b.id = ${bookingId} LIMIT 1
+  `;
+  if (!booking || String(booking.status) !== "pending_payment") throw new Error("Esta reserva no está disponible para pago online.");
+  const amountClp = Number(booking.amountClp);
+  if (!Number.isInteger(amountClp) || amountClp <= 0) throw new Error("La reserva no tiene un monto de pago válido.");
+  const config = await getNataliaMercadoPagoBrickConfig();
+  return { publicKey: config.publicKey, environment: config.environment, marketplace: config.marketplace, amountClp, title: String(booking.serviceName) };
+}
+
+export async function processPublicBookingBrickPayment(input: BookingBrickPaymentInput) {
+  if (!Number.isInteger(input.bookingId) || input.bookingId < 1) throw new Error("La reserva no es válida.");
+  if (!/^[\w-]{12,180}$/.test(input.idempotencyKey)) throw new Error("La referencia de pago no es válida.");
+  if (!input.token || input.token.length < 16 || input.token.length > 400) throw new Error("No recibimos un token de pago válido.");
+  if (!Number.isInteger(input.installments) || input.installments < 1 || input.installments > 36) throw new Error("Las cuotas no son válidas.");
+  if (!input.paymentMethodId?.trim() || !/^\S+@\S+\.\S+$/.test(input.payer?.email ?? "")) throw new Error("Los datos de pago no son válidos.");
+  const sql = getSql();
+  const [booking] = await sql`
+    SELECT b.id, b.status, b.availability_slot_id AS "slotId", s.name AS "serviceName", s.payment_amount_clp AS "amountClp"
+    FROM pilot_booking_requests b JOIN pilot_services s ON s.id = b.service_id
+    WHERE b.id = ${input.bookingId} LIMIT 1
+  `;
+  if (!booking || String(booking.status) !== "pending_payment") throw new Error("Esta reserva no está disponible para pago online.");
+  const amountClp = Number(booking.amountClp);
+  if (!Number.isInteger(amountClp) || amountClp <= 0) throw new Error("La reserva no tiene un monto de pago válido.");
+  const externalOrderId = `naty-booking-${booking.id}-${input.idempotencyKey}`;
+  const remote = await createNataliaMercadoPagoBrickPayment({
+    externalOrderId, title: String(booking.serviceName), unitPrice: String(amountClp), token: input.token, installments: input.installments,
+    paymentMethodId: input.paymentMethodId, issuerId: input.issuerId, payer: { email: input.payer.email.trim().toLowerCase(), identification: input.payer.identification },
+  });
+  await sql`
+    INSERT INTO pilot_payment_attempts (booking_id, provider, status, amount_clp, anc_payment_id, anc_checkout_id, idempotency_key, metadata)
+    VALUES (${Number(booking.id)}, ${"mercado_pago"}, ${remote.status}, ${amountClp}, ${remote.paymentId}, ${null}, ${externalOrderId}, ${JSON.stringify({ applicationFee: remote.applicationFee, statusDetail: remote.statusDetail, environment: "sandbox" })}::jsonb)
+    ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL
+    DO UPDATE SET status = EXCLUDED.status, anc_payment_id = EXCLUDED.anc_payment_id, updated_at = NOW(), metadata = EXCLUDED.metadata
+  `;
+  if (remote.status === "approved") {
+    await sql`UPDATE pilot_booking_requests SET status = ${"confirmed"}, attendance_status = ${"upcoming"} WHERE id = ${Number(booking.id)} AND status = ${"pending_payment"}`;
+    await sql`UPDATE pilot_availability_slots SET status = ${"booked"}, hold_token = NULL, hold_expires_at = NULL WHERE id = ${Number(booking.slotId)} AND status IN (${"held"}, ${"available"})`;
+    await sql`INSERT INTO pilot_notification_outbox (event_type, payload, delivery_status) VALUES (${"booking.payment_confirmed.staging"}, ${JSON.stringify({ bookingId: booking.id, paymentId: remote.paymentId, externalOrderId })}::jsonb, ${"blocked"})`;
+  }
+  return { bookingId: Number(booking.id), paymentId: remote.paymentId, paymentStatus: remote.status, paymentStatusDetail: remote.statusDetail, bookingStatus: remote.status === "approved" ? "confirmed" : "pending_payment" };
 }
 
 export async function listNataliaBookings(input: { limit?: number; offset?: number } = {}) {

@@ -35,6 +35,15 @@ describe("handleNataliaVercelApi", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "method_not_allowed" });
   });
 
+  it("reconoce las rutas públicas del Payment Brick sin abrir rutas administrativas", async () => {
+    const config = response();
+    await handleNataliaVercelApi({ method: "GET", url: "/api/bookings/payment-config" }, config);
+    expect(config.status).toHaveBeenCalledWith(405);
+    const payment = response();
+    await handleNataliaVercelApi({ method: "GET", url: "/api/bookings/payment" }, payment);
+    expect(payment.status).toHaveBeenCalledWith(405);
+  });
+
   it("mantiene la respuesta segura si falta Neon en el catálogo", async () => {
     const previous = process.env.NEON_DATABASE_URL;
     delete process.env.NEON_DATABASE_URL;

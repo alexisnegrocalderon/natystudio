@@ -52,3 +52,20 @@ export async function createNataliaMercadoPagoCheckout(input: { externalOrderId:
 export async function getNataliaMercadoPagoCheckoutStatus(externalOrderId: string) {
   return requestAncPaymentBridge<{ order: { externalOrderId: string; paymentId?: string; status: "pending" | "paid" | "refunded" | "voided"; paidAt?: string | null } }>("/api/client/payments/mercadopago/orders/status", { externalOrderId });
 }
+
+export async function getNataliaMercadoPagoBrickConfig() {
+  return requestAncPaymentBridge<{ publicKey: string; marketplace: true; environment: "sandbox" | "production" }>("/api/client/payments/mercadopago/brick-config", {});
+}
+
+export async function createNataliaMercadoPagoBrickPayment(input: {
+  externalOrderId: string;
+  title: string;
+  unitPrice: string;
+  token: string;
+  installments: number;
+  paymentMethodId: string;
+  issuerId?: string | number;
+  payer: { email: string; identification?: { type: string; number: string } };
+}) {
+  return requestAncPaymentBridge<{ paymentId: string; status: string; statusDetail: string | null; paidAt: string | null; applicationFee: number }>("/api/client/payments/mercadopago/brick-payment", input);
+}

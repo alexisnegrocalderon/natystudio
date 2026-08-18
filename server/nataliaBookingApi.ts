@@ -1,5 +1,5 @@
 import { getNataliaAdminSession, parsePortalCookie } from "./nataliaAdmin";
-import { confirmSimulatedBooking, countNataliaBookings, holdPublicAvailability, listNataliaBookings, listPublicAvailability } from "./nataliaBooking";
+import { confirmSimulatedBooking, countNataliaBookings, getPublicBookingBrickConfig, holdPublicAvailability, listNataliaBookings, listPublicAvailability, processPublicBookingBrickPayment } from "./nataliaBooking";
 
 type RequestLike = { method?: string; body?: unknown; headers?: { cookie?: string }; query?: Record<string, unknown> };
 type ResponseLike = { status(code: number): ResponseLike; json(body: unknown): void };
@@ -28,6 +28,16 @@ export async function createPublicBooking(req: RequestLike, res: ResponseLike) {
   try { return res.status(201).json({ booking: await confirmSimulatedBooking(bodyObject(req.body) as any) }); } catch (error) { return fail(res, error); }
 }
 
+export async function getPublicBookingPaymentConfig(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  try { return res.status(200).json({ payment: await getPublicBookingBrickConfig(Number(bodyObject(req.body).bookingId)) }); } catch (error) { return fail(res, error); }
+}
+
+export async function submitPublicBookingBrickPayment(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  try { return res.status(201).json({ payment: await processPublicBookingBrickPayment(bodyObject(req.body) as any) }); } catch (error) { return fail(res, error); }
+}
+
 export async function listAdminBookings(req: RequestLike, res: ResponseLike) {
   if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
   const user = await getNataliaAdminSession(parsePortalCookie(req.headers?.cookie));
@@ -44,5 +54,7 @@ export function registerNataliaBookingRoutes(app: { get(path: string, handler: a
   app.get("/api/slots", listPublicSlots);
   app.post("/api/slots/hold", holdPublicSlot);
   app.post("/api/bookings", createPublicBooking);
+  app.post("/api/bookings/payment-config", getPublicBookingPaymentConfig);
+  app.post("/api/bookings/payment", submitPublicBookingBrickPayment);
   app.get("/api/admin/bookings", listAdminBookings);
 }
