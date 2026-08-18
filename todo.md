@@ -182,3 +182,4 @@
 - [x] Restaurar un logo blanco visible y centrado en el hero, y reducir el filtro rosado para revelar mejor la textura de piel y el acrocordón.
 - [x] Sustituir el JPG de fondo negro por un PNG blanco con alfa real y ubicarlo en la zona superior izquierda marcada del hero.
 - [x] Reducir el velo rosado del hero a una intensidad mínima y recuperar saturación/contraste natural del video de piel.
+- [x] Reordenar y espaciar la jerarquía tipográfica bajo el logo, presentando retiro de acrocordones de manera elegante y profesional.

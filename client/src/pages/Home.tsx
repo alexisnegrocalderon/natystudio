@@ -133,8 +133,7 @@ export default function Home() {
         <div className="nr-hero-grid">
           <div className="nr-hero-logo-stage"><img className="nr-hero-logo-image" src={LOGO_MASK_URL} alt="Natalia Rodríguez Studio" /></div>
           <div className="nr-hero-copy">
-            <div className="nr-kicker"><Sparkles size={14} /> Estética profesional · Valparaíso</div>
-            <p className="nr-eyebrow">CUIDADO QUE SE SIENTE CERCA</p>
+            <div className="nr-kicker"><Sparkles size={14} /> Retiro de acrocordones <span>·</span> Valparaíso, Chile</div>
             <h1>{publishedCopy?.heroTitle || <>Tu piel,<br /><em>tu momento.</em></>}</h1>
             <p className="nr-hero-description">{publishedCopy?.heroSubtitle || "Una atención cercana, técnica y delicada para que vuelvas a sentirte cómoda en tu propia piel."}</p>
             <div className="nr-hero-cta-row"><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA><a className="nr-text-link" href="#servicios">Conocer servicios <ArrowDownRight size={17} /></a></div>
