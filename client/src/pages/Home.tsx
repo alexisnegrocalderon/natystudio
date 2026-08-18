@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  CalendarDays,
   Check,
   ChevronDown,
   GraduationCap,
@@ -138,7 +139,14 @@ export default function Home() {
             <p className="nr-hero-description">{publishedCopy?.heroSubtitle || "Una atención cercana, técnica y delicada para que vuelvas a sentirte cómoda en tu propia piel."}</p>
             <div className="nr-hero-cta-row"><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Reservar con Natalia</BookingCTA><a className="nr-text-link" href="#servicios">Conocer servicios <ArrowDownRight size={17} /></a></div>
           </div>
-          <aside className="nr-hero-note"><span>Agenda</span><strong>Abierta</strong><p>Elige tu atención, revisa los cupos y reserva desde aquí.</p><div className="nr-orbit-dot" /></aside>
+          <aside className="nr-hero-note" aria-label="Agenda curada">
+            <div className="nr-agenda-top"><span>Agenda curada</span><i>Disponibilidad real</i></div>
+            <div className="nr-agenda-icon"><CalendarDays size={19} /></div>
+            <p className="nr-agenda-label">Próximo cupo disponible</p>
+            <strong>Revisa<br /><em>horarios.</em></strong>
+            <p className="nr-agenda-description">Consulta los cupos activos y agenda tu atención con anticipación.</p>
+            <button type="button" className="nr-agenda-action" onClick={() => setBookingOpen(true)}>Ver agenda <ArrowUpRight size={16} /></button>
+          </aside>
           <div className="nr-hero-scroll">Desliza para descubrir <span>↓</span></div>
         </div>
       </section>

@@ -185,3 +185,10 @@
 - [x] Reordenar y espaciar la jerarquía tipográfica bajo el logo, presentando retiro de acrocordones de manera elegante y profesional.
 - [x] Destacar Curso en la navegación y reforzar su presencia editorial en la landing sin alterar su flujo actual.
 - [x] Añadir un CTA flotante de horas disponibles que abra la reserva y pago existentes con urgencia responsable y sin escasez ficticia.
+- [x] Reemplazar la tarjeta negra Agenda abierta por Agenda curada transparente conectada únicamente a próximo cupo real o lista de espera.
+- [ ] Añadir ventana pública de reserva, cupos liberados y cálculo server-side de próximo cupo en America/Santiago sin afectar reservas existentes.
+- [ ] Crear lista de espera con servicio de interés, consentimiento explícito, estado, baja y auditoría en Neon aislado de Natalia.
+- [ ] Exponer endpoints públicos mínimos de disponibilidad/lista de espera y acciones privadas para liberar cupos y administrar la lista.
+- [ ] Incorporar controles de agenda curada y lista de espera al Admin de Natalia sin exponer información de pacientes en la landing.
+- [ ] Preparar avisos de cupos liberados por correo con previsualización, deduplicación y envío solo tras confirmación de Natalia.
+- [ ] Validar que disponibilidad, urgencia y notificaciones se basen exclusivamente en cupos reales y consentimiento registrado.
