@@ -183,3 +183,5 @@
 - [x] Sustituir el JPG de fondo negro por un PNG blanco con alfa real y ubicarlo en la zona superior izquierda marcada del hero.
 - [x] Reducir el velo rosado del hero a una intensidad mínima y recuperar saturación/contraste natural del video de piel.
 - [x] Reordenar y espaciar la jerarquía tipográfica bajo el logo, presentando retiro de acrocordones de manera elegante y profesional.
+- [x] Destacar Curso en la navegación y reforzar su presencia editorial en la landing sin alterar su flujo actual.
+- [x] Añadir un CTA flotante de horas disponibles que abra la reserva y pago existentes con urgencia responsable y sin escasez ficticia.

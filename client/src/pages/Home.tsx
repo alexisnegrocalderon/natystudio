@@ -112,7 +112,7 @@ export default function Home() {
       <header className="nr-header">
         <Wordmark compact />
         <nav className="nr-nav" aria-label="Navegación principal">
-          {navItems.map(([label, href]) => <a key={href} href={href}>{label}</a>)}
+          {navItems.map(([label, href]) => <a key={href} href={href} className={label === "Curso" ? "nr-nav-course" : ""}>{label === "Curso" ? <><GraduationCap size={13} /> {label}</> : label}</a>)}
         </nav>
         <div className="nr-header-actions">
           <a className="nr-admin-link" href="/admin">Mi estudio</a>
@@ -120,7 +120,7 @@ export default function Home() {
         </div>
         <button className="nr-menu" type="button" aria-expanded={menuOpen} aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={23} /> : <Menu size={23} />}</button>
         {menuOpen ? <div className="nr-mobile-nav">
-          {navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>)}
+          {navItems.map(([label, href]) => <a key={href} href={href} className={label === "Curso" ? "nr-nav-course" : ""} onClick={() => setMenuOpen(false)}>{label === "Curso" ? <><GraduationCap size={13} /> {label}</> : label}</a>)}
           <BookingCTA tone="pink" onClick={() => { setMenuOpen(false); setBookingOpen(true); }}>Reservar mi hora</BookingCTA>
         </div> : null}
       </header>
@@ -184,6 +184,11 @@ export default function Home() {
       <section className="nr-final-cta"><div className="nr-final-content"><p className="nr-eyebrow">TU PRÓXIMA ATENCIÓN</p><h2>Haz espacio para<br /><em>sentirte bien.</em></h2><p>Revisa la agenda disponible y reserva tu atención sin salir del sitio.</p><BookingCTA tone="dark" onClick={() => setBookingOpen(true)}>Reservar mi hora</BookingCTA></div><div className="nr-final-visual"><img src={TEXTURE_URL} alt="Textura rosada abstracta" /><div className="nr-final-bubble">Tu<br />momento<br />empieza<br />aquí.</div></div></section>
 
       <footer className="nr-footer"><div className="nr-footer-main"><Wordmark compact /><p>{footerContent.description}</p><div className="nr-footer-links"><a href={bookingUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div></div><div className="nr-footer-bottom"><span><MapPin size={15} /> {footerContent.location}</span><span>© {new Date().getFullYear()} Natalia Rodríguez Studio</span></div></footer>
+      <button type="button" className="nr-availability-float" onClick={() => setBookingOpen(true)} aria-label="Ver horas disponibles y reservar">
+        <span className="nr-availability-pulse" aria-hidden="true" />
+        <span><b>Horas</b><small>disponibles</small></span>
+        <ArrowUpRight size={18} aria-hidden="true" />
+      </button>
       <BookingModal open={bookingOpen} onOpenChange={setBookingOpen} services={pilotServices ?? []} />
     </main>
   );
