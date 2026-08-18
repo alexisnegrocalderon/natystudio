@@ -19,7 +19,7 @@ import { aboutContent, courseContent, faqContent, footerContent, gallerySlots, n
 import { BookingModal } from "@/components/BookingModal";
 import "../pilot.css";
 
-const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/gimEZJCjXoLkQZdV.jpeg";
+const LOGO_URL = "/manus-storage/natalia-rodriguez-studio-logo-transparent_cb9d0eb2.png";
 const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
 const HERO_VIDEO_URL = "/manus-storage/natalia-macro-skin-hero_d9e924bc.mp4";
 const HERO_POSTER_URL = "/manus-storage/natalia-editorial-hero-poster_eb0a1d2c.jpg";
@@ -131,9 +131,9 @@ export default function Home() {
         </video>
         <div className="nr-hero-overlay" />
         <div className="nr-hero-grid">
+          <div className="nr-hero-logo-stage" aria-label="Natalia Rodríguez Studio"><img src={LOGO_URL} alt="Natalia Rodríguez Studio" /></div>
           <div className="nr-hero-copy">
             <div className="nr-kicker"><Sparkles size={14} /> Estética profesional · Valparaíso</div>
-            <div className="nr-hero-logo-panel"><Wordmark /></div>
             <p className="nr-eyebrow">CUIDADO QUE SE SIENTE CERCA</p>
             <h1>{publishedCopy?.heroTitle || <>Tu piel,<br /><em>tu momento.</em></>}</h1>
             <p className="nr-hero-description">{publishedCopy?.heroSubtitle || "Una atención cercana, técnica y delicada para que vuelvas a sentirte cómoda en tu propia piel."}</p>
