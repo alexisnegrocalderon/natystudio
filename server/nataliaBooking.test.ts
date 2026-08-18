@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateBookingConfirmation } from "./nataliaBooking";
+import { validateBookingConfirmation, validateWaitlistJoin } from "./nataliaBooking";
 
 describe("validateBookingConfirmation", () => {
   const validInput = {
@@ -27,5 +27,30 @@ describe("validateBookingConfirmation", () => {
   it("rechaza un correo o teléfono inválido", () => {
     expect(() => validateBookingConfirmation({ ...validInput, email: "no-es-correo" })).toThrow("El correo no es válido.");
     expect(() => validateBookingConfirmation({ ...validInput, whatsapp: "123" })).toThrow("El teléfono no es válido.");
+  });
+});
+
+describe("validateWaitlistJoin", () => {
+  it("normaliza una solicitud consentida sin requerir acceso a la base", () => {
+    expect(validateWaitlistJoin({
+      fullName: "  Daniela Rojas ",
+      email: "DANIELA@EXAMPLE.COM ",
+      whatsapp: "+56 9 8765 4321",
+      serviceSlug: " retiro-acrocordones ",
+      consentEmail: true,
+    })).toEqual({
+      fullName: "Daniela Rojas",
+      email: "daniela@example.com",
+      whatsapp: "+56987654321",
+      serviceSlug: "retiro-acrocordones",
+    });
+  });
+
+  it("exige consentimiento expreso antes de registrar avisos", () => {
+    expect(() => validateWaitlistJoin({
+      fullName: "Daniela Rojas",
+      email: "daniela@example.com",
+      consentEmail: false,
+    })).toThrow("Debes aceptar recibir avisos de disponibilidad");
   });
 });

@@ -17,7 +17,7 @@ import {
   startNataliaPaymentConnection,
   syncNataliaBookingPaymentStatus,
 } from "./nataliaAdminApi";
-import { createPublicBooking, getPublicBookingPaymentConfig, holdPublicSlot, listAdminBookings, listPublicSlots, submitPublicBookingBrickPayment } from "./nataliaBookingApi";
+import { createPublicBooking, createPublicWaitlistEntry, getPublicAgenda, getPublicBookingPaymentConfig, holdPublicSlot, listAdminBookings, listPublicSlots, submitPublicBookingBrickPayment } from "./nataliaBookingApi";
 
 type ApiRequest = { method?: string; url?: string };
 type ApiResponse = {
@@ -115,7 +115,9 @@ export async function handleNataliaVercelApi(req: any, res: any) {
   if (path === "/pilot-services") return pilotServices(req, res);
   if (path === "/landing-content") return pilotLandingContent(req, res);
   if (path === "/slots") return listPublicSlots(req, res);
+  if (path === "/agenda") return getPublicAgenda(req, res);
   if (path === "/slots/hold") return holdPublicSlot(req, res);
+  if (path === "/waitlist") return createPublicWaitlistEntry(req, res);
   if (path === "/bookings") return createPublicBooking(req, res);
   if (path === "/bookings/payment-config") return getPublicBookingPaymentConfig(req, res);
   if (path === "/bookings/payment") return submitPublicBookingBrickPayment(req, res);

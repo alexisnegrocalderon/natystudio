@@ -26,6 +26,14 @@ export type BookingBrickPaymentInput = {
   payer: { email: string; identification?: { type: string; number: string } };
 };
 
+export type WaitlistJoinInput = {
+  fullName: string;
+  email: string;
+  whatsapp?: string;
+  serviceSlug?: string;
+  consentEmail: boolean;
+};
+
 function getSql() {
   const connectionString = process.env.NEON_DATABASE_URL;
   if (!connectionString) throw new Error("La conexión Neon del piloto no está configurada.");
@@ -102,7 +110,10 @@ export async function listPublicAvailability() {
   return sql`
     SELECT id, starts_at AS "startsAt", ends_at AS "endsAt"
     FROM pilot_availability_slots
-    WHERE status = ${"available"} AND starts_at > NOW()
+    CROSS JOIN pilot_public_booking_settings settings
+    WHERE settings.public_booking_enabled = TRUE
+      AND status = ${"available"} AND starts_at > NOW()
+      AND starts_at < NOW() + make_interval(days => settings.booking_window_days)
       AND NOT EXISTS (
         SELECT 1 FROM pilot_schedule_exceptions exception
         WHERE exception.kind = ${"blocked"} AND pilot_availability_slots.starts_at < exception.ends_at AND pilot_availability_slots.ends_at > exception.starts_at
@@ -110,6 +121,74 @@ export async function listPublicAvailability() {
     ORDER BY starts_at ASC
     LIMIT 80
   `;
+}
+
+export async function getPublicAgendaSnapshot() {
+  await releaseExpiredHolds();
+  await materializeWeeklyAvailability();
+  const sql = getSql();
+  const [settings] = await sql`
+    SELECT public_booking_enabled AS "publicBookingEnabled", booking_window_days AS "bookingWindowDays", waitlist_enabled AS "waitlistEnabled"
+    FROM pilot_public_booking_settings
+    WHERE id = 1
+    LIMIT 1
+  `;
+  const agenda = {
+    publicBookingEnabled: Boolean(settings?.publicBookingEnabled ?? true),
+    bookingWindowDays: Number(settings?.bookingWindowDays ?? 14),
+    waitlistEnabled: Boolean(settings?.waitlistEnabled ?? true),
+  };
+  const [nextSlot] = await sql`
+    SELECT id, starts_at AS "startsAt", ends_at AS "endsAt", is_liberated_slot AS "isLiberatedSlot"
+    FROM pilot_availability_slots
+    WHERE ${agenda.publicBookingEnabled} = TRUE
+      AND status = ${"available"}
+      AND starts_at > NOW()
+      AND starts_at < NOW() + make_interval(days => ${agenda.bookingWindowDays})
+      AND NOT EXISTS (
+        SELECT 1 FROM pilot_schedule_exceptions exception
+        WHERE exception.kind = ${"blocked"} AND pilot_availability_slots.starts_at < exception.ends_at AND pilot_availability_slots.ends_at > exception.starts_at
+      )
+    ORDER BY starts_at ASC
+    LIMIT 1
+  `;
+  return {
+    ...agenda,
+    nextSlot: nextSlot ? {
+      id: Number(nextSlot.id),
+      startsAt: String(nextSlot.startsAt),
+      endsAt: String(nextSlot.endsAt),
+      isLiberatedSlot: Boolean(nextSlot.isLiberatedSlot),
+    } : null,
+  };
+}
+
+export function validateWaitlistJoin(input: WaitlistJoinInput) {
+  const fullName = requiredText(input.fullName, "El nombre", 160);
+  const email = requiredText(input.email, "El correo", 180).toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("El correo no es válido.");
+  if (input.consentEmail !== true) throw new Error("Debes aceptar recibir avisos de disponibilidad para unirte a la lista de espera.");
+  const whatsapp = input.whatsapp?.trim() ? normalizeWhatsApp(requiredText(input.whatsapp, "El teléfono", 40)) : null;
+  const serviceSlug = input.serviceSlug?.trim().slice(0, 80) || null;
+  return { fullName, email, whatsapp, serviceSlug };
+}
+
+export async function joinPublicWaitlist(input: WaitlistJoinInput) {
+  const { fullName, email, whatsapp, serviceSlug } = validateWaitlistJoin(input);
+  const sql = getSql();
+  const [service] = serviceSlug ? await sql`
+    SELECT id FROM pilot_services WHERE slug = ${serviceSlug} AND enabled = TRUE LIMIT 1
+  ` : [null];
+  const [entry] = await sql`
+    INSERT INTO pilot_waitlist_entries (full_name, email, whatsapp, service_id, consent_email, consented_at, status)
+    VALUES (${fullName}, ${email}, ${whatsapp}, ${service ? Number(service.id) : null}, TRUE, NOW(), ${"active"})
+    RETURNING id, status
+  `;
+  await sql`
+    INSERT INTO pilot_agenda_audit (event_type, waitlist_entry_id, payload)
+    VALUES (${"waitlist_joined"}, ${Number(entry.id)}, ${JSON.stringify({ consentEmail: true, serviceSlug })}::jsonb)
+  `;
+  return { id: Number(entry.id), status: String(entry.status) };
 }
 
 export async function holdPublicAvailability(input: SlotHoldInput) {

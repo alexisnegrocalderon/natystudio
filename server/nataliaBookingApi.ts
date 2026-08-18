@@ -1,5 +1,5 @@
 import { getNataliaAdminSession, parsePortalCookie } from "./nataliaAdmin";
-import { confirmSimulatedBooking, countNataliaBookings, getPublicBookingBrickConfig, holdPublicAvailability, listNataliaBookings, listPublicAvailability, processPublicBookingBrickPayment } from "./nataliaBooking";
+import { confirmSimulatedBooking, countNataliaBookings, getPublicAgendaSnapshot, getPublicBookingBrickConfig, holdPublicAvailability, joinPublicWaitlist, listNataliaBookings, listPublicAvailability, processPublicBookingBrickPayment } from "./nataliaBooking";
 
 type RequestLike = { method?: string; body?: unknown; headers?: { cookie?: string }; query?: Record<string, unknown> };
 type ResponseLike = { status(code: number): ResponseLike; json(body: unknown): void };
@@ -16,6 +16,16 @@ function fail(res: ResponseLike, error: unknown) {
 export async function listPublicSlots(req: RequestLike, res: ResponseLike) {
   if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
   try { return res.status(200).json({ slots: await listPublicAvailability() }); } catch (error) { return fail(res, error); }
+}
+
+export async function getPublicAgenda(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
+  try { return res.status(200).json({ agenda: await getPublicAgendaSnapshot() }); } catch (error) { return fail(res, error); }
+}
+
+export async function createPublicWaitlistEntry(req: RequestLike, res: ResponseLike) {
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  try { return res.status(201).json({ entry: await joinPublicWaitlist(bodyObject(req.body) as any) }); } catch (error) { return fail(res, error); }
 }
 
 export async function holdPublicSlot(req: RequestLike, res: ResponseLike) {
@@ -52,7 +62,9 @@ export async function listAdminBookings(req: RequestLike, res: ResponseLike) {
 
 export function registerNataliaBookingRoutes(app: { get(path: string, handler: any): void; post(path: string, handler: any): void }) {
   app.get("/api/slots", listPublicSlots);
+  app.get("/api/agenda", getPublicAgenda);
   app.post("/api/slots/hold", holdPublicSlot);
+  app.post("/api/waitlist", createPublicWaitlistEntry);
   app.post("/api/bookings", createPublicBooking);
   app.post("/api/bookings/payment-config", getPublicBookingPaymentConfig);
   app.post("/api/bookings/payment", submitPublicBookingBrickPayment);

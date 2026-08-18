@@ -51,6 +51,15 @@ describe("handleNataliaVercelApi", () => {
     expect(payment.status).toHaveBeenCalledWith(405);
   });
 
+  it("reconoce las rutas públicas de Agenda curada y exige sus métodos correctos", async () => {
+    const agenda = response();
+    await handleNataliaVercelApi({ method: "POST", url: "/api/agenda" }, agenda);
+    expect(agenda.status).toHaveBeenCalledWith(405);
+    const waitlist = response();
+    await handleNataliaVercelApi({ method: "GET", url: "/api/waitlist" }, waitlist);
+    expect(waitlist.status).toHaveBeenCalledWith(405);
+  });
+
   it("mantiene la respuesta segura si falta Neon en el catálogo", async () => {
     const previous = process.env.NEON_DATABASE_URL;
     delete process.env.NEON_DATABASE_URL;
