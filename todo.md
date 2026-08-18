@@ -175,3 +175,4 @@
 - [x] Reestilizar el embudo de reserva y el contenedor de Payment Brick sin alterar tokenización, API ni el modo sandbox.
 - [x] Reestilizar login, resumen, agenda, servicios, reservas, cursos, pagos y contenido del Admin de Natalia con el mismo sistema visual.
 - [ ] Validar el rediseño en desktop, tablet y móvil, con foco visible, reducción de movimiento y build de Preview correcto.
+- [x] Sustituir las rutas locales `/manus-storage/` por URLs persistentes de assets web y comprobar su carga desde el Preview de Vercel.

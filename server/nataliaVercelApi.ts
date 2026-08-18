@@ -74,6 +74,33 @@ async function pilotLandingContent(req: ApiRequest, res: ApiResponse) {
   }
 }
 
+async function publicNataliaAsset(req: ApiRequest, res: any, path: string) {
+  if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
+  const key = path.replace(/^\/storage\/+/, "");
+  if (!/^natalia-[a-z0-9._-]+$/i.test(key)) {
+    return res.status(400).json({ error: "asset_not_allowed" });
+  }
+
+  const forgeApiUrl = process.env.BUILT_IN_FORGE_API_URL;
+  const forgeApiKey = process.env.BUILT_IN_FORGE_API_KEY;
+  if (!forgeApiUrl || !forgeApiKey) return res.status(503).json({ error: "storage_proxy_not_configured" });
+
+  try {
+    const forgeUrl = new URL("v1/storage/presign/get", `${forgeApiUrl.replace(/\/+$/, "")}/`);
+    forgeUrl.searchParams.set("path", key);
+    const storageResponse = await fetch(forgeUrl, { headers: { Authorization: `Bearer ${forgeApiKey}` } });
+    if (!storageResponse.ok) return res.status(502).json({ error: "storage_backend_error" });
+    const { url } = await storageResponse.json() as { url?: string };
+    if (!url) return res.status(502).json({ error: "storage_url_unavailable" });
+    res.setHeader("Location", url);
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
+    res.status(307);
+    return res.end();
+  } catch {
+    return res.status(502).json({ error: "storage_proxy_error" });
+  }
+}
+
 function requestPath(req: ApiRequest & { query?: Record<string, string | string[] | undefined> }) {
   const queryPath = req.query?.path ?? new URL(req.url ?? "/api", "https://natalia.local").searchParams.get("path");
   if (typeof queryPath === "string" && queryPath) return `/${queryPath.replace(/^\/+/, "")}`;
@@ -84,6 +111,7 @@ function requestPath(req: ApiRequest & { query?: Record<string, string | string[
 export async function handleNataliaVercelApi(req: any, res: any) {
   const path = requestPath(req);
   if (path === "/health") return res.status(200).json({ service: "natalia-pilot-preview", status: "ready" });
+  if (path.startsWith("/storage/")) return publicNataliaAsset(req, res, path);
   if (path === "/pilot-services") return pilotServices(req, res);
   if (path === "/landing-content") return pilotLandingContent(req, res);
   if (path === "/slots") return listPublicSlots(req, res);

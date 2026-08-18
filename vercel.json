@@ -11,6 +11,7 @@
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api?path=:path*" },
+    { "source": "/manus-storage/:path*", "destination": "/api?path=storage/:path*" },
     { "source": "/:path*", "destination": "/index.html" }
   ]
 }

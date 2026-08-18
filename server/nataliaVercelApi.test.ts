@@ -28,6 +28,13 @@ describe("handleNataliaVercelApi", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "api_route_not_found" });
   });
 
+  it("limita el proxy público a los assets editoriales de Natalia", async () => {
+    const res = response();
+    await handleNataliaVercelApi({ method: "GET", url: "/api?path=storage/otro-proyecto.jpg", query: { path: "storage/otro-proyecto.jpg" } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "asset_not_allowed" });
+  });
+
   it("reconoce la ruta heredada de conexión Mercado Pago", async () => {
     const res = response();
     await handleNataliaVercelApi({ method: "GET", url: "/api/admin/payments/mercadopago/connect" }, res);

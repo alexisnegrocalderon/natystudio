@@ -21,10 +21,10 @@ import "../pilot.css";
 
 const LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/gimEZJCjXoLkQZdV.jpeg";
 const PORTRAIT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663820533004/SeLkcsNjZfEfQVyP.jpeg";
-const HERO_VIDEO_URL = "/manus-storage/natalia-macro-skin-hero_12cf4a5f.mp4";
-const HERO_POSTER_URL = "/manus-storage/natalia-editorial-hero-poster_42db3d86.jpg";
-const TEXTURE_URL = "/manus-storage/natalia-editorial-texture-pink_2a3badef.jpg";
-const ORBIT_URL = "/manus-storage/natalia-editorial-orbit_f2d9b696.jpg";
+const HERO_VIDEO_URL = "/manus-storage/natalia-macro-skin-hero_d9e924bc.mp4";
+const HERO_POSTER_URL = "/manus-storage/natalia-editorial-hero-poster_eb0a1d2c.jpg";
+const TEXTURE_URL = "/manus-storage/natalia-editorial-texture-pink_97e2613b.jpg";
+const ORBIT_URL = "/manus-storage/natalia-editorial-orbit_fd4ae829.jpg";
 const bookingUrl = whatsappWithMessage("Hola Natalia, quiero reservar una evaluación para retiro de acrocordones.");
 const questionUrl = whatsappWithMessage("Hola Natalia, tengo una pregunta antes de reservar una evaluación.");
 
