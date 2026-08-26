@@ -172,3 +172,68 @@ h1, h2, h3, h4, p { margin-top: 0; }
   @keyframes nr-pulse { 50% { transform: scale(1.18); opacity: .72; } }
 }
 @media (prefers-reduced-motion: reduce) { .nr-hero-video { display: none; } html { scroll-behavior: auto; } }
+
+/* Movimiento editorial clínico: dirige la lectura por capítulos sin interferir con agenda ni reservas. */
+.nr-header {
+  transition: top .28s var(--nr-ease), background .28s var(--nr-ease), box-shadow .28s var(--nr-ease), border-color .28s var(--nr-ease);
+}
+.nr-header.is-scrolled {
+  top: .6rem;
+  border-color: rgb(255 92 137 / .32);
+  background: rgb(255 249 250 / .95);
+  box-shadow: 0 14px 34px rgb(63 20 37 / .18);
+}
+.nr-header-progress {
+  width: calc(100% - 2.2rem);
+  height: 2px;
+  position: absolute;
+  right: 1.1rem;
+  bottom: -1px;
+  transform-origin: left center;
+  border-radius: 999px;
+  background: var(--nr-pink);
+  opacity: .9;
+  transition: transform .12s linear;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nr-hero-copy,
+  .nr-hero-note { animation: none; }
+
+  .nr-hero-stage { opacity: 0; animation: nr-editorial-rise .68s var(--nr-ease) both; }
+  .nr-hero-stage--logo { animation-delay: 40ms; }
+  .nr-hero-stage--kicker { animation-delay: 100ms; }
+  .nr-hero-stage--title { animation-delay: 170ms; }
+  .nr-hero-stage--description { animation-delay: 240ms; }
+  .nr-hero-stage--actions { animation-delay: 310ms; }
+  .nr-hero-stage--agenda { animation-delay: 210ms; }
+  .nr-hero-stage--scroll { animation-delay: 390ms; }
+
+  @keyframes nr-editorial-rise {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  [data-nr-reveal].nr-reveal-ready {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity .56s var(--nr-ease), transform .56s var(--nr-ease);
+    transition-delay: var(--nr-reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+  [data-nr-reveal].nr-reveal-ready.is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  [data-nr-delay="0"] { --nr-reveal-delay: 0ms; }
+  [data-nr-delay="70"] { --nr-reveal-delay: 70ms; }
+  [data-nr-delay="90"] { --nr-reveal-delay: 90ms; }
+  [data-nr-delay="140"] { --nr-reveal-delay: 140ms; }
+  [data-nr-delay="210"] { --nr-reveal-delay: 210ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-header { transition: none; }
+  .nr-hero-stage,
+  [data-nr-reveal] { opacity: 1; transform: none; }
+}
