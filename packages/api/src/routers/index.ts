@@ -5,6 +5,7 @@ import { authRouter } from "./auth";
 import { availabilityRouter, bookingRouter, leadRouter } from "./booking";
 import { catalogRouter } from "./catalog";
 import { contentRouter } from "./content";
+import { paymentRouter } from "./payment";
 
 export const appRouter = router({
   /** Bandera que el frontend consulta para saber si mostrar el paso de pago. */
@@ -16,6 +17,7 @@ export const appRouter = router({
   catalog: catalogRouter,
   availability: availabilityRouter,
   booking: bookingRouter,
+  payment: paymentRouter,
   lead: leadRouter,
   content: contentRouter,
   auth: authRouter,

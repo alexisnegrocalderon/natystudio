@@ -3,8 +3,10 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type { CreateBookingInput } from "@naty/shared";
 import { generateToken } from "../auth/session";
+import { ENV } from "../env";
 import { db, appointments, customers, services, type Appointment } from "../db";
 import { enqueueBookingEmails } from "./email";
+import { resolvePaymentPlan, type PaymentPlan } from "./payments";
 import { getSettings, isSlotAvailable } from "./scheduling";
 
 /** Código de PostgreSQL para la violación de un constraint de exclusión. */
@@ -19,7 +21,9 @@ const SLOT_TAKEN = new TRPCError({
   message: "Ese horario acaba de ser reservado. Elige otro, por favor.",
 });
 
-export async function createBooking(input: CreateBookingInput): Promise<Appointment> {
+export async function createBooking(
+  input: CreateBookingInput,
+): Promise<{ appointment: Appointment; plan: PaymentPlan }> {
   const found = await db.select().from(services).where(eq(services.id, input.serviceId)).limit(1);
   const service = found[0];
 
@@ -39,6 +43,8 @@ export async function createBooking(input: CreateBookingInput): Promise<Appointm
   const settings = await getSettings();
   const endsAt = new Date(startsAt.getTime() + service.durationMin * 60_000);
   const blockedUntil = new Date(endsAt.getTime() + service.bufferMin * 60_000);
+
+  const plan = resolvePaymentPlan(service, ENV.paymentsEnabled);
 
   const appointment = await db.transaction(async tx => {
     // Una misma persona vuelve: se reutiliza su ficha y se actualizan sus datos.
@@ -69,9 +75,10 @@ export async function createBooking(input: CreateBookingInput): Promise<Appointm
           startsAt,
           endsAt,
           blockedUntil,
-          // Mientras los pagos estén apagados la reserva nace esperando que Naty
-          // la confirme, salvo que la aprobación automática esté activada.
-          status: settings.autoApprove ? "confirmed" : "pending_approval",
+          // Con pago requerido la hora queda retenida hasta que se pague (o
+          // vence en 15 minutos). Si no, el flujo de siempre: Naty confirma a
+          // mano, salvo que la aprobación automática esté activada.
+          status: plan.required ? "pending_payment" : settings.autoApprove ? "confirmed" : "pending_approval",
           priceClp: service.priceClp,
           cancelToken: generateToken(),
           customerNotes: input.customer.notes,
@@ -93,7 +100,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Appointm
     name: input.customer.name,
   });
 
-  return appointment;
+  return { appointment, plan };
 }
 
 export async function rescheduleAppointment(id: number, startsAt: Date): Promise<Appointment> {

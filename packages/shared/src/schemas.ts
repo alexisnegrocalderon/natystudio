@@ -35,6 +35,24 @@ export const createBookingSchema = z.object({
 });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 
+export const processPaymentSchema = z.object({
+  publicId: z.string().trim().min(6).max(32),
+  cancelToken: z.string().trim().min(10).max(64),
+  kind: z.enum(["deposit", "full"]),
+  /** Tal cual lo entrega el Payment Brick en `onSubmit`. */
+  formData: z.object({
+    token: z.string().min(10),
+    payment_method_id: z.string().min(1),
+    issuer_id: z.union([z.string(), z.number()]).optional(),
+    installments: z.number().int().min(1).max(12).default(1),
+    payer: z.object({
+      email: z.email(),
+      identification: z.object({ type: z.string(), number: z.string() }).optional(),
+    }),
+  }),
+});
+export type ProcessPaymentInput = z.infer<typeof processPaymentSchema>;
+
 export const leadCaptureSchema = z.object({
   email: z.email().trim().toLowerCase().max(320),
   phone: phoneSchema.optional(),

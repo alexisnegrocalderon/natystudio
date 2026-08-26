@@ -100,6 +100,12 @@ export async function enqueueBookingEmails(
   service: Service,
   customer: { email: string; name: string },
 ): Promise<void> {
+  // Una reserva que espera pago todavía no es un compromiso: si no paga en
+  // 15 minutos, el hold se libera solo. Avisarle aquí sería un "recibimos tu
+  // solicitud" para una reserva que se evapora sin que nadie haga nada; el
+  // aviso real sale de `enqueuePaymentEmails` cuando el pago se aprueba.
+  if (appointment.status === "pending_payment") return;
+
   const now = new Date();
   const confirmed = appointment.status === "confirmed";
 
@@ -117,6 +123,24 @@ export async function enqueueBookingEmails(
   if (confirmed) {
     await scheduleReminders(appointment, customer.email);
   }
+}
+
+/**
+ * Avisos que se disparan cuando un pago queda aprobado: el comprobante, la
+ * confirmación con el `.ics` (la reserva recién ahora es un compromiso
+ * firme) y el aviso interno, más los recordatorios de siempre.
+ */
+export async function enqueuePaymentEmails(appointment: Appointment, recipientEmail: string): Promise<void> {
+  const now = new Date();
+
+  await enqueue(appointment.id, "payment_received", recipientEmail, now);
+  await enqueue(appointment.id, "booking_confirmed", recipientEmail, now);
+
+  if (ENV.adminNotifyEmail) {
+    await enqueue(appointment.id, "admin_new_booking", ENV.adminNotifyEmail, now);
+  }
+
+  await scheduleReminders(appointment, recipientEmail);
 }
 
 /**

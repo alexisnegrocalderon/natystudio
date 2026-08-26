@@ -12,6 +12,8 @@
     "./scheduler": "./src/scheduler.ts",
     "./services/calendar": "./src/services/calendar.ts",
     "./services/csv": "./src/services/csv.ts",
+    "./services/mercadopago": "./src/services/mercadopago.ts",
+    "./services/payments": "./src/services/payments.ts",
     "./routers/admin-customers": "./src/routers/admin-customers.ts"
   },
   "scripts": {

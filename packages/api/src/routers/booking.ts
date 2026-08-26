@@ -12,6 +12,7 @@ import { ENV } from "../env";
 import { db, appointments, customers, leads, services } from "../db";
 import { createBooking } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow } from "../services/email";
+import { HOLD_TIMEOUT_MS } from "../services/payments";
 import { isRateLimited } from "../services/rateLimit";
 import { getAvailability } from "../services/scheduling";
 import { publicProcedure, router } from "../trpc";
@@ -55,20 +56,31 @@ async function loadPublicBooking(publicId: string) {
 
 export const bookingRouter = router({
   create: publicProcedure.input(createBookingSchema).mutation(async ({ input }) => {
-    const appointment = await createBooking(input);
+    const { appointment, plan } = await createBooking(input);
 
-    // La reserva completada cierra el embudo: se marca el lead para no
-    // perseguir a quien ya reservó.
-    await db
-      .update(leads)
-      .set({ convertedAt: new Date() })
-      .where(and(eq(leads.email, input.customer.email), isNull(leads.convertedAt)));
+    // Si la reserva queda esperando pago todavía puede evaporarse en 15
+    // minutos: el lead se marca "convertido" recién cuando el pago se
+    // aprueba (ver payments.ts). Sin pago de por medio, tomar la hora ya es
+    // el cierre del embudo.
+    if (!plan.required) {
+      await db
+        .update(leads)
+        .set({ convertedAt: new Date() })
+        .where(and(eq(leads.email, input.customer.email), isNull(leads.convertedAt)));
+    }
 
     return {
       publicId: appointment.publicId,
       status: appointment.status,
       startsAt: appointment.startsAt,
       cancelToken: appointment.cancelToken,
+      payment: plan.required
+        ? {
+            depositClp: plan.depositClp,
+            fullClp: plan.fullClp,
+            holdExpiresAt: new Date(appointment.createdAt.getTime() + HOLD_TIMEOUT_MS),
+          }
+        : null,
     };
   }),
 
