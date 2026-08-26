@@ -170,6 +170,13 @@ export const customerSendEmailSchema = z.object({
   body: z.string().trim().min(2).max(8000),
 });
 
+export const customerBroadcastSchema = z.object({
+  subject: z.string().trim().min(2).max(160),
+  body: z.string().trim().min(2).max(8000),
+  /** Mismo texto de búsqueda del listado: vacío envía a todas las clientas. */
+  filter: z.string().trim().max(200).optional(),
+});
+
 /* ------------------------------------------------------------------- auth */
 
 export const adminLoginSchema = z.object({

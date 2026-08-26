@@ -1838,3 +1838,41 @@
     grid-template-columns: 90px 1fr 1fr 36px;
   }
 }
+
+/* Vista imprimible del listado de clientas: "Descargar PDF" es window.print(),
+   así que esto es lo único que llega al PDF. Todo lo demás del sitio (nav,
+   fondo oscuro, botones) no tiene sentido en papel. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .admin-nav,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  body,
+  .admin-shell {
+    background: #fff;
+    color: #111;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #ccc;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    font-size: 0.85rem;
+    color: #111;
+  }
+}

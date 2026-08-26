@@ -1,21 +1,54 @@
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
-import { customerListQuerySchema, customerSendEmailSchema, customerUpdateSchema } from "@naty/shared";
+import {
+  customerBroadcastSchema,
+  customerListQuerySchema,
+  customerSendEmailSchema,
+  customerUpdateSchema,
+} from "@naty/shared";
 import { db, appointments, customers, payments, services } from "../db";
 import { enqueueManualMessage } from "../services/email";
 import { adminProcedure, router } from "../trpc";
 
 const idInput = z.object({ id: z.number().int().positive() });
 
+/** Coincide por nombre, correo o teléfono. Vacío = sin filtro. */
+function searchCondition(term: string | undefined): SQL | undefined {
+  const trimmed = term?.trim();
+  if (!trimmed) return undefined;
+  return or(
+    ilike(customers.name, `%${trimmed}%`),
+    ilike(customers.email, `%${trimmed}%`),
+    ilike(customers.phone, `%${trimmed}%`),
+  );
+}
+
+/**
+ * Sin paginar, para exportar o para el envío masivo. Un tope generoso evita
+ * un problema real (un negocio de este tamaño no tiene miles de clientas)
+ * sin necesitar cursor aquí también.
+ */
+export async function listAllCustomers(search?: string) {
+  return db
+    .select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone })
+    .from(customers)
+    .where(searchCondition(search))
+    .orderBy(customers.name)
+    .limit(5000);
+}
+
 export const adminCustomersRouter = router({
+  /** Listado completo sin paginar, para la vista imprimible. */
+  listAll: adminProcedure
+    .input(z.object({ search: z.string().trim().max(200).optional() }))
+    .query(({ input }) => listAllCustomers(input.search)),
+
   /** Buscador de clientas con el resumen que se ve en el listado. */
   list: adminProcedure.input(customerListQuerySchema).query(async ({ input }) => {
-    const term = input.search?.trim();
-    const conditions = [
-      term ? or(ilike(customers.name, `%${term}%`), ilike(customers.email, `%${term}%`), ilike(customers.phone, `%${term}%`)) : undefined,
-      input.cursor ? gt(customers.id, input.cursor) : undefined,
-    ].filter(Boolean);
+    const conditions = [searchCondition(input.search), input.cursor ? gt(customers.id, input.cursor) : undefined].filter(
+      Boolean,
+    );
 
     const rows = await db
       .select({
@@ -100,5 +133,18 @@ export const adminCustomersRouter = router({
 
     await enqueueManualMessage(customer.email, input.subject, input.body);
     return { ok: true as const };
+  }),
+
+  /**
+   * Un correo por destinataria en la cola, no un envío en caliente: así un
+   * envío grande no revienta el tiempo límite de la función serverless. El
+   * cron ya existente los va despachando de a 25 por pasada.
+   */
+  broadcast: adminProcedure.input(customerBroadcastSchema).mutation(async ({ input }) => {
+    const recipients = await listAllCustomers(input.filter);
+    for (const customer of recipients) {
+      await enqueueManualMessage(customer.email, input.subject, input.body);
+    }
+    return { ok: true as const, recipientCount: recipients.length };
   }),
 });

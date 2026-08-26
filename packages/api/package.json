@@ -10,7 +10,9 @@
     "./context": "./src/context.ts",
     "./env": "./src/env.ts",
     "./scheduler": "./src/scheduler.ts",
-    "./services/calendar": "./src/services/calendar.ts"
+    "./services/calendar": "./src/services/calendar.ts",
+    "./services/csv": "./src/services/csv.ts",
+    "./routers/admin-customers": "./src/routers/admin-customers.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
