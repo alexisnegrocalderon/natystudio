@@ -27,6 +27,7 @@ import { rescheduleAppointment } from "../services/booking";
 import { dropPendingReminders, enqueueNow, scheduleReminders } from "../services/email";
 import { revalidatePaths } from "../services/revalidate";
 import { adminProcedure, router } from "../trpc";
+import { adminCustomersRouter } from "./admin-customers";
 
 const idInput = z.object({ id: z.number().int().positive() });
 
@@ -314,6 +315,7 @@ export const adminRouter = router({
   schedule: scheduleRouter,
   appointments: appointmentsRouter,
   posts: postsRouter,
+  customers: adminCustomersRouter,
 
   dashboard: adminProcedure.query(async () => {
     const now = new Date();

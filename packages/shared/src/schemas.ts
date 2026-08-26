@@ -138,6 +138,22 @@ export const rescheduleAppointmentSchema = z.object({
   startsAt: z.iso.datetime(),
 });
 
+/* --------------------------------------------------------------- clientas */
+
+export const customerListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  /** Id de la última clienta de la página anterior; se listan las siguientes. */
+  cursor: z.number().int().positive().optional(),
+  limit: z.number().int().min(1).max(100).default(30),
+});
+
+export const customerUpdateSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().trim().min(2).max(120),
+  phone: phoneSchema,
+  notes: z.string().trim().max(4000).optional(),
+});
+
 /* ------------------------------------------------------------------- auth */
 
 export const adminLoginSchema = z.object({

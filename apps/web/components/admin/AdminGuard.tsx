@@ -9,6 +9,7 @@ import {
   Settings,
   Clock,
   Sparkles,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,6 +19,7 @@ import { trpc } from "@/lib/trpc";
 const ADMIN_LINKS = [
   { href: "/admin", label: "Inicio", icon: LayoutDashboard },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
+  { href: "/admin/clientas", label: "Clientas", icon: Users },
   { href: "/admin/servicios", label: "Servicios", icon: Sparkles },
   { href: "/admin/horarios", label: "Horarios", icon: Clock },
   { href: "/admin/blog", label: "Blog", icon: FileText },
