@@ -1,17 +1,25 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   availabilityQuerySchema,
   bookingLookupSchema,
   cancelBookingSchema,
+  contactFormSchema,
   createBookingSchema,
   leadCaptureSchema,
 } from "@naty/shared";
+import { ENV } from "../env";
 import { db, appointments, customers, leads, services } from "../db";
 import { createBooking } from "../services/booking";
-import { dropPendingReminders, enqueueNow } from "../services/email";
+import { dropPendingReminders, enqueueManualMessage, enqueueNow } from "../services/email";
+import { isRateLimited } from "../services/rateLimit";
 import { getAvailability } from "../services/scheduling";
 import { publicProcedure, router } from "../trpc";
+
+/** IP del cliente detrás del proxy de Vercel; "unknown" si no viene (dev local). */
+function clientIp(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
 
 export const availabilityRouter = router({
   getSlots: publicProcedure.input(availabilityQuerySchema).query(async ({ input }) => {
@@ -109,14 +117,70 @@ export const bookingRouter = router({
 });
 
 export const leadRouter = router({
+  /**
+   * Misma persona retomando el embudo: se actualiza su fila en vez de
+   * acumular una nueva cada vez que escribe el correo. `serviceId` ausente
+   * cuenta como parte de la llave (dos leads sin servicio elegido no
+   * colisionan entre sí, así que cada visita sin servicio queda su propia
+   * fila — es una limitación aceptada, no un bug).
+   */
   capture: publicProcedure.input(leadCaptureSchema).mutation(async ({ input }) => {
-    await db.insert(leads).values({
-      email: input.email,
-      name: input.name,
-      phone: input.phone,
-      serviceId: input.serviceId,
-      step: input.step,
-    });
+    await db
+      .insert(leads)
+      .values({
+        email: input.email,
+        name: input.name,
+        phone: input.phone,
+        serviceId: input.serviceId,
+        step: input.step,
+      })
+      .onConflictDoUpdate({
+        target: [leads.email, leads.serviceId],
+        set: {
+          name: sql`coalesce(${input.name ?? null}, ${leads.name})`,
+          phone: sql`coalesce(${input.phone ?? null}, ${leads.phone})`,
+          step: input.step,
+        },
+      });
+    return { ok: true } as const;
+  }),
+
+  contact: publicProcedure.input(contactFormSchema).mutation(async ({ input, ctx }) => {
+    // Campo trampa: un bot lo rellena, una persona nunca lo ve. Se responde
+    // éxito igual para no delatar el mecanismo.
+    if (input.honeypot) return { ok: true } as const;
+
+    const ip = clientIp(ctx.req);
+    if (isRateLimited(`contact:${ip}`, 5, 10 * 60_000)) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: "Enviaste varios mensajes seguidos. Intenta de nuevo en unos minutos.",
+      });
+    }
+
+    await db
+      .insert(leads)
+      .values({
+        email: input.email,
+        name: input.name,
+        phone: input.phone,
+        serviceId: input.serviceId,
+        step: "contacto",
+      })
+      .onConflictDoUpdate({
+        target: [leads.email, leads.serviceId],
+        set: { name: input.name, phone: sql`coalesce(${input.phone ?? null}, ${leads.phone})`, step: "contacto" },
+      });
+
+    if (ENV.adminNotifyEmail) {
+      const contactLine = input.phone ? `${input.email} · ${input.phone}` : input.email;
+      await enqueueManualMessage(
+        ENV.adminNotifyEmail,
+        `Nuevo mensaje de contacto · ${input.name}`,
+        `${input.name} (${contactLine}) escribió desde /contacto:\n\n${input.message}`,
+      );
+    }
+
     return { ok: true } as const;
   }),
 });

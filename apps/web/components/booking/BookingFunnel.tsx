@@ -137,18 +137,29 @@ export function BookingFunnel() {
     }
   }
 
-  /** Guarda el contacto al llegar al paso de datos, antes de que se envíe la reserva. */
-  function rememberLead() {
+  /**
+   * Guarda el contacto apenas hay un correo válido, aunque la persona
+   * abandone antes de reservar. Con *debounce* para no mandar una petición
+   * por cada tecla mientras escribe el nombre o el teléfono.
+   */
+  useEffect(() => {
     const email = customer.email.trim();
-    if (!email.includes("@") || captureLead.isPending) return;
-    captureLead.mutate({
-      email,
-      name: customer.name || undefined,
-      phone: customer.phone || undefined,
-      serviceId: service?.id,
-      step: "datos",
-    });
-  }
+    if (!email.includes("@")) return;
+
+    const timer = setTimeout(() => {
+      captureLead.mutate({
+        email,
+        name: customer.name || undefined,
+        phone: customer.phone || undefined,
+        serviceId: service?.id,
+        step: "datos",
+      });
+    }, 800);
+
+    return () => clearTimeout(timer);
+    // captureLead se omite a propósito: su referencia cambia en cada render y
+    // reiniciaría el temporizador sin necesidad.
+  }, [customer.email, customer.name, customer.phone, service?.id]);
 
   const slotDate = selectedSlot ? new Date(selectedSlot) : null;
 
@@ -351,7 +362,6 @@ export function BookingFunnel() {
                         autoComplete="email"
                         value={customer.email}
                         onChange={event => setCustomer({ ...customer, email: event.target.value })}
-                        onBlur={rememberLead}
                         aria-invalid={Boolean(errors.email)}
                         aria-describedby={errors.email ? "error-correo" : undefined}
                       />

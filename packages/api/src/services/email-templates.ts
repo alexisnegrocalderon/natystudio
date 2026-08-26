@@ -104,6 +104,20 @@ function plainDetails(data: TemplateData): string {
   return lines.join("\n");
 }
 
+/** Correo escrito a mano por Naty desde la ficha de una clienta o un envío masivo. */
+export function renderManualMessage(subject: string, body: string): RenderedEmail {
+  const html = body
+    .split(/\n{2,}/)
+    .map(block => paragraph(block.replace(/\n/g, "<br>")))
+    .join("");
+
+  return {
+    subject,
+    html: layout(subject, html),
+    text: body,
+  };
+}
+
 export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEmail {
   const bookingUrl = `${data.siteUrl}/reserva/${data.publicId}`;
   const manageUrl = `${bookingUrl}?token=${data.cancelToken}`;

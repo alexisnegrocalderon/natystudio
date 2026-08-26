@@ -43,6 +43,16 @@ export const leadCaptureSchema = z.object({
   step: z.string().trim().max(40),
 });
 
+export const contactFormSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.email("Revisa tu correo electrónico").trim().toLowerCase().max(320),
+  phone: phoneSchema.optional(),
+  message: z.string().trim().min(5, "Cuéntanos un poco más").max(2000),
+  serviceId: z.number().int().positive().optional(),
+  /** Campo trampa invisible: si un bot lo rellena, se descarta en silencio. */
+  honeypot: z.string().max(200).optional(),
+});
+
 export const bookingLookupSchema = z.object({
   publicId: z.string().trim().min(6).max(32),
 });
@@ -152,6 +162,12 @@ export const customerUpdateSchema = z.object({
   name: z.string().trim().min(2).max(120),
   phone: phoneSchema,
   notes: z.string().trim().max(4000).optional(),
+});
+
+export const customerSendEmailSchema = z.object({
+  id: z.number().int().positive(),
+  subject: z.string().trim().min(2).max(160),
+  body: z.string().trim().min(2).max(8000),
 });
 
 /* ------------------------------------------------------------------- auth */

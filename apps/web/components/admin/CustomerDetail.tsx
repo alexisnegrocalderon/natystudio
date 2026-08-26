@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { customerUpdateSchema, formatBusinessDate, formatBusinessTime, formatClp } from "@naty/shared";
+import { ContactActions } from "@/components/admin/ContactActions";
 import { StatusPill } from "@/components/admin/StatusPill";
 import { trpc } from "@/lib/trpc";
 
@@ -33,6 +34,11 @@ export function CustomerDetail({ customerId }: { customerId: number }) {
       void utils.admin.customers.get.invalidate({ id: customerId });
       void utils.admin.customers.list.invalidate();
     },
+    onError: error => toast.error(error.message),
+  });
+
+  const sendEmail = trpc.admin.customers.sendEmail.useMutation({
+    onSuccess: () => toast.success("Correo encolado. Sale en los próximos minutos."),
     onError: error => toast.error(error.message),
   });
 
@@ -136,6 +142,16 @@ export function CustomerDetail({ customerId }: { customerId: number }) {
             Guardar
           </button>
         ) : null}
+      </section>
+
+      <section className="admin-card">
+        <h2>Contactar</h2>
+        <ContactActions
+          name={customer.name}
+          phone={customer.phone}
+          sending={sendEmail.isPending}
+          onSendEmail={(subject, body) => sendEmail.mutate({ id: customerId, subject, body })}
+        />
       </section>
 
       <h2 style={{ fontSize: "1.3rem", margin: "2rem 0 1rem" }}>Historial de citas</h2>

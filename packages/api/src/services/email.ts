@@ -1,10 +1,10 @@
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { Resend } from "resend";
 import type { EmailJobKind } from "@naty/shared";
 import { ENV } from "../env";
 import { db, appointments, customers, emailJobs, services, type Appointment, type Service } from "../db";
 import { buildIcs } from "./calendar";
-import { renderEmail, type TemplateData } from "./email-templates";
+import { renderEmail, renderManualMessage, type TemplateData } from "./email-templates";
 
 const resend = ENV.resendApiKey ? new Resend(ENV.resendApiKey) : null;
 
@@ -72,6 +72,26 @@ async function enqueue(
     .insert(emailJobs)
     .values({ appointmentId, kind, recipient, scheduledFor })
     .onConflictDoNothing({ target: [emailJobs.appointmentId, emailJobs.kind] });
+}
+
+type ManualMessagePayload = { subject: string; body: string };
+
+/**
+ * Correo escrito a mano por Naty (ficha de una clienta, o envío masivo). No
+ * nace de una cita, así que no tiene con qué renderizar una plantilla: el
+ * asunto y el cuerpo viajan tal cual en `payload`. Sin cita, el índice único
+ * (cita, tipo) no aplica —los `NULL` nunca colisionan en Postgres— así que
+ * cada llamada encola un correo nuevo.
+ */
+export async function enqueueManualMessage(recipient: string, subject: string, body: string): Promise<void> {
+  const payload: ManualMessagePayload = { subject, body };
+  await db.insert(emailJobs).values({
+    appointmentId: null,
+    kind: "manual_message",
+    recipient,
+    scheduledFor: new Date(),
+    payload: JSON.stringify(payload),
+  });
 }
 
 /** Avisos que se disparan al crear la reserva. */
@@ -144,59 +164,94 @@ export async function enqueueNow(
 /**
  * Procesa los avisos vencidos. La idempotencia vive en la fila de la base, no en
  * memoria: reiniciar el proceso no duplica ni pierde recordatorios.
+ *
+ * Los correos manuales no tienen cita (appointmentId es nulo), así que la
+ * carga de contexto va separada: primero se traen los avisos vencidos tal
+ * cual, y sólo para los que sí tienen cita se resuelve el resto de la fila.
  */
 export async function processPendingEmailJobs(limit = 25): Promise<number> {
-  const pending = await db
-    .select({
-      job: emailJobs,
-      appointment: appointments,
-      service: services,
-      customer: customers,
-    })
+  const dueJobs = await db
+    .select()
     .from(emailJobs)
-    .innerJoin(appointments, eq(emailJobs.appointmentId, appointments.id))
-    .innerJoin(services, eq(appointments.serviceId, services.id))
-    .innerJoin(customers, eq(appointments.customerId, customers.id))
     .where(and(eq(emailJobs.status, "pending"), lte(emailJobs.scheduledFor, new Date())))
     .limit(limit);
 
+  if (dueJobs.length === 0) return 0;
+
+  const appointmentIds = [...new Set(dueJobs.map(job => job.appointmentId).filter((id): id is number => id !== null))];
+
+  const appointmentRows = appointmentIds.length
+    ? await db
+        .select({ appointment: appointments, service: services, customer: customers })
+        .from(appointments)
+        .innerJoin(services, eq(appointments.serviceId, services.id))
+        .innerJoin(customers, eq(appointments.customerId, customers.id))
+        .where(inArray(appointments.id, appointmentIds))
+    : [];
+  const byAppointmentId = new Map(appointmentRows.map(row => [row.appointment.id, row]));
+
   let sent = 0;
 
-  for (const row of pending) {
-    const data = buildTemplateData(row.appointment, row.service, row.customer.name);
-    const { subject, html, text } = renderEmail(row.job.kind, data);
+  for (const job of dueJobs) {
+    let rendered: { subject: string; html: string; text: string };
+    let attachments: Attachment[] = [];
 
-    // Sólo la confirmación lleva el archivo de calendario: es el único momento
-    // en que la cita pasa a ser un compromiso firme.
-    const attachments: Attachment[] =
-      row.job.kind === "booking_confirmed"
-        ? [
-            {
-              filename: "cita-naty-studio.ics",
-              content: buildIcs({
-                uid: `${row.appointment.publicId}@naty.studio`,
-                startsAt: row.appointment.startsAt,
-                endsAt: row.appointment.endsAt,
-                title: `${row.service.name} · naty.studio`,
-                description: "Tu cita en naty.studio, Valparaíso.",
-                location: "Valparaíso, Chile",
-                url: `${ENV.siteUrl}/reserva/${row.appointment.publicId}`,
-              }),
-            },
-          ]
-        : [];
+    if (job.kind === "manual_message") {
+      const payload = job.payload ? (JSON.parse(job.payload) as { subject: string; body: string }) : null;
+      if (!payload) {
+        await db
+          .update(emailJobs)
+          .set({ status: "failed", attempts: job.attempts + 1, lastError: "Sin contenido" })
+          .where(eq(emailJobs.id, job.id));
+        continue;
+      }
+      rendered = renderManualMessage(payload.subject, payload.body);
+    } else {
+      const found = job.appointmentId !== null ? byAppointmentId.get(job.appointmentId) : undefined;
+      if (!found) {
+        // La cita ya no existe (borrada, o el aviso quedó huérfano): no hay
+        // con qué renderizarlo. Se marca fallido para no reintentarlo en vano.
+        await db
+          .update(emailJobs)
+          .set({ status: "failed", attempts: job.attempts + 1, lastError: "La cita ya no existe" })
+          .where(eq(emailJobs.id, job.id));
+        continue;
+      }
+
+      const data = buildTemplateData(found.appointment, found.service, found.customer.name);
+      rendered = renderEmail(job.kind, data);
+
+      // Sólo la confirmación lleva el archivo de calendario: es el único
+      // momento en que la cita pasa a ser un compromiso firme.
+      if (job.kind === "booking_confirmed") {
+        attachments = [
+          {
+            filename: "cita-naty-studio.ics",
+            content: buildIcs({
+              uid: `${found.appointment.publicId}@naty.studio`,
+              startsAt: found.appointment.startsAt,
+              endsAt: found.appointment.endsAt,
+              title: `${found.service.name} · naty.studio`,
+              description: "Tu cita en naty.studio, Valparaíso.",
+              location: "Valparaíso, Chile",
+              url: `${ENV.siteUrl}/reserva/${found.appointment.publicId}`,
+            }),
+          },
+        ];
+      }
+    }
 
     try {
-      await deliver(row.job.recipient, subject, html, text, attachments);
+      await deliver(job.recipient, rendered.subject, rendered.html, rendered.text, attachments);
       await db
         .update(emailJobs)
-        .set({ status: "sent", sentAt: new Date(), attempts: row.job.attempts + 1 })
-        .where(eq(emailJobs.id, row.job.id));
+        .set({ status: "sent", sentAt: new Date(), attempts: job.attempts + 1 })
+        .where(eq(emailJobs.id, job.id));
       sent += 1;
     } catch (error) {
-      const attempts = row.job.attempts + 1;
+      const attempts = job.attempts + 1;
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[email] falló el aviso ${row.job.id} (intento ${attempts}):`, message);
+      console.error(`[email] falló el aviso ${job.id} (intento ${attempts}):`, message);
 
       await db
         .update(emailJobs)
@@ -207,7 +262,7 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
           attempts,
           lastError: message,
         })
-        .where(eq(emailJobs.id, row.job.id));
+        .where(eq(emailJobs.id, job.id));
     }
   }
 

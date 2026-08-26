@@ -1,8 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { customerListQuerySchema, customerUpdateSchema } from "@naty/shared";
+import { customerListQuerySchema, customerSendEmailSchema, customerUpdateSchema } from "@naty/shared";
 import { db, appointments, customers, payments, services } from "../db";
+import { enqueueManualMessage } from "../services/email";
 import { adminProcedure, router } from "../trpc";
 
 const idInput = z.object({ id: z.number().int().positive() });
@@ -90,5 +91,14 @@ export const adminCustomersRouter = router({
 
     if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "La clienta no existe." });
     return updated;
+  }),
+
+  sendEmail: adminProcedure.input(customerSendEmailSchema).mutation(async ({ input }) => {
+    const found = await db.select().from(customers).where(eq(customers.id, input.id)).limit(1);
+    const customer = found[0];
+    if (!customer) throw new TRPCError({ code: "NOT_FOUND", message: "La clienta no existe." });
+
+    await enqueueManualMessage(customer.email, input.subject, input.body);
+    return { ok: true as const };
   }),
 });

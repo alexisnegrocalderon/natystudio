@@ -1,5 +1,6 @@
 import { ArrowUpRight, CalendarCheck, Instagram, MapPin, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { ContactForm } from "@/components/ContactForm";
 import { FaqSection } from "@/components/FaqSection";
 import { JsonLd } from "@/components/JsonLd";
 import { contactPageContent, faqContent } from "@/content/natyContent";
@@ -89,6 +90,14 @@ export default function ContactPage() {
             </a>
           </article>
         </div>
+      </section>
+
+      <section className="section-wrap divider-top" style={{ paddingBottom: "4.5rem", maxWidth: "620px" }}>
+        <div className="section-heading" style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.8rem" }}>Escríbenos directamente</h2>
+          <p>¿Prefieres dejar tu consulta por escrito? Te respondemos por correo.</p>
+        </div>
+        <ContactForm />
       </section>
 
       <section className="section-wrap section-pad divider-top">
