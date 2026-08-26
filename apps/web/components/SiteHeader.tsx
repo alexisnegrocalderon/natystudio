@@ -44,6 +44,7 @@ export function SiteHeader() {
                 aria-current={isCurrent(link.href) ? "page" : undefined}
               >
                 {link.label}
+                {link.href === "/curso" && <span className="nav-badge-new">Nuevo</span>}
               </TransitionLink>
             ))}
           </nav>
@@ -67,7 +68,10 @@ export function SiteHeader() {
         <nav className="mobile-nav" id="menu-movil" data-open={menuOpen} aria-label="Navegación móvil">
           {NAV_LINKS.map(link => (
             <TransitionLink key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
-              {link.label}
+              <span>
+                {link.label}
+                {link.href === "/curso" && <span className="nav-badge-new">Nuevo</span>}
+              </span>
               <ArrowUpRight size={16} aria-hidden="true" />
             </TransitionLink>
           ))}

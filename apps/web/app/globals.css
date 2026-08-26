@@ -318,6 +318,35 @@ body:has(.admin-theme) #contenido {
   background: var(--rose);
 }
 
+/* El curso es el ingreso nuevo que hay que empujar: se marca en el nav
+   con un pill chico y un pulso sutil, no algo que grite. */
+.nav-badge-new {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--rose);
+  color: #fff6f8;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  vertical-align: middle;
+  animation: nav-badge-pulse 2.4s var(--ease-out) infinite;
+}
+
+@keyframes nav-badge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 92, 137, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 92, 137, 0);
+  }
+}
+
 .menu-toggle {
   display: none;
   background: none;
@@ -350,6 +379,11 @@ body:has(.admin-theme) #contenido {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.mobile-nav a > span:first-child {
+  display: inline-flex;
+  align-items: center;
 }
 
 .mobile-nav a[aria-current="page"] {
