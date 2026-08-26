@@ -1,9 +1,9 @@
 "use client";
 
 import { ArrowUpRight, Menu, X } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { TransitionLink } from "@/components/TransitionLink";
 import { NAV_LINKS } from "@/lib/site";
 
 export function SiteHeader() {
@@ -11,8 +11,8 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // El borde inferior sólo aparece al desplazarse, para que la cabecera se
-  // funda con el hero al inicio.
+  // El pill se vuelve más opaco al desplazarse, para que se lea bien
+  // apenas el fondo detrás deja de ser el video del hero.
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -30,50 +30,52 @@ export function SiteHeader() {
 
   return (
     <header className="site-header" data-scrolled={scrolled}>
-      <div className="header-inner">
-        <Link className="wordmark" href="/" aria-label="naty.studio, ir al inicio">
-          naty<span>.</span>studio
-        </Link>
+      <div className="header-shell">
+        <div className="header-inner">
+          <TransitionLink className="wordmark" href="/" aria-label="naty.studio, ir al inicio">
+            naty<span>.</span>studio
+          </TransitionLink>
 
-        <nav className="desktop-nav" aria-label="Navegación principal">
+          <nav className="desktop-nav" aria-label="Navegación principal">
+            {NAV_LINKS.map(link => (
+              <TransitionLink
+                key={link.href}
+                href={link.href}
+                aria-current={isCurrent(link.href) ? "page" : undefined}
+              >
+                {link.label}
+              </TransitionLink>
+            ))}
+          </nav>
+
+          <TransitionLink className="primary-link header-cta" href="/reservar">
+            Agendar hora <ArrowUpRight size={15} aria-hidden="true" />
+          </TransitionLink>
+
+          <button
+            className="menu-toggle"
+            type="button"
+            onClick={() => setMenuOpen(open => !open)}
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+            aria-expanded={menuOpen}
+            aria-controls="menu-movil"
+          >
+            {menuOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
+        </div>
+
+        <nav className="mobile-nav" id="menu-movil" data-open={menuOpen} aria-label="Navegación móvil">
           {NAV_LINKS.map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={isCurrent(link.href) ? "page" : undefined}
-            >
+            <TransitionLink key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
               {link.label}
-            </Link>
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </TransitionLink>
           ))}
+          <TransitionLink className="primary-link" href="/reservar">
+            Agendar hora <ArrowUpRight size={16} aria-hidden="true" />
+          </TransitionLink>
         </nav>
-
-        <Link className="primary-link header-cta" href="/reservar">
-          Agendar hora <ArrowUpRight size={15} aria-hidden="true" />
-        </Link>
-
-        <button
-          className="menu-toggle"
-          type="button"
-          onClick={() => setMenuOpen(open => !open)}
-          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-          aria-expanded={menuOpen}
-          aria-controls="menu-movil"
-        >
-          {menuOpen ? <X size={21} /> : <Menu size={21} />}
-        </button>
       </div>
-
-      <nav className="mobile-nav" id="menu-movil" data-open={menuOpen} aria-label="Navegación móvil">
-        {NAV_LINKS.map(link => (
-          <Link key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
-            {link.label}
-            <ArrowUpRight size={16} aria-hidden="true" />
-          </Link>
-        ))}
-        <Link className="primary-link" href="/reservar">
-          Agendar hora <ArrowUpRight size={16} aria-hidden="true" />
-        </Link>
-      </nav>
     </header>
   );
 }

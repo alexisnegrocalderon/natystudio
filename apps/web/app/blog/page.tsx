@@ -44,7 +44,7 @@ export default async function BlogIndexPage() {
 
       <section className="section-wrap" style={{ paddingBottom: "5rem" }}>
         {posts.length > 0 ? (
-          <div className="card-grid">
+          <div className="card-grid reveal-up">
             {posts.map(post => (
               <article className="service-card" key={post.slug}>
                 {post.publishedAt ? (
@@ -77,7 +77,7 @@ export default async function BlogIndexPage() {
             ))}
           </div>
         ) : (
-          <div className="panel">
+          <div className="panel reveal-up">
             <p style={{ margin: 0, color: "var(--muted)", lineHeight: 1.75, maxWidth: "540px" }}>
               Estamos preparando las primeras guías. Mientras tanto, puedes escribirnos cualquier duda
               antes de reservar.

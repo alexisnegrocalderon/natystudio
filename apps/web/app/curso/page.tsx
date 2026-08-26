@@ -35,7 +35,7 @@ export default async function CoursePage() {
       />
 
       <section className="section-wrap" style={{ padding: "4rem 0 3rem" }}>
-        <div className="rose-block">
+        <div className="rose-block reveal-up">
           <p className="eyebrow">
             <GraduationCap size={16} aria-hidden="true" /> {coursePageContent.eyebrow}
           </p>
@@ -71,20 +71,20 @@ export default async function CoursePage() {
       <section className="section-wrap" style={{ paddingBottom: "5rem" }}>
         {courses.length > 0 ? (
           <>
-            <div className="section-heading" style={{ marginBottom: "2.5rem" }}>
+            <div className="section-heading reveal-up" style={{ marginBottom: "2.5rem" }}>
               <p className="eyebrow">Programas disponibles</p>
               <h2>
                 Formación <em>abierta.</em>
               </h2>
             </div>
-            <div className="card-grid">
+            <div className="card-grid reveal-up delay-1">
               {courses.map((course, index) => (
                 <ServiceCard key={course.slug} service={course} index={index} />
               ))}
             </div>
           </>
         ) : (
-          <div className="panel" style={{ display: "grid", gap: "1rem", justifyItems: "start" }}>
+          <div className="panel reveal-up" style={{ display: "grid", gap: "1rem", justifyItems: "start" }}>
             <span className="badge-soft">
               <Users size={13} aria-hidden="true" /> En preparación
             </span>

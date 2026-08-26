@@ -35,7 +35,7 @@ export default function AboutPage() {
       </section>
 
       <section
-        className="section-wrap"
+        className="section-wrap reveal-up"
         style={{
           paddingBottom: "4.5rem",
           display: "grid",
@@ -85,7 +85,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="authority-band" aria-label="Pilares profesionales">
+      <section className="authority-band reveal-up" aria-label="Pilares profesionales">
         {authorityContent.map((item, index) => {
           const Icon = authorityIcons[index] ?? Stethoscope;
           return (

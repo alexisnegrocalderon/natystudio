@@ -31,7 +31,7 @@ export default async function ServicesPage() {
         ])}
       />
 
-      <section className="section-wrap" style={{ padding: "4rem 0 3rem" }}>
+      <section className="section-wrap reveal-up" style={{ padding: "4rem 0 3rem" }}>
         <p className="eyebrow">
           <span className="eyebrow-dot" />
           {servicesPageContent.eyebrow}
@@ -44,13 +44,13 @@ export default async function ServicesPage() {
 
       <section className="section-wrap" style={{ paddingBottom: "5rem" }}>
         {services.length > 0 ? (
-          <div className="card-grid">
+          <div className="card-grid reveal-up">
             {services.map((service, index) => (
               <ServiceCard key={service.slug} service={service} index={index} />
             ))}
           </div>
         ) : (
-          <div className="panel">
+          <div className="panel reveal-up">
             <p style={{ margin: 0, color: "var(--muted)", lineHeight: 1.7 }}>
               {servicesPageContent.emptyState}
             </p>

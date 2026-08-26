@@ -37,7 +37,7 @@ export default function ContactPage() {
       </section>
 
       <section className="section-wrap" style={{ paddingBottom: "4.5rem" }}>
-        <div className="card-grid">
+        <div className="card-grid reveal-up">
           <article className="panel">
             <CalendarCheck size={24} aria-hidden="true" style={{ color: "var(--rose)" }} />
             <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", margin: "1rem 0 .7rem" }}>
@@ -92,7 +92,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section className="section-wrap divider-top" style={{ paddingBottom: "4.5rem", maxWidth: "620px" }}>
+      <section className="section-wrap divider-top reveal-up" style={{ paddingBottom: "4.5rem", maxWidth: "620px" }}>
         <div className="section-heading" style={{ marginBottom: "2rem" }}>
           <h2 style={{ fontSize: "1.8rem" }}>Escríbenos directamente</h2>
           <p>¿Prefieres dejar tu consulta por escrito? Te respondemos por correo.</p>
@@ -100,7 +100,7 @@ export default function ContactPage() {
         <ContactForm />
       </section>
 
-      <section className="section-wrap section-pad divider-top">
+      <section className="section-wrap section-pad divider-top reveal-up">
         <div className="section-heading" style={{ marginBottom: "2.5rem" }}>
           <p className="eyebrow">{faqContent.eyebrow}</p>
           <h2>

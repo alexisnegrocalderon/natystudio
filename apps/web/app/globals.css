@@ -59,6 +59,9 @@
   --line: rgba(59, 22, 38, 0.13);
   --muted: #8a5d70;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Alto del pill flotante + su margen superior: lo que #contenido le debe
+     de padding-top a todo el sitio para no quedar tapado por el nav. */
+  --nav-offset: 5.5rem;
 
   /* Tokens de shadcn, derivados de la paleta de marca */
   --radius: 0.625rem;
@@ -207,30 +210,68 @@ body:has(.admin-theme) .site-footer {
   background: var(--ink);
 }
 
-/* ───────────────────────────────────────────────────────── encabezado */
-
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: rgba(255, 246, 248, 0.86);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid transparent;
-  transition: border-color 200ms var(--ease-out);
+/* Compensa el header fixed en todas las páginas… salvo el hero de la home,
+   que la cancela para ir borde a borde bajo el pill (ver .hero más abajo).
+   El admin no tiene el nav flotante (se oculta arriba), así que no le hace
+   falta este aire. */
+#contenido {
+  padding-top: var(--nav-offset);
 }
 
-.site-header[data-scrolled="true"] {
-  border-bottom-color: var(--line);
+body:has(.admin-theme) #contenido {
+  padding-top: 0;
+}
+
+/* ───────────────────────────────────────────────────────── encabezado */
+
+/*
+ * El header es un pill flotante (no una barra de ancho completo): queda
+ * fuera del flujo del documento a propósito, para que el hero de la home
+ * pueda ir borde a borde debajo del video sin que el nav le robe altura.
+ * `#contenido` compensa ese espacio con padding-top (ver más abajo) en
+ * todas las páginas menos en el hero, que lo cancela con margin-top
+ * negativo para quedar debajo del pill, no empujado por él.
+ */
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding: clamp(0.7rem, 2vw, 1.1rem) 20px 0;
+  pointer-events: none;
+}
+
+.header-shell {
+  position: relative;
+  width: min(1240px, 100%);
+  pointer-events: none;
 }
 
 .header-inner {
-  width: min(1240px, calc(100% - 40px));
-  min-height: 76px;
-  margin-inline: auto;
+  pointer-events: auto;
+  min-height: 60px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(59, 22, 38, 0.1);
+  padding: 0.5rem 0.6rem 0.5rem 1.2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  transition:
+    background 220ms var(--ease-out),
+    box-shadow 220ms var(--ease-out);
+}
+
+.site-header[data-scrolled="true"] .header-inner {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 14px 36px rgba(59, 22, 38, 0.16);
 }
 
 .wordmark {
@@ -288,11 +329,18 @@ body:has(.admin-theme) .site-footer {
 
 .mobile-nav {
   display: none;
+  pointer-events: auto;
   flex-direction: column;
   gap: 0.2rem;
-  padding: 1rem;
+  padding: 0.75rem;
   background: var(--ink-raised);
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 0;
+  right: 0;
+  box-shadow: 0 16px 38px rgba(59, 22, 38, 0.18);
 }
 
 .mobile-nav a {
@@ -499,7 +547,7 @@ body:has(.admin-theme) .site-footer {
   display: grid;
   align-items: end;
   min-height: 88svh;
-  margin: 0 calc(50% - 50vw);
+  margin: calc(-1 * var(--nav-offset)) calc(50% - 50vw) 0;
   padding: 0;
   overflow: hidden;
 }
@@ -511,6 +559,10 @@ body:has(.admin-theme) .site-footer {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Escalado de base para que el parallax (que lo corre hacia abajo al
+     scrollear) nunca deje ver un borde vacío arriba del video. */
+  transform: scale(1.08);
+  will-change: transform;
 }
 
 .hero-video-overlay {
@@ -529,7 +581,7 @@ body:has(.admin-theme) .site-footer {
 .hero-content {
   width: min(760px, calc(100% - 40px));
   margin-inline: auto;
-  padding: 2.75rem 0 3rem;
+  padding: calc(var(--nav-offset) + 0.75rem) 0 3rem;
   color: #fff6f8;
 }
 
@@ -1015,26 +1067,61 @@ body:has(.admin-theme) .site-footer {
   color: var(--rose-pale);
 }
 
-.reveal-up {
-  animation: reveal-up 0.7s var(--ease-out) both;
+/*
+ * `.reveal-up` empieza invisible y `ScrollReveal.tsx` (IntersectionObserver)
+ * le agrega `.is-visible` cuando entra en pantalla — no al montar, así que
+ * el efecto se nota en toda la página, no sólo arriba del todo.
+ * La regla vive detrás de `.reveal-ready` (que ese mismo componente pone en
+ * <html> al cargar) para que sin JavaScript el contenido se vea igual,
+ * nunca depende de esto para poder leerse.
+ */
+.reveal-ready .reveal-up {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.8s var(--ease-out),
+    transform 0.8s var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal-ready .reveal-up.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .delay-1 {
-  animation-delay: 0.1s;
+  transition-delay: 0.12s;
 }
 
 .delay-2 {
-  animation-delay: 0.2s;
+  transition-delay: 0.24s;
 }
 
-@keyframes reveal-up {
+/*
+ * Transición de página (View Transitions API nativa, ver TransitionLink):
+ * un fundido simple entre la captura vieja y la nueva. Sin nombre custom
+ * por elemento — es una sola transición de toda la vista, liviana y sin
+ * depender de ninguna librería.
+ */
+::view-transition-old(root) {
+  animation: view-transition-out 0.32s var(--ease-out) both;
+}
+
+::view-transition-new(root) {
+  animation: view-transition-in 0.38s var(--ease-out) both;
+}
+
+@keyframes view-transition-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes view-transition-in {
   from {
     opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateY(10px);
   }
 }
 
@@ -1045,7 +1132,14 @@ body:has(.admin-theme) .site-footer {
     scroll-behavior: auto;
   }
 
-  .reveal-up {
+  .reveal-ready .reveal-up {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none;
   }
 
@@ -1132,9 +1226,12 @@ body:has(.admin-theme) .site-footer {
 }
 
 @media (max-width: 560px) {
-  .section-wrap,
-  .header-inner {
+  .section-wrap {
     width: min(100% - 32px, 1180px);
+  }
+
+  .site-header {
+    padding-inline: 14px;
   }
 
   .wordmark {

@@ -1,5 +1,5 @@
 import { Instagram, MapPin, MessageCircle } from "lucide-react";
-import Link from "next/link";
+import { TransitionLink } from "@/components/TransitionLink";
 import { footerContent } from "@/content/natyContent";
 import { BUSINESS, NAV_LINKS } from "@/lib/site";
 
@@ -8,9 +8,9 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="footer-top section-wrap">
         <div>
-          <Link className="wordmark" href="/">
+          <TransitionLink className="wordmark" href="/">
             naty<span>.</span>studio
-          </Link>
+          </TransitionLink>
           <p style={{ color: "var(--muted)", fontSize: ".84rem", lineHeight: 1.7, marginTop: "1rem", maxWidth: "290px" }}>
             {footerContent.description}
           </p>
@@ -20,11 +20,11 @@ export function SiteFooter() {
           <h3>Navegación</h3>
           <div className="footer-nav">
             {NAV_LINKS.map(link => (
-              <Link key={link.href} href={link.href}>
+              <TransitionLink key={link.href} href={link.href}>
                 {link.label}
-              </Link>
+              </TransitionLink>
             ))}
-            <Link href="/reservar">Agendar hora</Link>
+            <TransitionLink href="/reservar">Agendar hora</TransitionLink>
           </div>
         </div>
 

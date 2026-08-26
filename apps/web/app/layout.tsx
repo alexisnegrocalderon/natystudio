@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Playfair_Display } from "next/font/google";
 import type { ReactNode } from "react";
 import { JsonLd } from "@/components/JsonLd";
+import { ScrollReveal } from "@/components/ScrollReveal";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
@@ -49,7 +50,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es-CL" className={`${dmSans.variable} ${playfair.variable}`}>
+    <html lang="es-CL" className={`${dmSans.variable} ${playfair.variable}`} data-scroll-behavior="smooth">
       <body>
         <JsonLd data={localBusinessJsonLd()} />
         <TrpcProvider>
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <SiteFooter />
           </div>
           <Toaster />
+          <ScrollReveal />
         </TrpcProvider>
       </body>
     </html>

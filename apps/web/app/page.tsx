@@ -67,7 +67,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="authority-band" aria-label="Pilares profesionales">
+      <section className="authority-band reveal-up" aria-label="Pilares profesionales">
         {authorityContent.map((item, index) => {
           const Icon = authorityIcons[index] ?? Stethoscope;
           return (
@@ -92,7 +92,7 @@ export default async function HomePage() {
         </div>
 
         {services.length > 0 ? (
-          <div className="card-grid">
+          <div className="card-grid reveal-up delay-1">
             {services.map((service, index) => (
               <ServiceCard key={service.slug} service={service} index={index} />
             ))}
@@ -107,7 +107,7 @@ export default async function HomePage() {
       </section>
 
       <section className="section-wrap">
-        <div className="rose-block">
+        <div className="rose-block reveal-up">
           <p className="eyebrow">
             <GraduationCap size={16} aria-hidden="true" /> {coursePageContent.eyebrow}
           </p>
@@ -122,7 +122,7 @@ export default async function HomePage() {
       </section>
 
       <section className="section-wrap section-pad">
-        <div className="section-heading" style={{ marginBottom: "2.5rem" }}>
+        <div className="section-heading reveal-up" style={{ marginBottom: "2.5rem" }}>
           <p className="eyebrow">{faqContent.eyebrow}</p>
           <h2>
             {faqContent.title} <em>{faqContent.accent}</em>

@@ -17,7 +17,7 @@ export function ClosingCta({
   href?: string;
 }) {
   return (
-    <section className="closing-cta section-wrap">
+    <section className="closing-cta section-wrap reveal-up">
       <p className="eyebrow">{eyebrow}</p>
       <h2>
         {title} <em>{accent}</em>
