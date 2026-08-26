@@ -1506,6 +1506,13 @@
   color: #ff9a9a;
 }
 
+/* Contenedor del Payment Brick de Mercado Pago: es un iframe, no hereda el
+   CSS del sitio (se le pasa la paleta por customVariables). Esto es sólo
+   para que la página no salte mientras el iframe termina de cargar. */
+.payment-brick {
+  min-height: 420px;
+}
+
 .empty-slots {
   padding: 2.5rem 1.5rem;
   text-align: center;

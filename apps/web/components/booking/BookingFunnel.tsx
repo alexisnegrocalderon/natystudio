@@ -10,6 +10,7 @@ import {
   Loader2,
   TriangleAlert,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -24,7 +25,30 @@ import { AvailabilityCalendar } from "@/components/booking/AvailabilityCalendar"
 import { addDaysToDay, businessToday, toBusinessDay } from "@/lib/dates";
 import { trpc } from "@/lib/trpc";
 
-const STEPS = ["Servicio", "Fecha y hora", "Tus datos", "Listo"] as const;
+// El SDK de Mercado Pago toca `window` al inicializarse: nunca debe formar
+// parte del render del servidor.
+const PaymentStep = dynamic(
+  () => import("@/components/booking/PaymentStep").then(module => module.PaymentStep),
+  {
+    ssr: false,
+    loading: () => (
+      <p style={{ color: "var(--muted)", display: "flex", gap: ".5rem", alignItems: "center" }}>
+        <Loader2 size={16} className="animate-spin" /> Cargando el pago…
+      </p>
+    ),
+  },
+);
+
+const STEPS_SIN_PAGO = ["Servicio", "Fecha y hora", "Tus datos", "Listo"] as const;
+const STEPS_CON_PAGO = ["Servicio", "Fecha y hora", "Tus datos", "Pago", "Listo"] as const;
+
+type Hold = {
+  publicId: string;
+  cancelToken: string;
+  depositClp: number | null;
+  fullClp: number;
+  holdExpiresAt: Date;
+};
 
 type CustomerFields = { name: string; email: string; phone: string; notes: string };
 
@@ -46,7 +70,12 @@ export function BookingFunnel() {
 
   const [customer, setCustomer] = useState<CustomerFields>(EMPTY_CUSTOMER);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [confirmation, setConfirmation] = useState<{ publicId: string; status: string } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    publicId: string;
+    status: string;
+    amountPaidClp?: number;
+  } | null>(null);
+  const [hold, setHold] = useState<Hold | null>(null);
 
   const { data: config } = trpc.config.useQuery();
   const { data: services, isLoading: loadingServices } = trpc.catalog.listServices.useQuery({
@@ -55,6 +84,7 @@ export function BookingFunnel() {
 
   const captureLead = trpc.lead.capture.useMutation();
   const createBooking = trpc.booking.create.useMutation();
+  const cancelHold = trpc.booking.cancel.useMutation();
 
   const service = useMemo(
     () => services?.find(item => item.slug === serviceSlug) ?? null,
@@ -73,7 +103,14 @@ export function BookingFunnel() {
     [params, router],
   );
 
-  const step = confirmation ? 4 : !service ? 1 : !selectedSlot ? 2 : 3;
+  // Se anticipa del lado del cliente si esta reserva pasará por el paso de
+  // pago (mismo criterio que `resolvePaymentPlan` en el servidor), para que
+  // la barra de progreso muestre la cantidad correcta de pasos desde el
+  // principio, no recién después de crear la reserva.
+  const paymentRequired = Boolean(config?.paymentsEnabled) && Boolean(service) && (service?.priceClp ?? 0) > 0;
+  const steps = paymentRequired ? STEPS_CON_PAGO : STEPS_SIN_PAGO;
+
+  const step = confirmation ? steps.length : hold ? steps.length - 1 : !service ? 1 : !selectedSlot ? 2 : 3;
 
   // Ventana máxima de reserva. Se recorta al año para no dibujar un calendario
   // infinito si la configuración fuera muy amplia.
@@ -131,7 +168,20 @@ export function BookingFunnel() {
           notes: customer.notes || undefined,
         },
       });
-      setConfirmation({ publicId: result.publicId, status: result.status });
+
+      if (result.payment) {
+        // La reserva quedó retenida esperando pago: el paso siguiente es
+        // pagar, no la confirmación final.
+        setHold({
+          publicId: result.publicId,
+          cancelToken: result.cancelToken,
+          depositClp: result.payment.depositClp,
+          fullClp: result.payment.fullClp,
+          holdExpiresAt: result.payment.holdExpiresAt,
+        });
+      } else {
+        setConfirmation({ publicId: result.publicId, status: result.status });
+      }
     } catch {
       // El error se muestra desde createBooking.error, más abajo.
     }
@@ -167,7 +217,7 @@ export function BookingFunnel() {
     <div className="funnel-shell section-wrap">
       <div>
         <nav className="step-track" aria-label="Progreso de la reserva">
-          {STEPS.map((label, index) => {
+          {steps.map((label, index) => {
             const position = index + 1;
             const state = position === step ? "current" : position < step ? "done" : "pending";
             return (
@@ -404,14 +454,12 @@ export function BookingFunnel() {
                     />
                   </div>
 
-                  {/* El paso de pago vive aquí. Mientras Mercado Pago siga
-                      apagado se explica el flujo real en vez de simularlo. */}
                   <div className="notice">
                     <Info size={18} />
                     <span>
-                      {config?.paymentsEnabled
-                        ? "A continuación podrás pagar el abono para dejar tu hora confirmada."
-                        : "Tu solicitud queda registrada y Naty la confirmará por correo. El pago en línea estará disponible próximamente."}
+                      {paymentRequired
+                        ? "El siguiente paso es pagar el abono o el total para dejar tu hora asegurada."
+                        : "Tu solicitud queda registrada y Naty la confirmará por correo."}
                     </span>
                   </div>
 
@@ -428,6 +476,10 @@ export function BookingFunnel() {
                         <>
                           <Loader2 size={17} className="animate-spin" /> Enviando…
                         </>
+                      ) : paymentRequired ? (
+                        <>
+                          Continuar al pago <ArrowUpRight size={17} />
+                        </>
                       ) : (
                         <>
                           Confirmar mi reserva <ArrowUpRight size={17} />
@@ -439,8 +491,47 @@ export function BookingFunnel() {
               </section>
             ) : null}
 
-            {/* ── Paso 4: confirmación ────────────────────────────────── */}
-            {step === 4 && confirmation ? (
+            {/* ── Paso 4: pago ────────────────────────────────────────── */}
+            {step === steps.length - 1 && paymentRequired && hold && service ? (
+              <section aria-labelledby="paso-pago">
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => {
+                    void cancelHold.mutateAsync({ publicId: hold.publicId, cancelToken: hold.cancelToken });
+                    setHold(null);
+                    setParams({ hora: null });
+                  }}
+                  style={{ marginBottom: "1.4rem", background: "none", border: 0, cursor: "pointer" }}
+                >
+                  <ArrowLeft size={15} /> Elegir otra hora
+                </button>
+
+                <h1 id="paso-pago" className="page-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
+                  Confirma tu pago
+                </h1>
+                <p className="lede">Elige cómo pagar para dejar tu hora asegurada.</p>
+
+                <PaymentStep
+                  publicId={hold.publicId}
+                  cancelToken={hold.cancelToken}
+                  plan={{ depositClp: hold.depositClp, fullClp: hold.fullClp }}
+                  customerEmail={customer.email}
+                  holdExpiresAt={hold.holdExpiresAt}
+                  onApproved={amountPaidClp => {
+                    setConfirmation({ publicId: hold.publicId, status: "confirmed", amountPaidClp });
+                    setHold(null);
+                  }}
+                  onExpired={() => {
+                    setHold(null);
+                    setParams({ hora: null });
+                  }}
+                />
+              </section>
+            ) : null}
+
+            {/* ── Paso final: confirmación ────────────────────────────── */}
+            {step === steps.length && confirmation ? (
               <section aria-labelledby="paso-listo">
                 <p className="eyebrow">
                   <span className="eyebrow-dot" />
@@ -466,6 +557,18 @@ export function BookingFunnel() {
                       : "Te enviamos un correo con el resumen. Naty revisará tu solicitud y te confirmará a la brevedad."}
                   </span>
                 </div>
+
+                {confirmation.amountPaidClp !== undefined && service ? (
+                  <div className="notice" style={{ marginBottom: "1.5rem" }}>
+                    <CheckCircle2 size={18} />
+                    <span>
+                      Pagaste {formatClp(confirmation.amountPaidClp)}.{" "}
+                      {service.priceClp - confirmation.amountPaidClp > 0
+                        ? `Saldo pendiente: ${formatClp(service.priceClp - confirmation.amountPaidClp)}, se paga en el estudio.`
+                        : "Tu servicio quedó pagado por completo."}
+                    </span>
+                  </div>
+                ) : null}
 
                 <p className="lede">
                   Puedes ver el estado de tu reserva, agregarla a tu calendario o cancelarla desde su

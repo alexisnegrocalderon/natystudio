@@ -93,6 +93,7 @@ export function BookingDetail({ publicId }: { publicId: string }) {
   const status = STATUS_COPY[booking.status];
   const startsAt = new Date(booking.startsAt);
   const isActive = booking.status === "confirmed" || booking.status === "pending_approval";
+  const canCancel = isActive || booking.status === "pending_payment";
   const balance = booking.priceClp - booking.amountPaidClp;
 
   return (
@@ -158,11 +159,12 @@ export function BookingDetail({ publicId }: { publicId: string }) {
         </div>
       ) : null}
 
-      {isActive && cancelToken && !cancelled ? (
+      {canCancel && cancelToken && !cancelled ? (
         <div style={{ marginTop: "2.5rem", paddingTop: "1.6rem", borderTop: "1px solid var(--line)" }}>
           <p style={{ color: "var(--muted)", fontSize: ".85rem", lineHeight: 1.7, maxWidth: "480px" }}>
-            Si ya no puedes asistir, cancela con la mayor antelación posible para que otra persona
-            aproveche el horario.
+            {booking.status === "pending_payment"
+              ? "Si ya no quieres tomar esta hora, cancélala para liberarla ahora mismo."
+              : "Si ya no puedes asistir, cancela con la mayor antelación posible para que otra persona aproveche el horario."}
           </p>
 
           {cancelBooking.error ? (
