@@ -8,5 +8,9 @@ export const metadata = {
 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return <AdminGuard>{children}</AdminGuard>;
+  return (
+    <div className="admin-theme">
+      <AdminGuard>{children}</AdminGuard>
+    </div>
+  );
 }

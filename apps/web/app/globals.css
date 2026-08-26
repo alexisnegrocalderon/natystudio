@@ -37,7 +37,67 @@
 }
 
 :root {
-  /* Identidad de marca */
+  /*
+   * Identidad de marca (paleta "bubblegum" entregada por la clienta).
+   * La paleta original son 5 rosas para fondos/acentos y no trae un tono
+   * oscuro para texto; --paper y --paper-muted son un ciruela oscuro de la
+   * misma familia, elegido por contraste, no por venir en la foto.
+   * Nota de nombres: --rose-pale ya no es literalmente "pálido" — en el
+   * tema oscuro original servía de texto claro sobre fondo oscuro: acá
+   * cumple el mismo rol (texto/acento que debe leerse fuerte) pero sobre
+   * fondo claro, así que es un rosa más saturado, no uno pastel.
+   */
+  --ink: #fff6f8; /* fondo de página */
+  --ink-raised: #ffffff; /* tarjetas / superficies elevadas */
+  --ink-soft: #ffe3ea; /* bandas secundarias (footer, paneles suaves) */
+  --paper: #3b1626; /* texto principal */
+  --paper-muted: #6b4456; /* texto de cuerpo / lede */
+  --rose: #ff5c89; /* Bubblegum Pink — color primario / CTA */
+  --rose-bright: #e8447a; /* hover de CTA: más saturado, no más claro */
+  --rose-pale: #d6336f; /* acentos de texto sobre fondo claro */
+  --lavender: #fda8bf; /* Baby Pink — acento secundario */
+  --line: rgba(59, 22, 38, 0.13);
+  --muted: #8a5d70;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Tokens de shadcn, derivados de la paleta de marca */
+  --radius: 0.625rem;
+  --background: var(--ink);
+  --foreground: var(--paper);
+  --card: var(--ink-raised);
+  --card-foreground: var(--paper);
+  --popover: var(--ink-raised);
+  --popover-foreground: var(--paper);
+  --primary: var(--rose);
+  --primary-foreground: #fff6f8;
+  --secondary: var(--ink-soft);
+  --secondary-foreground: var(--paper);
+  --muted-bg: var(--ink-soft);
+  --muted-foreground: var(--muted);
+  --accent: var(--ink-soft);
+  --accent-foreground: var(--rose-pale);
+  --destructive: #e11d48;
+  --destructive-foreground: #fff;
+  --border: var(--line);
+  --input: rgba(59, 22, 38, 0.18);
+  --ring: var(--rose);
+}
+
+/* El header/footer públicos envuelven también el panel admin (herencia del
+   layout raíz) — se ocultan ahí para que no se mezcle el nav de marketing
+   con el tema oscuro interno del panel. */
+body:has(.admin-theme) .site-header,
+body:has(.admin-theme) .site-footer {
+  display: none;
+}
+
+/*
+ * El panel admin es una herramienta interna, no la vidriera de la marca:
+ * mantiene el tema oscuro original aunque el sitio público pase a la paleta
+ * clara, redeclarando exactamente los mismos tokens que tenía :root antes de
+ * ese cambio. app/admin/layout.tsx envuelve todo el panel en esta clase.
+ */
+.admin-theme {
   --ink: #121014;
   --ink-raised: #1c181d;
   --ink-soft: #282229;
@@ -49,10 +109,7 @@
   --lavender: #b8a5db;
   --line: rgba(255, 243, 248, 0.17);
   --muted: #b8afb4;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
-  /* Tokens de shadcn, derivados de la paleta de marca */
-  --radius: 0.625rem;
   --background: var(--ink);
   --foreground: var(--paper);
   --card: var(--ink-raised);
@@ -67,11 +124,13 @@
   --muted-foreground: var(--muted);
   --accent: var(--ink-soft);
   --accent-foreground: var(--rose-pale);
-  --destructive: #e5484d;
-  --destructive-foreground: #fff;
   --border: var(--line);
   --input: rgba(255, 243, 248, 0.22);
   --ring: var(--rose);
+
+  background: var(--ink);
+  color: var(--paper);
+  min-height: 100dvh;
 }
 
 @layer base {
@@ -154,7 +213,7 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(18, 16, 20, 0.86);
+  background: rgba(255, 246, 248, 0.86);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid transparent;
   transition: border-color 200ms var(--ease-out);
@@ -232,7 +291,7 @@
   flex-direction: column;
   gap: 0.2rem;
   padding: 1rem;
-  background: #211c21;
+  background: var(--ink-raised);
   border-top: 1px solid var(--line);
 }
 
@@ -276,7 +335,7 @@
 
 .primary-link {
   background: var(--rose);
-  color: #28151c;
+  color: var(--paper);
   border: 1px solid var(--rose);
 }
 
@@ -351,7 +410,7 @@
   display: inline-block;
   background: var(--rose);
   border-radius: 50%;
-  box-shadow: 0 0 0 5px rgba(234, 141, 172, 0.13);
+  box-shadow: 0 0 0 5px rgba(255, 92, 137, 0.16);
 }
 
 .page-title {
@@ -425,27 +484,102 @@
 }
 
 /* ───────────────────────────────────────────────────────────── hero */
+/*
+ * Mobile-first a propósito: los estilos base son los del celular (una sola
+ * columna, video a pantalla casi completa) y recién en los @media
+ * (min-width: …) de más abajo se agranda a tablet/desktop. Antes era al
+ * revés (base pensada para desktop, se achicaba con max-width), que es lo
+ * que hacía que el celular se sintiera "el layout de escritorio apretado"
+ * en vez de una experiencia pensada para esa pantalla.
+ */
 
 .hero {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: 1fr 0.86fr;
-  align-items: center;
-  gap: 4.6rem;
-  padding: 4rem 0 5rem;
+  align-items: end;
+  min-height: 88svh;
+  margin: 0 calc(50% - 50vw);
+  padding: 0;
+  overflow: hidden;
+}
+
+.hero-video-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(59, 22, 38, 0.55) 0%,
+    rgba(59, 22, 38, 0.28) 38%,
+    rgba(255, 92, 137, 0.4) 78%,
+    rgba(255, 246, 248, 0.94) 100%
+  );
+}
+
+.hero-content {
+  width: min(760px, calc(100% - 40px));
+  margin-inline: auto;
+  padding: 7rem 0 3rem;
+  color: #fff6f8;
+}
+
+.hero-content .eyebrow {
+  color: #ffd4e0;
+}
+
+.hero-content .eyebrow-dot {
+  background: #ffd4e0;
+  box-shadow: 0 0 0 5px rgba(255, 212, 224, 0.22);
 }
 
 .hero h1 {
-  max-width: 660px;
-  font-size: clamp(3.2rem, 6.6vw, 6.2rem);
-  line-height: 0.92;
-  margin-bottom: 1.6rem;
+  max-width: 620px;
+  font-size: clamp(2.6rem, 11vw, 4.4rem);
+  line-height: 0.98;
+  margin-bottom: 1.3rem;
+  color: #fff6f8;
+  text-shadow: 0 2px 24px rgba(30, 8, 17, 0.35);
+}
+
+.hero h1 em {
+  color: #ffd4e0;
+}
+
+.hero .lede {
+  color: rgba(255, 246, 248, 0.88);
+  max-width: 480px;
 }
 
 .hero-actions {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.8rem;
+}
+
+.hero-actions .primary-link,
+.hero-actions .ghost-link {
+  width: 100%;
+}
+
+.hero-actions .ghost-link {
+  color: #fff6f8;
+  border-color: rgba(255, 246, 248, 0.4);
+}
+
+.hero-actions .ghost-link:hover {
+  border-color: #fff6f8;
+  color: #ffd4e0;
 }
 
 .hero-trust {
@@ -453,104 +587,21 @@
   align-items: center;
   gap: 0.8rem;
   max-width: 420px;
-  border-top: 1px solid var(--line);
-  padding-top: 1.6rem;
-  margin-top: 2.8rem;
+  border-top: 1px solid rgba(255, 246, 248, 0.28);
+  padding-top: 1.4rem;
+  margin-top: 2rem;
 }
 
 .hero-trust svg {
-  color: var(--rose);
+  color: #ffd4e0;
   flex: 0 0 auto;
 }
 
 .hero-trust p {
   font-size: 0.78rem;
   line-height: 1.5;
-  color: var(--muted);
+  color: rgba(255, 246, 248, 0.82);
   margin: 0;
-}
-
-.hero-art {
-  height: 545px;
-  position: relative;
-}
-
-.hero-orb {
-  position: absolute;
-  border-radius: 50%;
-}
-
-.orb-one {
-  width: 77%;
-  aspect-ratio: 1;
-  right: 0;
-  top: 0;
-  background: radial-gradient(circle at 35% 37%, #d8769d 0, #a94d75 33%, #48283d 66%, transparent 67%);
-  opacity: 0.73;
-}
-
-.orb-two {
-  height: 38%;
-  width: 38%;
-  bottom: 5%;
-  left: 5%;
-  background: var(--lavender);
-  opacity: 0.62;
-}
-
-.portrait-frame {
-  height: 92%;
-  width: 69%;
-  position: absolute;
-  right: 9%;
-  bottom: 0;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(circle, #e1c2cc 0 45%, #4b273b 46% 63%, #1a1519 64%);
-  border-radius: 190px 190px 8px 8px;
-  overflow: hidden;
-  box-shadow: 22px 23px 0 rgba(232, 141, 172, 0.13);
-}
-
-.portrait-frame img {
-  width: 68%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border: 6px solid rgba(255, 174, 200, 0.9);
-  border-radius: 50%;
-  box-shadow: 0 0 0 10px rgba(25, 17, 23, 0.76);
-  filter: saturate(0.8) contrast(1.04);
-}
-
-.floating-note {
-  position: absolute;
-  z-index: 2;
-  display: flex;
-  gap: 0.45rem;
-  align-items: center;
-  width: max-content;
-  color: var(--paper);
-  background: rgba(20, 16, 20, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(12px);
-  padding: 0.65rem 0.75rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  border-radius: 3px;
-}
-
-.floating-note svg {
-  color: var(--rose);
-}
-
-.note-top {
-  left: 0;
-  top: 18%;
-}
-
-.note-bottom {
-  right: -3%;
-  bottom: 12%;
 }
 
 /* ─────────────────────────────────────────────── banda de autoridad */
@@ -621,7 +672,7 @@
 }
 
 .service-card:hover {
-  border-color: rgba(234, 141, 172, 0.5);
+  border-color: rgba(255, 92, 137, 0.5);
   transform: translateY(-3px);
 }
 
@@ -694,7 +745,7 @@
 }
 
 .panel-soft {
-  background: linear-gradient(135deg, #2c222b, #1d171e);
+  background: linear-gradient(135deg, #ffe3ea, #ffd4e0);
   border: 1px solid var(--line);
   padding: clamp(1.8rem, 3.5vw, 3rem);
 }
@@ -796,7 +847,7 @@
 }
 
 .rose-block .primary-link {
-  color: var(--paper);
+  color: #fff6f8;
   background: #2a1720;
   border-color: #2a1720;
 }
@@ -866,7 +917,7 @@
 }
 
 .site-footer {
-  background: #0e0c0f;
+  background: var(--ink-soft);
   border-top: 1px solid var(--line);
 }
 
@@ -919,7 +970,7 @@
   gap: 1rem;
   border-top: 1px solid var(--line);
   padding: 1.05rem 0;
-  color: #777078;
+  color: var(--muted);
   font-size: 0.68rem;
   letter-spacing: 0.05em;
 }
@@ -1005,6 +1056,43 @@
 
 /* ──────────────────────────────────────────────────────── responsive */
 
+/* A partir de acá se agranda para tablet/desktop — la base de arriba ya es
+   el layout mobile completo, no un recorte de esto. */
+@media (min-width: 640px) {
+  .hero-actions {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .hero-actions .primary-link,
+  .hero-actions .ghost-link {
+    width: fit-content;
+  }
+}
+
+@media (min-width: 900px) {
+  .hero {
+    min-height: 92svh;
+    align-items: center;
+  }
+
+  .hero-content {
+    width: min(900px, calc(100% - 40px));
+    padding: 0;
+  }
+
+  .hero h1 {
+    max-width: 760px;
+    font-size: clamp(3.4rem, 6.2vw, 5.6rem);
+  }
+
+  .hero .lede {
+    max-width: 560px;
+    font-size: 1.05rem;
+  }
+}
+
 @media (max-width: 900px) {
   .desktop-nav,
   .header-cta {
@@ -1017,18 +1105,6 @@
 
   .mobile-nav[data-open="true"] {
     display: flex;
-  }
-
-  .hero {
-    grid-template-columns: 1fr;
-    gap: 3.5rem;
-    padding-top: 3rem;
-  }
-
-  .hero-art {
-    height: 470px;
-    width: min(470px, 96%);
-    justify-self: center;
   }
 
   .authority-band {
@@ -1058,25 +1134,6 @@
 
   .wordmark {
     font-size: 1.35rem;
-  }
-
-  .hero {
-    padding: 2.4rem 0 3.5rem;
-  }
-
-  .hero-art {
-    height: 400px;
-    width: 100%;
-  }
-
-  .hero-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .hero-actions .primary-link,
-  .hero-actions .ghost-link {
-    width: 100%;
   }
 
   .service-meta {
@@ -1207,7 +1264,7 @@
 .step-dot[data-state="current"] i {
   border-color: var(--rose);
   background: var(--rose);
-  color: #28151c;
+  color: var(--paper);
 }
 
 .step-dot[data-state="done"] {
@@ -1241,7 +1298,7 @@
 }
 
 .choice-card:hover {
-  border-color: rgba(234, 141, 172, 0.5);
+  border-color: rgba(255, 92, 137, 0.5);
 }
 
 .choice-card[aria-pressed="true"] {
@@ -1348,7 +1405,7 @@
 }
 
 .day-cell:disabled {
-  color: #5b545a;
+  color: #e3c3cd;
   cursor: not-allowed;
   border-color: transparent;
 }
@@ -1361,7 +1418,7 @@
 .day-cell[aria-pressed="true"] {
   background: var(--rose);
   border-color: var(--rose);
-  color: #28151c;
+  color: var(--paper);
   font-weight: 700;
 }
 
@@ -1380,7 +1437,7 @@
 }
 
 .day-cell[aria-pressed="true"] .day-load i {
-  background: #28151c;
+  background: var(--paper);
 }
 
 .slot-grid {
@@ -1410,7 +1467,7 @@
 .slot-chip[aria-pressed="true"] {
   background: var(--rose);
   border-color: var(--rose);
-  color: #28151c;
+  color: var(--paper);
 }
 
 /* Formularios */
@@ -1454,7 +1511,7 @@
 }
 
 .field-error {
-  color: #ff9a9a;
+  color: #e11d48;
   font-size: 0.76rem;
   margin: 0;
 }
@@ -1491,19 +1548,19 @@
 }
 
 .notice[data-tone="warn"] {
-  border-color: rgba(255, 187, 120, 0.4);
+  border-color: rgba(180, 83, 9, 0.35);
 }
 
 .notice[data-tone="warn"] svg {
-  color: #ffbb78;
+  color: #b45309;
 }
 
 .notice[data-tone="error"] {
-  border-color: rgba(255, 122, 122, 0.45);
+  border-color: rgba(225, 29, 72, 0.35);
 }
 
 .notice[data-tone="error"] svg {
-  color: #ff9a9a;
+  color: #e11d48;
 }
 
 /* Contenedor del Payment Brick de Mercado Pago: es un iframe, no hereda el

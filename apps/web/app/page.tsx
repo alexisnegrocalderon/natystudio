@@ -2,7 +2,7 @@ import { ArrowUpRight, GraduationCap, ShieldCheck, Stethoscope } from "lucide-re
 import Link from "next/link";
 import { ClosingCta } from "@/components/ClosingCta";
 import { FaqSection } from "@/components/FaqSection";
-import { HeroPortrait } from "@/components/HeroPortrait";
+import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { JsonLd } from "@/components/JsonLd";
 import { ServiceCard } from "@/components/ServiceCard";
 import {
@@ -38,8 +38,10 @@ export default async function HomePage() {
     <>
       <JsonLd data={faqJsonLd(faqContent.items)} />
 
-      <section className="hero section-wrap">
-        <div className="reveal-up">
+      <section className="hero">
+        <HeroVideoBackground />
+
+        <div className="hero-content reveal-up">
           <p className="eyebrow">
             <span className="eyebrow-dot" />
             {heroContent.eyebrow}
@@ -63,8 +65,6 @@ export default async function HomePage() {
             <p>{heroContent.trust}</p>
           </div>
         </div>
-
-        <HeroPortrait />
       </section>
 
       <section className="authority-band" aria-label="Pilares profesionales">
