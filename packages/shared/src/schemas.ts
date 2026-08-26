@@ -35,12 +35,40 @@ export const createBookingSchema = z.object({
 });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 
+export const processPaymentSchema = z.object({
+  publicId: z.string().trim().min(6).max(32),
+  cancelToken: z.string().trim().min(10).max(64),
+  kind: z.enum(["deposit", "full"]),
+  /** Tal cual lo entrega el Payment Brick en `onSubmit`. */
+  formData: z.object({
+    token: z.string().min(10),
+    payment_method_id: z.string().min(1),
+    issuer_id: z.union([z.string(), z.number()]).optional(),
+    installments: z.number().int().min(1).max(12).default(1),
+    payer: z.object({
+      email: z.email(),
+      identification: z.object({ type: z.string(), number: z.string() }).optional(),
+    }),
+  }),
+});
+export type ProcessPaymentInput = z.infer<typeof processPaymentSchema>;
+
 export const leadCaptureSchema = z.object({
   email: z.email().trim().toLowerCase().max(320),
   phone: phoneSchema.optional(),
   name: z.string().trim().max(120).optional(),
   serviceId: z.number().int().positive().optional(),
   step: z.string().trim().max(40),
+});
+
+export const contactFormSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.email("Revisa tu correo electrónico").trim().toLowerCase().max(320),
+  phone: phoneSchema.optional(),
+  message: z.string().trim().min(5, "Cuéntanos un poco más").max(2000),
+  serviceId: z.number().int().positive().optional(),
+  /** Campo trampa invisible: si un bot lo rellena, se descarta en silencio. */
+  honeypot: z.string().max(200).optional(),
 });
 
 export const bookingLookupSchema = z.object({
@@ -136,6 +164,35 @@ export const appointmentListQuerySchema = z.object({
 export const rescheduleAppointmentSchema = z.object({
   id: z.number().int().positive(),
   startsAt: z.iso.datetime(),
+});
+
+/* --------------------------------------------------------------- clientas */
+
+export const customerListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  /** Id de la última clienta de la página anterior; se listan las siguientes. */
+  cursor: z.number().int().positive().optional(),
+  limit: z.number().int().min(1).max(100).default(30),
+});
+
+export const customerUpdateSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().trim().min(2).max(120),
+  phone: phoneSchema,
+  notes: z.string().trim().max(4000).optional(),
+});
+
+export const customerSendEmailSchema = z.object({
+  id: z.number().int().positive(),
+  subject: z.string().trim().min(2).max(160),
+  body: z.string().trim().min(2).max(8000),
+});
+
+export const customerBroadcastSchema = z.object({
+  subject: z.string().trim().min(2).max(160),
+  body: z.string().trim().min(2).max(8000),
+  /** Mismo texto de búsqueda del listado: vacío envía a todas las clientas. */
+  filter: z.string().trim().max(200).optional(),
 });
 
 /* ------------------------------------------------------------------- auth */

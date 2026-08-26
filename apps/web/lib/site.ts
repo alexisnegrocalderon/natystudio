@@ -58,3 +58,13 @@ export function absoluteUrl(path = "/"): string {
 export function whatsappWithMessage(message: string): string {
   return `${BUSINESS.whatsapp}?text=${encodeURIComponent(message)}`;
 }
+
+/**
+ * Enlace de WhatsApp hacia el teléfono de una clienta (no el del negocio).
+ * `wa.me` sólo acepta dígitos, así que se descarta cualquier `+` o espacio
+ * que haya quedado guardado.
+ */
+export function whatsappTo(phone: string, message: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}

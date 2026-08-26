@@ -109,15 +109,23 @@ descarta además las horas locales que no existen durante el adelanto de septiem
 pending_approval ──(Naty confirma)──> confirmed ──> completed / no_show
        │                                  │
        └──────────(cancelada)─────────────┴──> cancelled
+
+pending_payment ──(pago aprobado)────> confirmed  (con Mercado Pago activado)
+       │
+       └──(vence sin pagar, o pago rechazado sin reintento)──> cancelled
 ```
 
-Con la aprobación automática activada en Ajustes, la reserva nace directamente en `confirmed`.
+Con la aprobación automática activada en Ajustes, la reserva nace directamente en `confirmed`. Con
+`PAYMENTS_ENABLED=true` y un servicio con precio, nace en `pending_payment`: la hora queda retenida
+(protegida por el mismo constraint de exclusión) hasta que el pago se aprueba o pasan 15 minutos sin
+pagar.
 
 **Correos y recordatorios.** Se encolan en `email_jobs` y los procesa `GET /api/cron` — no hay un
 proceso interno corriendo el cron (no hay proceso permanente en absoluto: es todo funciones que se
 despiertan por petición). Un servicio externo tiene que llamar a esa ruta cada 5 minutos (ver
 "Recordatorios programados" más abajo). La idempotencia vive en la fila de la base, así que dos
-disparos superpuestos no duplican ni pierden avisos.
+disparos superpuestos no duplican ni pierden avisos. La misma pasada también reconcilia pagos que
+quedaron "pending" sin novedad, por si algún aviso de Mercado Pago no llegó.
 
 ---
 
@@ -130,7 +138,8 @@ la raíz).
 - **Root Directory**: `apps/web`
 - **Variables**: las de `apps/web/.env.example` — `DATABASE_URL`, `ADMIN_SESSION_SECRET`,
   `CRON_SECRET`, `SITE_URL`/`NEXT_PUBLIC_SITE_URL`, y opcionalmente `RESEND_API_KEY`,
-  `ADMIN_NOTIFY_EMAIL`.
+  `ADMIN_NOTIFY_EMAIL`, y `PAYMENTS_ENABLED`/`MP_ACCESS_TOKEN`/`MP_PUBLIC_KEY`/`MP_WEBHOOK_SECRET`
+  cuando llegue el momento de cobrar en línea.
 
 Corre `pnpm db:migrate` y `pnpm db:seed` una vez contra la base de producción (desde tu máquina, o
 pegando el SQL equivalente en el SQL Editor de Neon si no tienes terminal a mano).
@@ -149,6 +158,23 @@ Sin un proceso permanente, algo externo tiene que disparar el mantenimiento cada
 Sin la clave correcta, la ruta devuelve `401` — así nadie más puede forzar el reenvío de
 recordatorios.
 
+### Cobrar en línea con Mercado Pago
+
+Los pagos están implementados (Payment Brick embebido en `/reservar`, webhook con verificación de
+firma en `/api/webhooks/mercadopago`, reconciliador en el cron) pero **apagados por defecto**
+(`PAYMENTS_ENABLED=false`): mientras tanto toda reserva sigue el flujo de siempre (Naty confirma a
+mano). Para encenderlos:
+
+1. Crea la aplicación en el panel de desarrolladores de Mercado Pago y copia `MP_ACCESS_TOKEN` y
+   `MP_PUBLIC_KEY` (empieza con las credenciales de **prueba** para probar el flujo sin cobrar de
+   verdad).
+2. Configura el webhook de esa aplicación para el evento "Pagos" apuntando a
+   `https://tudominio.cl/api/webhooks/mercadopago`, y copia la clave secreta a `MP_WEBHOOK_SECRET`.
+3. Carga el **abono** de cada servicio desde `/admin/servicios` (déjalo en 0 si el servicio sólo
+   debe ofrecer pagar el total).
+4. Pon `PAYMENTS_ENABLED=true` y prueba una reserva completa antes de pasar a credenciales de
+   producción.
+
 ---
 
 ## Antes de lanzar
@@ -161,6 +187,8 @@ recordatorios.
       el sitio muestra "Consulta el valor" en vez de un monto.
 - [ ] **Activar la verificación en dos pasos** en Ajustes y guardar los códigos de respaldo.
 - [ ] **Configurar el pinger de `/api/cron`** (ver arriba) — sin esto no salen los recordatorios.
+- [ ] **Si vas a cobrar en línea**, seguir los pasos de "Cobrar en línea con Mercado Pago" arriba
+      (puede quedar para después: el sitio funciona igual con `PAYMENTS_ENABLED=false`).
 - [ ] **Recién entonces**, poner `NEXT_PUBLIC_INDEXING_ENABLED=true`.
 
 > El último punto importa más de lo que parece. Si Google alcanza a indexar el sitio bajo una URL
@@ -170,11 +198,6 @@ recordatorios.
 ---
 
 ## Pendiente
-
-**Mercado Pago.** El esquema de `payments` ya existe y la integración queda tras
-`PAYMENTS_ENABLED=false`. Mientras esté apagado, la reserva queda pendiente y Naty la confirma a
-mano. Al llegar las credenciales hay que implementar Checkout Bricks y su webhook, y encender el
-flag: el esquema no cambia.
 
 **Idiomas.** El sitio está sólo en español. Con Next.js lo correcto son rutas `/es`, `/pt` y `/en`
 con `hreflang`, como trabajo aparte.

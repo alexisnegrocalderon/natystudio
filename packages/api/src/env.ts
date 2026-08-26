@@ -59,6 +59,16 @@ if (ENV.paymentsEnabled && !ENV.mercadoPago.accessToken) {
   );
 }
 
+if (ENV.paymentsEnabled && !ENV.mercadoPago.webhookSecret) {
+  // No es un error duro: los pagos igual funcionan por la respuesta en línea
+  // de payment.process. Pero sin el secreto el webhook no puede validar su
+  // firma y queda inerte, así que un pago que sólo se resuelve por webhook
+  // (in_process → approved más tarde) se perdería hasta que corra el cron.
+  console.warn(
+    "[env] PAYMENTS_ENABLED está en true sin MP_WEBHOOK_SECRET: el webhook de Mercado Pago no podrá validar su firma.",
+  );
+}
+
 if (ENV.isProduction && ENV.adminSessionSecret === "desarrollo-inseguro-cambiar") {
   throw new Error("ADMIN_SESSION_SECRET no puede quedarse con el valor de desarrollo en producción.");
 }

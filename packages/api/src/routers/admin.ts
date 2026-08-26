@@ -5,6 +5,7 @@ import {
   BLOCKING_APPOINTMENT_STATUSES,
   appointmentListQuerySchema,
   businessHoursInputSchema,
+  customerSendEmailSchema,
   postInputSchema,
   rescheduleAppointmentSchema,
   schedulingSettingsInputSchema,
@@ -24,9 +25,10 @@ import {
   timeOff,
 } from "../db";
 import { rescheduleAppointment } from "../services/booking";
-import { dropPendingReminders, enqueueNow, scheduleReminders } from "../services/email";
+import { dropPendingReminders, enqueueManualMessage, enqueueNow, scheduleReminders } from "../services/email";
 import { revalidatePaths } from "../services/revalidate";
 import { adminProcedure, router } from "../trpc";
+import { adminCustomersRouter } from "./admin-customers";
 
 const idInput = z.object({ id: z.number().int().positive() });
 
@@ -309,11 +311,63 @@ const postsRouter = router({
   }),
 });
 
+const leadsRouter = router({
+  list: adminProcedure.query(() =>
+    db
+      .select({
+        id: leads.id,
+        email: leads.email,
+        name: leads.name,
+        phone: leads.phone,
+        step: leads.step,
+        createdAt: leads.createdAt,
+        serviceName: services.name,
+      })
+      .from(leads)
+      .leftJoin(services, eq(leads.serviceId, services.id))
+      .where(isNull(leads.convertedAt))
+      .orderBy(desc(leads.createdAt))
+      .limit(100),
+  ),
+
+  /** Reservó por otra vía (teléfono, en persona): se cierra el seguimiento. */
+  markConverted: adminProcedure.input(idInput).mutation(async ({ input }) => {
+    const [updated] = await db
+      .update(leads)
+      .set({ convertedAt: new Date() })
+      .where(eq(leads.id, input.id))
+      .returning();
+    if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "El contacto no existe." });
+    return updated;
+  }),
+
+  /** No procede el seguimiento (no responde, no le interesa): sale de la lista. */
+  dismiss: adminProcedure.input(idInput).mutation(async ({ input }) => {
+    const [updated] = await db
+      .update(leads)
+      .set({ convertedAt: new Date() })
+      .where(eq(leads.id, input.id))
+      .returning();
+    if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "El contacto no existe." });
+    return updated;
+  }),
+
+  sendEmail: adminProcedure.input(customerSendEmailSchema).mutation(async ({ input }) => {
+    const found = await db.select().from(leads).where(eq(leads.id, input.id)).limit(1);
+    const lead = found[0];
+    if (!lead) throw new TRPCError({ code: "NOT_FOUND", message: "El contacto no existe." });
+
+    await enqueueManualMessage(lead.email, input.subject, input.body);
+    return { ok: true as const };
+  }),
+});
+
 export const adminRouter = router({
   services: servicesRouter,
   schedule: scheduleRouter,
   appointments: appointmentsRouter,
   posts: postsRouter,
+  customers: adminCustomersRouter,
 
   dashboard: adminProcedure.query(async () => {
     const now = new Date();
@@ -370,21 +424,5 @@ export const adminRouter = router({
     };
   }),
 
-  leads: adminProcedure.query(() =>
-    db
-      .select({
-        id: leads.id,
-        email: leads.email,
-        name: leads.name,
-        phone: leads.phone,
-        step: leads.step,
-        createdAt: leads.createdAt,
-        serviceName: services.name,
-      })
-      .from(leads)
-      .leftJoin(services, eq(leads.serviceId, services.id))
-      .where(isNull(leads.convertedAt))
-      .orderBy(desc(leads.createdAt))
-      .limit(100),
-  ),
+  leads: leadsRouter,
 });

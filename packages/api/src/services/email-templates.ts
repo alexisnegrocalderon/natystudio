@@ -104,6 +104,20 @@ function plainDetails(data: TemplateData): string {
   return lines.join("\n");
 }
 
+/** Correo escrito a mano por Naty desde la ficha de una clienta o un envío masivo. */
+export function renderManualMessage(subject: string, body: string): RenderedEmail {
+  const html = body
+    .split(/\n{2,}/)
+    .map(block => paragraph(block.replace(/\n/g, "<br>")))
+    .join("");
+
+  return {
+    subject,
+    html: layout(subject, html),
+    text: body,
+  };
+}
+
 export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEmail {
   const bookingUrl = `${data.siteUrl}/reserva/${data.publicId}`;
   const manageUrl = `${bookingUrl}?token=${data.cancelToken}`;
@@ -210,5 +224,31 @@ export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEma
         ),
         text: `Nueva reserva de ${data.customerName}.\n\n${plainDetails(data)}\n\nAgenda: ${data.siteUrl}/admin/agenda`,
       };
+
+    case "payment_received": {
+      const remaining = data.priceClp - data.amountPaidClp;
+      const balanceNote =
+        remaining > 0
+          ? `Queda un saldo de ${formatClp(remaining)} que se paga en el estudio.`
+          : "Con esto tu servicio quedó pagado por completo.";
+
+      return {
+        subject: `Recibimos tu pago · ${formatClp(data.amountPaidClp)}`,
+        html: layout(
+          "Pago recibido",
+          heading(`${firstName}, recibimos tu pago`) +
+            paragraph(`Pagaste ${formatClp(data.amountPaidClp)} y tu hora quedó confirmada. ${balanceNote}`) +
+            appointmentDetails(data) +
+            button(manageUrl, "Ver mi reserva"),
+        ),
+        text: `${firstName}, recibimos tu pago de ${formatClp(data.amountPaidClp)}. ${balanceNote}\n\n${plainDetails(data)}\n\nVer tu reserva: ${manageUrl}`,
+      };
+    }
+
+    case "manual_message":
+      // Los mensajes manuales se arman desde `email_jobs.payload` (asunto y
+      // cuerpo escritos por Naty), no a partir de una cita: nunca pasan por
+      // aquí. Ver `processPendingEmailJobs` en services/email.ts.
+      throw new Error("manual_message no se renderiza con renderEmail(); usa email_jobs.payload");
   }
 }
