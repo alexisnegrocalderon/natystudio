@@ -198,7 +198,11 @@ export const payments = pgTable(
     createdAt: instant("created_at").notNull().defaultNow(),
     updatedAt: instant("updated_at").notNull().defaultNow(),
   },
-  table => [index("payments_appointment_idx").on(table.appointmentId)],
+  table => [
+    index("payments_appointment_idx").on(table.appointmentId),
+    /** El reconciliador del cron busca por aquí los pagos "pending" que llevan rato sin novedad. */
+    index("payments_status_updated_idx").on(table.status, table.updatedAt),
+  ],
 );
 
 /* -------------------------------------------------------------- emailJobs */
@@ -217,6 +221,11 @@ export const emailJobs = pgTable(
     status: emailJobStatusEnum("status").notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
+    /**
+     * Asunto y cuerpo en JSON para los correos que no nacen de una cita (mensajes
+     * manuales o campañas desde la ficha de una clienta). Nulo para el resto.
+     */
+    payload: text("payload"),
     createdAt: instant("created_at").notNull().defaultNow(),
   },
   table => [
@@ -261,7 +270,14 @@ export const leads = pgTable(
     convertedAt: instant("converted_at"),
     createdAt: instant("created_at").notNull().defaultNow(),
   },
-  table => [index("leads_email_idx").on(table.email)],
+  table => [
+    index("leads_email_idx").on(table.email),
+    /**
+     * Misma persona interesada en el mismo servicio: se actualiza el registro en
+     * vez de acumular una fila nueva cada vez que retoma el embudo.
+     */
+    uniqueIndex("leads_email_service_key").on(table.email, table.serviceId),
+  ],
 );
 
 /* ------------------------------------------------------- sesiones de login */

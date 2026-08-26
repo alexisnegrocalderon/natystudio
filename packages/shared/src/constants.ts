@@ -44,6 +44,10 @@ export const EMAIL_JOB_KINDS = [
   "rescheduled",
   "cancelled",
   "admin_new_booking",
+  /** Comprobante del abono o del pago total hecho en línea. */
+  "payment_received",
+  /** Correo escrito a mano por Naty desde la ficha de una clienta. */
+  "manual_message",
 ] as const;
 export type EmailJobKind = (typeof EMAIL_JOB_KINDS)[number];
 

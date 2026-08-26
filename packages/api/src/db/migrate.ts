@@ -13,6 +13,13 @@ async function applyPostMigrationSql() {
   // de exclusión de más abajo.
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS btree_gist`);
 
+  // Respaldo idempotente de la migración 0001: si `ALTER TYPE ... ADD VALUE`
+  // ya corrió como parte de esa migración esto es un no-op, pero deja la base
+  // consistente si alguna vez se aplicó el esquema por otra vía (SQL pegado a
+  // mano en Neon, por ejemplo).
+  await db.execute(sql`ALTER TYPE email_job_kind ADD VALUE IF NOT EXISTS 'payment_received'`);
+  await db.execute(sql`ALTER TYPE email_job_kind ADD VALUE IF NOT EXISTS 'manual_message'`);
+
   /**
    * Aquí está la garantía central de la agenda: PostgreSQL rechaza cualquier
    * cita cuyo rango [inicio, fin_del_bloqueo) se cruce con el de otra que siga

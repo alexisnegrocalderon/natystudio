@@ -210,5 +210,31 @@ export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEma
         ),
         text: `Nueva reserva de ${data.customerName}.\n\n${plainDetails(data)}\n\nAgenda: ${data.siteUrl}/admin/agenda`,
       };
+
+    case "payment_received": {
+      const remaining = data.priceClp - data.amountPaidClp;
+      const balanceNote =
+        remaining > 0
+          ? `Queda un saldo de ${formatClp(remaining)} que se paga en el estudio.`
+          : "Con esto tu servicio quedó pagado por completo.";
+
+      return {
+        subject: `Recibimos tu pago · ${formatClp(data.amountPaidClp)}`,
+        html: layout(
+          "Pago recibido",
+          heading(`${firstName}, recibimos tu pago`) +
+            paragraph(`Pagaste ${formatClp(data.amountPaidClp)} y tu hora quedó confirmada. ${balanceNote}`) +
+            appointmentDetails(data) +
+            button(manageUrl, "Ver mi reserva"),
+        ),
+        text: `${firstName}, recibimos tu pago de ${formatClp(data.amountPaidClp)}. ${balanceNote}\n\n${plainDetails(data)}\n\nVer tu reserva: ${manageUrl}`,
+      };
+    }
+
+    case "manual_message":
+      // Los mensajes manuales se arman desde `email_jobs.payload` (asunto y
+      // cuerpo escritos por Naty), no a partir de una cita: nunca pasan por
+      // aquí. Ver `processPendingEmailJobs` en services/email.ts.
+      throw new Error("manual_message no se renderiza con renderEmail(); usa email_jobs.payload");
   }
 }
