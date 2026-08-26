@@ -118,3 +118,7 @@ next-env.d.ts
 .turbo/
 
 .project-config.json
+
+# Claude Code local tooling (skills installed via `npx skills`, not project code)
+.claude/
+skills-lock.json
