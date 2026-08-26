@@ -19,6 +19,7 @@ import {
   customers,
   emailJobs,
   leads,
+  locations,
   posts,
   schedulingSettings,
   services,
@@ -102,30 +103,43 @@ const servicesRouter = router({
 });
 
 const scheduleRouter = router({
-  getHours: adminProcedure.query(() =>
-    db.select().from(businessHours).orderBy(asc(businessHours.weekday), asc(businessHours.startMinute)),
+  getHours: adminProcedure.input(z.object({ locationId: z.number().int().positive() })).query(({ input }) =>
+    db
+      .select()
+      .from(businessHours)
+      .where(eq(businessHours.locationId, input.locationId))
+      .orderBy(asc(businessHours.weekday), asc(businessHours.startMinute)),
   ),
 
   setHours: adminProcedure.input(businessHoursInputSchema).mutation(async ({ input }) => {
-    // La plantilla semanal se reemplaza completa: es más simple de razonar que
-    // aplicar altas y bajas parciales, y el volumen es de unas pocas filas.
+    // La plantilla semanal se reemplaza completa para esa sede: es más simple
+    // de razonar que aplicar altas y bajas parciales, y el volumen es de unas
+    // pocas filas. Sólo borra las filas de esta sede, no las de la otra.
     await db.transaction(async tx => {
-      await tx.delete(businessHours);
+      await tx.delete(businessHours).where(eq(businessHours.locationId, input.locationId));
       if (input.entries.length > 0) {
-        await tx.insert(businessHours).values(input.entries);
+        await tx
+          .insert(businessHours)
+          .values(input.entries.map(entry => ({ ...entry, locationId: input.locationId })));
       }
     });
     return { ok: true as const };
   }),
 
-  listTimeOff: adminProcedure.query(() =>
-    db.select().from(timeOff).orderBy(desc(timeOff.startsAt)).limit(200),
+  listTimeOff: adminProcedure.input(z.object({ locationId: z.number().int().positive() })).query(({ input }) =>
+    db
+      .select()
+      .from(timeOff)
+      .where(eq(timeOff.locationId, input.locationId))
+      .orderBy(desc(timeOff.startsAt))
+      .limit(200),
   ),
 
   createTimeOff: adminProcedure.input(timeOffInputSchema).mutation(async ({ input }) => {
     const [created] = await db
       .insert(timeOff)
       .values({
+        locationId: input.locationId,
         startsAt: new Date(input.startsAt),
         endsAt: new Date(input.endsAt),
         reason: input.reason,
@@ -180,10 +194,12 @@ const appointmentsRouter = router({
         customerName: customers.name,
         customerEmail: customers.email,
         customerPhone: customers.phone,
+        locationName: locations.name,
       })
       .from(appointments)
       .innerJoin(services, eq(appointments.serviceId, services.id))
       .innerJoin(customers, eq(appointments.customerId, customers.id))
+      .innerJoin(locations, eq(appointments.locationId, locations.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(asc(appointments.startsAt))
       .limit(500);
@@ -383,10 +399,12 @@ export const adminRouter = router({
           status: appointments.status,
           serviceName: services.name,
           customerName: customers.name,
+          locationName: locations.name,
         })
         .from(appointments)
         .innerJoin(services, eq(appointments.serviceId, services.id))
         .innerJoin(customers, eq(appointments.customerId, customers.id))
+        .innerJoin(locations, eq(appointments.locationId, locations.id))
         .where(
           and(
             gte(appointments.startsAt, now),

@@ -1297,29 +1297,76 @@ body:has(.admin-theme) #contenido {
 
 /* ═══════════════════════════════════════════ embudo de reserva y panel */
 
-.funnel-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: clamp(2rem, 5vw, 4rem);
-  align-items: start;
-  padding-bottom: 5rem;
+/*
+ * Stage de la reserva: ocupa el alto disponible bajo el pill flotante
+ * (mismo `--nav-offset` que usa el hero) y centra el paso actual — nada de
+ * scroll de página al ir avanzando, sólo el contenido de un paso puntual
+ * si llegara a ser más alto que la pantalla (lista larga de horarios, por
+ * ejemplo). El fondo con degradé de la paleta reemplaza el plano de antes.
+ */
+.funnel-stage {
+  min-height: calc(100svh - var(--nav-offset));
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 20px 3rem;
+  background: linear-gradient(180deg, var(--ink-soft) 0%, var(--ink) 60%);
 }
 
-.funnel-summary {
-  position: sticky;
-  top: 100px;
-  background: var(--ink-raised);
+.funnel-crumbs {
+  width: min(720px, 100%);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.funnel-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   border: 1px solid var(--line);
-  padding: 1.6rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+  transition: all 160ms var(--ease-out);
 }
 
-.funnel-summary h2 {
-  font-family: var(--font-sans);
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--rose);
-  margin: 0 0 1.2rem;
+.funnel-crumb[data-state="current"] {
+  color: var(--paper);
+  border-color: var(--rose);
+  background: var(--ink-raised);
+}
+
+.funnel-crumb[data-state="done"] {
+  color: var(--rose-pale);
+  background: var(--ink-raised);
+}
+
+button.funnel-crumb[data-state="done"] {
+  cursor: pointer;
+}
+
+button.funnel-crumb[data-state="done"]:hover {
+  border-color: var(--rose);
+}
+
+.funnel-stage-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.funnel-step-inner {
+  width: min(640px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .summary-row {
@@ -1359,65 +1406,6 @@ body:has(.admin-theme) #contenido {
   font-family: var(--font-display);
   font-size: 1.7rem;
   color: var(--rose-pale);
-}
-
-/* Indicador de pasos */
-.step-track {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 2.5rem;
-  flex-wrap: wrap;
-}
-
-.step-dot {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-.step-dot i {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  font-style: normal;
-  font-size: 0.72rem;
-  transition: all 200ms var(--ease-out);
-}
-
-.step-dot[data-state="current"] {
-  color: var(--rose-pale);
-}
-
-.step-dot[data-state="current"] i {
-  border-color: var(--rose);
-  background: var(--rose);
-  color: var(--paper);
-}
-
-.step-dot[data-state="done"] {
-  color: var(--paper-muted);
-}
-
-.step-dot[data-state="done"] i {
-  border-color: var(--rose);
-  color: var(--rose);
-}
-
-.step-track hr {
-  flex: 1;
-  min-width: 12px;
-  border: 0;
-  border-top: 1px solid var(--line);
-  margin: 0;
 }
 
 /* Selección de servicio */
@@ -1715,24 +1703,14 @@ body:has(.admin-theme) #contenido {
   line-height: 1.7;
 }
 
-@media (max-width: 900px) {
-  .funnel-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .funnel-summary {
-    position: static;
-    order: -1;
-  }
-}
-
 @media (max-width: 560px) {
   .field-row {
     grid-template-columns: 1fr;
   }
 
-  .step-dot span {
-    display: none;
+  .funnel-crumb {
+    font-size: 0.66rem;
+    padding: 0.35rem 0.65rem;
   }
 }
 

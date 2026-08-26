@@ -22,26 +22,46 @@ export const INDEXING_ENABLED = process.env.NEXT_PUBLIC_INDEXING_ENABLED === "tr
 export const SITE_NAME = "naty.studio";
 
 export const SITE_DESCRIPTION =
-  "Enfermera estética en Valparaíso especializada en retiro de acrocordones. Evaluación personalizada, técnica segura y formación para profesionales.";
+  "Enfermera estética en Valparaíso y Providencia (Santiago) especializada en retiro de acrocordones. Evaluación personalizada, técnica segura y formación para profesionales.";
 
 export const BUSINESS = {
   name: "naty.studio",
   legalName: "naty.studio",
   description: SITE_DESCRIPTION,
-  /** Sin dirección exacta publicada todavía: se completa cuando Naty la confirme. */
-  streetAddress: "",
-  city: "Valparaíso",
-  region: "Región de Valparaíso",
   postalCode: "",
   country: "CL",
-  // Coordenadas aproximadas del centro de Valparaíso. Se ajustan cuando haya
-  // dirección exacta; no se inventa una precisión que no tenemos.
-  latitude: -33.0472,
-  longitude: -71.6127,
   whatsapp: "https://wa.me/message/BEZLWH4LIT2PM1",
   instagram: "https://www.instagram.com/naty.studiovalparaiso/",
   priceRange: "$$",
 } as const;
+
+/**
+ * Sedes de atención, en estático como respaldo para lo que no puede ser
+ * asíncrono (metadata de páginas, JSON-LD). El panel admin y `catalog.
+ * listLocations` son la fuente real para lo que sí puede consultar la base
+ * — estos datos deben reflejarla, no reemplazarla.
+ */
+export const LOCATIONS = [
+  {
+    slug: "valparaiso",
+    name: "Valparaíso",
+    city: "Valparaíso",
+    region: "Región de Valparaíso",
+    /** Sin dirección exacta publicada todavía: se completa cuando Naty la confirme. */
+    streetAddress: "",
+    latitude: -33.0472,
+    longitude: -71.6127,
+  },
+  {
+    slug: "providencia",
+    name: "Providencia",
+    city: "Providencia, Santiago",
+    region: "Región Metropolitana",
+    streetAddress: "",
+    latitude: null,
+    longitude: null,
+  },
+] as const;
 
 export const NAV_LINKS = [
   { href: "/servicios", label: "Servicios" },

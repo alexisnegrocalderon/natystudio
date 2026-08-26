@@ -19,9 +19,9 @@ import { buildMetadata, faqJsonLd } from "@/lib/seo";
 export const revalidate = 300;
 
 export const metadata = buildMetadata({
-  title: "Enfermera estética en Valparaíso · Retiro de acrocordones",
+  title: "Enfermera estética en Valparaíso y Providencia · Retiro de acrocordones",
   description:
-    "Atención de enfermería estética en Valparaíso especializada en retiro de acrocordones. Evaluación personalizada, técnica segura y reserva de hora en línea.",
+    "Atención de enfermería estética en Valparaíso y Providencia (Santiago) especializada en retiro de acrocordones. Evaluación personalizada, técnica segura y reserva de hora en línea.",
   path: "/",
 });
 

@@ -12,20 +12,37 @@ const DEFAULT_ROW: DayRow = { enabled: false, start: "10:00", end: "19:00" };
 
 export default function AdminHoursPage() {
   const utils = trpc.useUtils();
-  const { data: hours, isLoading } = trpc.admin.schedule.getHours.useQuery();
-  const { data: blocks } = trpc.admin.schedule.listTimeOff.useQuery();
+  const { data: locationList } = trpc.catalog.listLocations.useQuery();
+  const [locationId, setLocationId] = useState<number | null>(null);
+
+  // Apenas llegan las sedes, se para en la primera si todavía no hay ninguna
+  // elegida — evita un estado "sin sede" que no tiene sentido en esta página.
+  useEffect(() => {
+    if (locationId === null && locationList && locationList.length > 0) {
+      setLocationId(locationList[0].id);
+    }
+  }, [locationId, locationList]);
+
+  const { data: hours, isLoading } = trpc.admin.schedule.getHours.useQuery(
+    { locationId: locationId ?? 0 },
+    { enabled: locationId !== null },
+  );
+  const { data: blocks } = trpc.admin.schedule.listTimeOff.useQuery(
+    { locationId: locationId ?? 0 },
+    { enabled: locationId !== null },
+  );
 
   const [rows, setRows] = useState<DayRow[]>(() => WEEKDAY_LABELS.map(() => ({ ...DEFAULT_ROW })));
   const [blockStart, setBlockStart] = useState("");
   const [blockEnd, setBlockEnd] = useState("");
   const [blockReason, setBlockReason] = useState("");
 
-  // Sólo se sincroniza cuando llegan los datos del servidor; después el estado
-  // local manda para no pisar lo que Naty está editando.
+  // Sólo se sincroniza cuando llegan los datos del servidor (o cambia la
+  // sede elegida); después el estado local manda para no pisar lo que Naty
+  // está editando.
   useEffect(() => {
-    if (!hours) return;
     const next = WEEKDAY_LABELS.map(() => ({ ...DEFAULT_ROW }));
-    for (const entry of hours) {
+    for (const entry of hours ?? []) {
       next[entry.weekday] = {
         enabled: true,
         start: minutesToLabel(entry.startMinute),
@@ -63,6 +80,8 @@ export default function AdminHoursPage() {
   });
 
   function submitHours() {
+    if (!locationId) return;
+
     const entries = rows
       .map((row, weekday) => ({ row, weekday }))
       .filter(({ row }) => row.enabled)
@@ -78,7 +97,7 @@ export default function AdminHoursPage() {
       return;
     }
 
-    saveHours.mutate({ entries });
+    saveHours.mutate({ locationId, entries });
   }
 
   return (
@@ -86,14 +105,30 @@ export default function AdminHoursPage() {
       <div className="admin-header">
         <div>
           <h1>Horarios</h1>
-          <p>Define tu horario comercial y bloquea los días que no atiendes.</p>
+          <p>Define el horario de cada sede y bloquea los días que no atiendes ahí.</p>
         </div>
       </div>
+
+      {locationList && locationList.length > 1 ? (
+        <div className="admin-nav" style={{ position: "static", gridAutoFlow: "column", gridAutoColumns: "max-content", marginBottom: "1.5rem" }}>
+          {locationList.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              className="mini-button"
+              data-variant={locationId === item.id ? "primary" : undefined}
+              onClick={() => setLocationId(item.id)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <section className="admin-card">
         <h2>Horario semanal</h2>
 
-        {isLoading ? (
+        {isLoading || locationId === null ? (
           <p style={{ color: "var(--muted)", display: "flex", gap: ".6rem", alignItems: "center" }}>
             <Loader2 size={16} className="animate-spin" /> Cargando…
           </p>
@@ -202,16 +237,18 @@ export default function AdminHoursPage() {
           type="button"
           className="mini-button"
           data-variant="primary"
-          disabled={!blockStart || !blockEnd || createBlock.isPending}
-          onClick={() =>
+          disabled={!blockStart || !blockEnd || !locationId || createBlock.isPending}
+          onClick={() => {
+            if (!locationId) return;
             createBlock.mutate({
+              locationId,
               // El navegador entrega la hora local del equipo; se convierte a
               // instante absoluto antes de enviarla.
               startsAt: new Date(blockStart).toISOString(),
               endsAt: new Date(blockEnd).toISOString(),
               reason: blockReason || undefined,
-            })
-          }
+            });
+          }}
         >
           <Plus size={13} style={{ display: "inline", marginRight: ".3rem" }} />
           Agregar bloqueo

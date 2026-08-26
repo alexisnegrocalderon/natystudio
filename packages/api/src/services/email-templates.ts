@@ -9,6 +9,8 @@ import {
 export type TemplateData = {
   customerName: string;
   serviceName: string;
+  locationName: string;
+  locationCity: string;
   startsAt: Date;
   endsAt: Date;
   durationMin: number;
@@ -45,7 +47,7 @@ function layout(title: string, bodyHtml: string, footerNote?: string): string {
         </td></tr>
       </table>
       <p style="max-width:560px;margin:20px auto 0;font-size:12px;line-height:1.6;color:${MUTED};">
-        ${footerNote ?? "Enfermera estética · Valparaíso, Chile"}
+        ${footerNote ?? "Enfermera estética · Valparaíso y Providencia, Chile"}
       </p>
     </td></tr>
   </table>
@@ -62,6 +64,7 @@ function detailRow(label: string, value: string): string {
 function appointmentDetails(data: TemplateData): string {
   const rows = [
     detailRow("Servicio", data.serviceName),
+    detailRow("Sede", data.locationName),
     detailRow("Fecha", formatBusinessDate(data.startsAt)),
     detailRow("Hora", `${formatBusinessTime(data.startsAt)} h`),
     detailRow("Duración", formatDuration(data.durationMin)),
@@ -96,6 +99,7 @@ function paragraph(text: string): string {
 function plainDetails(data: TemplateData): string {
   const lines = [
     `Servicio: ${data.serviceName}`,
+    `Sede: ${data.locationName}`,
     `Fecha: ${formatBusinessDate(data.startsAt)}`,
     `Hora: ${formatBusinessTime(data.startsAt)} h`,
     `Duración: ${formatDuration(data.durationMin)}`,
@@ -147,7 +151,7 @@ export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEma
           "Cita confirmada",
           heading(`${firstName}, tu cita quedó confirmada`) +
             paragraph(
-              "Te esperamos en Valparaíso. Adjuntamos el evento para que lo agregues a tu calendario y no se te pase.",
+              `Te esperamos en ${data.locationCity}. Adjuntamos el evento para que lo agregues a tu calendario y no se te pase.`,
             ) +
             appointmentDetails(data) +
             button(manageUrl, "Ver, reagendar o cancelar") +

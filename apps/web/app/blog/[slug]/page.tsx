@@ -99,7 +99,7 @@ export default async function BlogPostPage({ params }: Props) {
       <ClosingCta
         eyebrow="¿Necesitas una evaluación?"
         title="Agenda tu hora en"
-        accent="Valparaíso."
+        accent="Valparaíso o Providencia."
         description="Revisamos tu caso en persona y te orientamos sobre el procedimiento adecuado."
       />
     </>

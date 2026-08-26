@@ -1,7 +1,7 @@
 import { Instagram, MapPin, MessageCircle } from "lucide-react";
 import { TransitionLink } from "@/components/TransitionLink";
 import { footerContent } from "@/content/natyContent";
-import { BUSINESS, NAV_LINKS } from "@/lib/site";
+import { BUSINESS, LOCATIONS, NAV_LINKS } from "@/lib/site";
 
 export function SiteFooter() {
   return (
@@ -31,9 +31,11 @@ export function SiteFooter() {
         <div>
           <h3>Contacto</h3>
           <div className="footer-contact">
-            <p>
-              <MapPin size={15} aria-hidden="true" /> {footerContent.location}
-            </p>
+            {LOCATIONS.map(location => (
+              <p key={location.slug}>
+                <MapPin size={15} aria-hidden="true" /> {location.city}, Chile
+              </p>
+            ))}
             <a href={BUSINESS.whatsapp} target="_blank" rel="noreferrer">
               <MessageCircle size={15} aria-hidden="true" /> WhatsApp
             </a>
@@ -46,7 +48,7 @@ export function SiteFooter() {
 
       <div className="footer-bottom section-wrap">
         <p>© {new Date().getFullYear()} naty.studio</p>
-        <p>Enfermera estética · Valparaíso, Chile</p>
+        <p>Enfermera estética · Valparaíso y Providencia, Chile</p>
       </div>
     </footer>
   );

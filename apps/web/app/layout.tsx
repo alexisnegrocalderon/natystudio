@@ -29,7 +29,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} · Enfermera estética en Valparaíso`,
+    default: `${SITE_NAME} · Enfermera estética en Valparaíso y Providencia`,
     // Cada página aporta su título y aquí se le añade la marca.
     template: `%s · ${SITE_NAME}`,
   },

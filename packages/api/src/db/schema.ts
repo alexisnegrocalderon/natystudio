@@ -1,5 +1,6 @@
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   pgEnum,
@@ -83,12 +84,45 @@ export const services = pgTable(
   table => [index("services_active_sort_idx").on(table.active, table.sortOrder)],
 );
 
+/* ----------------------------------------------------------------- sedes */
+
+/**
+ * Naty atiende en más de una dirección física. `businessHours`/`timeOff`
+ * cuelgan de acá porque cada sede puede tener sus propios días/horarios;
+ * `appointments` también referencia una sede (para mostrarla y armar el
+ * .ics), pero eso NO participa en el chequeo de solapamiento de citas —
+ * sigue siendo una sola persona, no puede estar en dos sedes a la vez, así
+ * que ese constraint se mantiene global entre sedes a propósito.
+ */
+export const locations = pgTable("locations", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 60 }).notNull().unique(),
+  name: varchar("name", { length: 140 }).notNull(),
+  city: varchar("city", { length: 120 }).notNull(),
+  region: varchar("region", { length: 120 }).notNull(),
+  /** Puede quedar vacío hasta que Naty confirme la dirección exacta. */
+  streetAddress: varchar("street_address", { length: 240 }).notNull().default(""),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  /** Si es nulo, el sitio usa el WhatsApp general del negocio. */
+  whatsapp: varchar("whatsapp", { length: 200 }),
+  /** Nota corta opcional, ej. "Atiende martes y miércoles". */
+  note: varchar("note", { length: 200 }),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: instant("created_at").notNull().defaultNow(),
+  updatedAt: instant("updated_at").notNull().defaultNow(),
+});
+
 /* ------------------------------------------------------ horarios y bloqueos */
 
 export const businessHours = pgTable(
   "business_hours",
   {
     id: serial("id").primaryKey(),
+    locationId: integer("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "cascade" }),
     /** 0 = domingo, igual que `Date#getDay`. */
     weekday: smallint("weekday").notNull(),
     /** Minutos desde medianoche en hora de Chile. 540 = 09:00. */
@@ -96,13 +130,16 @@ export const businessHours = pgTable(
     endMinute: integer("end_minute").notNull(),
     createdAt: instant("created_at").notNull().defaultNow(),
   },
-  table => [index("business_hours_weekday_idx").on(table.weekday)],
+  table => [index("business_hours_location_weekday_idx").on(table.locationId, table.weekday)],
 );
 
 export const timeOff = pgTable(
   "time_off",
   {
     id: serial("id").primaryKey(),
+    locationId: integer("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "cascade" }),
     startsAt: instant("starts_at").notNull(),
     endsAt: instant("ends_at").notNull(),
     reason: varchar("reason", { length: 200 }),
@@ -151,6 +188,13 @@ export const appointments = pgTable(
     serviceId: integer("service_id")
       .notNull()
       .references(() => services.id, { onDelete: "restrict" }),
+    /**
+     * Sólo para mostrar/filtrar y armar el .ics — el chequeo de solapamiento
+     * (más abajo, constraint de exclusión) es global entre sedes a propósito.
+     */
+    locationId: integer("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
     startsAt: instant("starts_at").notNull(),
     endsAt: instant("ends_at").notNull(),
     /**
@@ -298,6 +342,7 @@ export type Service = typeof services.$inferSelect;
 export type InsertService = typeof services.$inferInsert;
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertAppointment = typeof appointments.$inferInsert;
+export type Location = typeof locations.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type BusinessHour = typeof businessHours.$inferSelect;
 export type TimeOff = typeof timeOff.$inferSelect;

@@ -115,6 +115,13 @@ export function BookingDetail({ publicId }: { publicId: string }) {
 
       <div className="panel" style={{ marginTop: "1.6rem" }}>
         <div className="summary-row">
+          <span>Sede</span>
+          <strong>
+            {booking.locationName}
+            {booking.locationAddress ? ` · ${booking.locationAddress}` : ""}
+          </strong>
+        </div>
+        <div className="summary-row">
           <span>Fecha</span>
           <strong style={{ textTransform: "capitalize" }}>{formatBusinessDate(startsAt)}</strong>
         </div>

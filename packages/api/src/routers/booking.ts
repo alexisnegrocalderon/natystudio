@@ -9,7 +9,7 @@ import {
   leadCaptureSchema,
 } from "@naty/shared";
 import { ENV } from "../env";
-import { db, appointments, customers, leads, services } from "../db";
+import { db, appointments, customers, leads, locations, services } from "../db";
 import { createBooking } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow } from "../services/email";
 import { HOLD_TIMEOUT_MS } from "../services/payments";
@@ -24,7 +24,7 @@ function clientIp(req: Request): string {
 
 export const availabilityRouter = router({
   getSlots: publicProcedure.input(availabilityQuerySchema).query(async ({ input }) => {
-    return getAvailability(input.serviceId, input.from, input.to);
+    return getAvailability(input.serviceId, input.locationId, input.from, input.to);
   }),
 });
 
@@ -44,10 +44,13 @@ async function loadPublicBooking(publicId: string) {
       durationMin: services.durationMin,
       customerName: customers.name,
       customerEmail: customers.email,
+      locationName: locations.name,
+      locationAddress: locations.streetAddress,
     })
     .from(appointments)
     .innerJoin(services, eq(appointments.serviceId, services.id))
     .innerJoin(customers, eq(appointments.customerId, customers.id))
+    .innerJoin(locations, eq(appointments.locationId, locations.id))
     .where(eq(appointments.publicId, publicId))
     .limit(1);
 

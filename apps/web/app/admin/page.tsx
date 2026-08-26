@@ -80,6 +80,7 @@ export default function AdminDashboardPage() {
                 <th>Hora</th>
                 <th>Clienta</th>
                 <th>Servicio</th>
+                <th>Sede</th>
                 <th>Estado</th>
               </tr>
             </thead>
@@ -92,6 +93,7 @@ export default function AdminDashboardPage() {
                   <td>{formatBusinessTime(new Date(item.startsAt))} h</td>
                   <td style={{ color: "var(--paper)" }}>{item.customerName}</td>
                   <td>{item.serviceName}</td>
+                  <td>{item.locationName}</td>
                   <td>
                     <StatusPill status={item.status} />
                   </td>

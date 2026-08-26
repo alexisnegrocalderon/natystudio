@@ -113,6 +113,7 @@ export default function AdminAgendaPage() {
                         <th>Hora</th>
                         <th>Clienta</th>
                         <th>Servicio</th>
+                        <th>Sede</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                       </tr>
@@ -146,6 +147,7 @@ export default function AdminAgendaPage() {
                             ) : null}
                           </td>
                           <td>{item.serviceName}</td>
+                          <td>{item.locationName}</td>
                           <td>
                             <StatusPill status={item.status} />
                           </td>

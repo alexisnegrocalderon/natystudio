@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { BUSINESS_TIMEZONE } from "@naty/shared";
-import { appointments, customers, db, services } from "../db";
+import { appointments, customers, db, locations, services } from "../db";
 import { ENV } from "../env";
 
 export type CalendarEvent = {
@@ -115,23 +115,28 @@ export function buildGoogleCalendarUrl(event: CalendarEvent): string {
  */
 export async function buildIcsForAppointment(publicId: string): Promise<string | null> {
   const rows = await db
-    .select({ appointment: appointments, service: services, customer: customers })
+    .select({ appointment: appointments, service: services, customer: customers, location: locations })
     .from(appointments)
     .innerJoin(services, eq(appointments.serviceId, services.id))
     .innerJoin(customers, eq(appointments.customerId, customers.id))
+    .innerJoin(locations, eq(appointments.locationId, locations.id))
     .where(eq(appointments.publicId, publicId))
     .limit(1);
 
   const found = rows[0];
   if (!found) return null;
 
+  const locationLine = found.location.streetAddress
+    ? `${found.location.streetAddress}, ${found.location.city}`
+    : `${found.location.city}, Chile`;
+
   return buildIcs({
     uid: `${found.appointment.publicId}@naty.studio`,
     startsAt: found.appointment.startsAt,
     endsAt: found.appointment.endsAt,
     title: `${found.service.name} · naty.studio`,
-    description: "Tu cita en naty.studio, Valparaíso.",
-    location: "Valparaíso, Chile",
+    description: `Tu cita en naty.studio, ${found.location.city}.`,
+    location: locationLine,
     url: `${ENV.siteUrl}/reserva/${found.appointment.publicId}`,
     cancelled: found.appointment.status === "cancelled",
   });

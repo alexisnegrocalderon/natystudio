@@ -22,6 +22,7 @@ export type CustomerInput = z.infer<typeof customerInputSchema>;
 
 export const availabilityQuerySchema = z.object({
   serviceId: z.number().int().positive(),
+  locationId: z.number().int().positive(),
   /** Día inicial y final del rango consultado, en formato YYYY-MM-DD y en hora de Chile. */
   from: z.iso.date(),
   to: z.iso.date(),
@@ -29,6 +30,7 @@ export const availabilityQuerySchema = z.object({
 
 export const createBookingSchema = z.object({
   serviceId: z.number().int().positive(),
+  locationId: z.number().int().positive(),
   /** Instante exacto de inicio en UTC (ISO 8601). Lo entrega `availability.getSlots`. */
   startsAt: z.iso.datetime(),
   customer: customerInputSchema,
@@ -106,6 +108,7 @@ export const serviceInputSchema = z.object({
 export type ServiceInput = z.infer<typeof serviceInputSchema>;
 
 export const businessHoursInputSchema = z.object({
+  locationId: z.number().int().positive(),
   entries: z
     .array(
       z.object({
@@ -123,6 +126,7 @@ export const businessHoursInputSchema = z.object({
 
 export const timeOffInputSchema = z
   .object({
+    locationId: z.number().int().positive(),
     startsAt: z.iso.datetime(),
     endsAt: z.iso.datetime(),
     reason: z.string().trim().max(200).optional(),

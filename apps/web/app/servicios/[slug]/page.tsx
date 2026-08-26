@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return buildMetadata({
     // Los campos de SEO del panel mandan; si están vacíos se cae al contenido
     // real del servicio en vez de dejar la etiqueta en blanco.
-    title: service.metaTitle || `${service.name} en Valparaíso`,
+    title: service.metaTitle || `${service.name} en Valparaíso y Providencia`,
     description: service.metaDescription || service.shortDescription,
     path: `/servicios/${service.slug}`,
   });
@@ -91,7 +91,7 @@ export default async function ServiceDetailPage({ params }: Props) {
 
         <p className="eyebrow">
           <span className="eyebrow-dot" />
-          Atención presencial en Valparaíso
+          Atención presencial en Valparaíso y Providencia
         </p>
         <h1 className="page-title">{service.name}</h1>
         <p className="lede">{service.shortDescription}</p>
@@ -118,7 +118,7 @@ export default async function ServiceDetailPage({ params }: Props) {
           </p>
           <p>
             <span>Modalidad</span>
-            <strong>Presencial · Valparaíso</strong>
+            <strong>Presencial · Valparaíso o Providencia</strong>
           </p>
           {service.depositClp > 0 ? (
             <p>
@@ -163,10 +163,11 @@ export default async function ServiceDetailPage({ params }: Props) {
           <div className="panel">
             <MapPin size={22} aria-hidden="true" style={{ color: "var(--rose)" }} />
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.4rem", margin: "1rem 0 .6rem" }}>
-              En Valparaíso
+              En Valparaíso o Providencia
             </h3>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: ".9rem", lineHeight: 1.7 }}>
-              La dirección exacta se envía en el correo de confirmación de tu cita.
+              Eliges la sede al reservar. La dirección exacta se envía en el correo de confirmación de tu
+              cita.
             </p>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { Resend } from "resend";
 import type { EmailJobKind } from "@naty/shared";
 import { ENV } from "../env";
-import { db, appointments, customers, emailJobs, services, type Appointment, type Service } from "../db";
+import { db, appointments, customers, emailJobs, locations, services, type Appointment, type Service } from "../db";
 import { buildIcs } from "./calendar";
 import { renderEmail, renderManualMessage, type TemplateData } from "./email-templates";
 
@@ -46,10 +46,13 @@ function buildTemplateData(
   appointment: Appointment,
   service: Pick<Service, "name" | "durationMin">,
   customerName: string,
+  location: { name: string; city: string },
 ): TemplateData {
   return {
     customerName,
     serviceName: service.name,
+    locationName: location.name,
+    locationCity: location.city,
     startsAt: appointment.startsAt,
     endsAt: appointment.endsAt,
     durationMin: service.durationMin,
@@ -206,10 +209,11 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
 
   const appointmentRows = appointmentIds.length
     ? await db
-        .select({ appointment: appointments, service: services, customer: customers })
+        .select({ appointment: appointments, service: services, customer: customers, location: locations })
         .from(appointments)
         .innerJoin(services, eq(appointments.serviceId, services.id))
         .innerJoin(customers, eq(appointments.customerId, customers.id))
+        .innerJoin(locations, eq(appointments.locationId, locations.id))
         .where(inArray(appointments.id, appointmentIds))
     : [];
   const byAppointmentId = new Map(appointmentRows.map(row => [row.appointment.id, row]));
@@ -242,12 +246,16 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
         continue;
       }
 
-      const data = buildTemplateData(found.appointment, found.service, found.customer.name);
+      const data = buildTemplateData(found.appointment, found.service, found.customer.name, found.location);
       rendered = renderEmail(job.kind, data);
 
       // Sólo la confirmación lleva el archivo de calendario: es el único
       // momento en que la cita pasa a ser un compromiso firme.
       if (job.kind === "booking_confirmed") {
+        const locationLine = found.location.streetAddress
+          ? `${found.location.streetAddress}, ${found.location.city}`
+          : `${found.location.city}, Chile`;
+
         attachments = [
           {
             filename: "cita-naty-studio.ics",
@@ -256,8 +264,8 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
               startsAt: found.appointment.startsAt,
               endsAt: found.appointment.endsAt,
               title: `${found.service.name} · naty.studio`,
-              description: "Tu cita en naty.studio, Valparaíso.",
-              location: "Valparaíso, Chile",
+              description: `Tu cita en naty.studio, ${found.location.city}.`,
+              location: locationLine,
               url: `${ENV.siteUrl}/reserva/${found.appointment.publicId}`,
             }),
           },

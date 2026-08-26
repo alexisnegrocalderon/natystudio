@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "naty.studio · Enfermera estética en Valparaíso";
+export const alt = "naty.studio · Enfermera estética en Valparaíso y Providencia";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -26,7 +26,7 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <div style={{ width: 14, height: 14, borderRadius: 999, background: "#ea8dac" }} />
           <span style={{ color: "#ffd4e0", fontSize: 24, letterSpacing: 4, textTransform: "uppercase" }}>
-            Valparaíso, Chile
+            Valparaíso · Providencia
           </span>
         </div>
 

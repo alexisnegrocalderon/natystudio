@@ -42,12 +42,14 @@ function boundsFor(from: string, to: string): { start: Date; end: Date } {
   };
 }
 
-export async function loadScheduleContext(from: string, to: string) {
+export async function loadScheduleContext(locationId: number, from: string, to: string) {
   const { start, end } = boundsFor(from, to);
 
   const [hours, settings, busy, blocks] = await Promise.all([
-    db.select().from(businessHours),
+    db.select().from(businessHours).where(eq(businessHours.locationId, locationId)),
     getSettings(),
+    // Global entre sedes a propósito: una sola persona no puede tener dos
+    // citas al mismo tiempo aunque sean en direcciones distintas.
     db
       .select({
         startsAt: appointments.startsAt,
@@ -64,7 +66,13 @@ export async function loadScheduleContext(from: string, to: string) {
     db
       .select({ startsAt: timeOff.startsAt, endsAt: timeOff.endsAt })
       .from(timeOff)
-      .where(and(lte(timeOff.startsAt, end), gte(timeOff.endsAt, start))),
+      .where(
+        and(
+          eq(timeOff.locationId, locationId),
+          lte(timeOff.startsAt, end),
+          gte(timeOff.endsAt, start),
+        ),
+      ),
   ]);
 
   return { hours, settings, busy, blocks };
@@ -72,6 +80,7 @@ export async function loadScheduleContext(from: string, to: string) {
 
 export async function getAvailability(
   serviceId: number,
+  locationId: number,
   from: string,
   to: string,
   now = new Date(),
@@ -80,7 +89,7 @@ export async function getAvailability(
   const service = found[0];
   if (!service || !service.active) return [];
 
-  const { hours, settings, busy, blocks } = await loadScheduleContext(from, to);
+  const { hours, settings, busy, blocks } = await loadScheduleContext(locationId, from, to);
 
   return computeSlots({
     from,
@@ -104,6 +113,7 @@ export async function getAvailability(
  */
 export async function isSlotAvailable(
   serviceId: number,
+  locationId: number,
   startsAt: Date,
   now = new Date(),
 ): Promise<boolean> {
@@ -114,6 +124,6 @@ export async function isSlotAvailable(
     day: "2-digit",
   }).format(startsAt);
 
-  const [availability] = await getAvailability(serviceId, day, day, now);
+  const [availability] = await getAvailability(serviceId, locationId, day, day, now);
   return (availability?.slots ?? []).some(slot => slot.startsAt.getTime() === startsAt.getTime());
 }

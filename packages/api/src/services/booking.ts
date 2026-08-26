@@ -36,7 +36,7 @@ export async function createBooking(
     throw new TRPCError({ code: "BAD_REQUEST", message: "La fecha de la reserva no es válida." });
   }
 
-  if (!(await isSlotAvailable(service.id, startsAt))) {
+  if (!(await isSlotAvailable(service.id, input.locationId, startsAt))) {
     throw SLOT_TAKEN;
   }
 
@@ -72,6 +72,7 @@ export async function createBooking(
           publicId: nanoid(12),
           customerId: customer.id,
           serviceId: service.id,
+          locationId: input.locationId,
           startsAt,
           endsAt,
           blockedUntil,

@@ -8,12 +8,13 @@ import {
   CheckCircle2,
   Info,
   Loader2,
+  MapPin,
   TriangleAlert,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   customerInputSchema,
   formatBusinessDate,
@@ -39,8 +40,8 @@ const PaymentStep = dynamic(
   },
 );
 
-const STEPS_SIN_PAGO = ["Servicio", "Fecha y hora", "Tus datos", "Listo"] as const;
-const STEPS_CON_PAGO = ["Servicio", "Fecha y hora", "Tus datos", "Pago", "Listo"] as const;
+const STEPS_SIN_PAGO = ["Sede", "Servicio", "Fecha y hora", "Tus datos", "Listo"] as const;
+const STEPS_CON_PAGO = ["Sede", "Servicio", "Fecha y hora", "Tus datos", "Pago", "Listo"] as const;
 
 type Hold = {
   publicId: string;
@@ -59,11 +60,17 @@ function priceLabel(priceClp: number): string {
   return priceClp > 0 ? formatClp(priceClp) : "Por confirmar";
 }
 
+function shortDate(date: Date): string {
+  const day = date.toLocaleDateString("es-CL", { day: "numeric", month: "short", timeZone: "America/Santiago" });
+  return `${day} · ${formatBusinessTime(date)}`;
+}
+
 export function BookingFunnel() {
   const router = useRouter();
   const params = useSearchParams();
 
   // El estado vive en la URL: recargar o compartir el enlace no pierde el avance.
+  const locationSlug = params.get("sede");
   const serviceSlug = params.get("servicio");
   const selectedDay = params.get("dia");
   const selectedSlot = params.get("hora");
@@ -78,6 +85,7 @@ export function BookingFunnel() {
   const [hold, setHold] = useState<Hold | null>(null);
 
   const { data: config } = trpc.config.useQuery();
+  const { data: locationList, isLoading: loadingLocations } = trpc.catalog.listLocations.useQuery();
   const { data: services, isLoading: loadingServices } = trpc.catalog.listServices.useQuery({
     kind: "service",
   });
@@ -85,6 +93,11 @@ export function BookingFunnel() {
   const captureLead = trpc.lead.capture.useMutation();
   const createBooking = trpc.booking.create.useMutation();
   const cancelHold = trpc.booking.cancel.useMutation();
+
+  const location = useMemo(
+    () => locationList?.find(item => item.slug === locationSlug) ?? null,
+    [locationList, locationSlug],
+  );
 
   const service = useMemo(
     () => services?.find(item => item.slug === serviceSlug) ?? null,
@@ -110,15 +123,35 @@ export function BookingFunnel() {
   const paymentRequired = Boolean(config?.paymentsEnabled) && Boolean(service) && (service?.priceClp ?? 0) > 0;
   const steps = paymentRequired ? STEPS_CON_PAGO : STEPS_SIN_PAGO;
 
-  const step = confirmation ? steps.length : hold ? steps.length - 1 : !service ? 1 : !selectedSlot ? 2 : 3;
+  const step = confirmation
+    ? steps.length
+    : hold
+      ? steps.length - 1
+      : !location
+        ? 1
+        : !service
+          ? 2
+          : !selectedSlot
+            ? 3
+            : 4;
+
+  // Dirección de la transición: hacia adelante desliza desde la derecha,
+  // hacia atrás desde la izquierda — la sensación de "avanzar" en la
+  // encuesta depende de que nunca sea el mismo movimiento en los dos
+  // sentidos.
+  const prevStepRef = useRef(step);
+  const direction = step >= prevStepRef.current ? 1 : -1;
+  useEffect(() => {
+    prevStepRef.current = step;
+  }, [step]);
 
   // Ventana máxima de reserva. Se recorta al año para no dibujar un calendario
   // infinito si la configuración fuera muy amplia.
   const maxDay = addDaysToDay(businessToday(), 365);
 
   const { data: dayAvailability } = trpc.availability.getSlots.useQuery(
-    { serviceId: service?.id ?? 0, from: selectedDay ?? "", to: selectedDay ?? "" },
-    { enabled: Boolean(service && selectedDay) },
+    { serviceId: service?.id ?? 0, locationId: location?.id ?? 0, from: selectedDay ?? "", to: selectedDay ?? "" },
+    { enabled: Boolean(service && location && selectedDay) },
   );
 
   const slots = dayAvailability?.[0]?.slots ?? [];
@@ -155,11 +188,12 @@ export function BookingFunnel() {
   }
 
   async function submit() {
-    if (!service || !selectedSlot || !validate()) return;
+    if (!service || !location || !selectedSlot || !validate()) return;
 
     try {
       const result = await createBooking.mutateAsync({
         serviceId: service.id,
+        locationId: location.id,
         startsAt: selectedSlot,
         customer: {
           name: customer.name,
@@ -213,40 +247,117 @@ export function BookingFunnel() {
 
   const slotDate = selectedSlot ? new Date(selectedSlot) : null;
 
-  return (
-    <div className="funnel-shell section-wrap">
-      <div>
-        <nav className="step-track" aria-label="Progreso de la reserva">
-          {steps.map((label, index) => {
-            const position = index + 1;
-            const state = position === step ? "current" : position < step ? "done" : "pending";
-            return (
-              <div key={label} style={{ display: "contents" }}>
-                {index > 0 ? <hr /> : null}
-                <span
-                  className="step-dot"
-                  data-state={state}
-                  aria-current={state === "current" ? "step" : undefined}
-                >
-                  <i>{state === "done" ? "✓" : position}</i>
-                  <span>{label}</span>
-                </span>
-              </div>
-            );
-          })}
-        </nav>
+  // Migas de las respuestas ya elegidas: reemplazan la tarjeta lateral de
+  // resumen. Cada una, cuando ya está respondida, se puede tocar para volver
+  // a ese paso — limpia esa respuesta y todas las que dependían de ella.
+  const crumbs: { label: string; done: boolean; onEdit?: () => void }[] = [
+    {
+      label: location?.name ?? "Sede",
+      done: step > 1,
+      onEdit: () => setParams({ sede: null, servicio: null, dia: null, hora: null }),
+    },
+    {
+      label: service?.name ?? "Servicio",
+      done: step > 2,
+      onEdit: () => setParams({ servicio: null, dia: null, hora: null }),
+    },
+    {
+      label: slotDate ? shortDate(slotDate) : "Fecha y hora",
+      done: step > 3,
+      onEdit: () => setParams({ hora: null }),
+    },
+    { label: "Tus datos", done: step > 4 },
+  ];
 
-        <AnimatePresence mode="wait">
+  return (
+    <div className="funnel-stage">
+      <nav className="funnel-crumbs" aria-label="Progreso de la reserva">
+        {crumbs.map((crumb, index) => {
+          const position = index + 1;
+          const state = position === step ? "current" : crumb.done ? "done" : "pending";
+          const clickable = crumb.done && Boolean(crumb.onEdit);
+          return (
+            <button
+              key={crumb.label + index}
+              type="button"
+              className="funnel-crumb"
+              data-state={state}
+              disabled={!clickable}
+              onClick={clickable ? crumb.onEdit : undefined}
+            >
+              {state === "done" ? <CheckCircle2 size={13} aria-hidden="true" /> : null}
+              {crumb.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="funnel-stage-body">
+        <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+            custom={direction}
+            initial={{ opacity: 0, x: direction > 0 ? 36 : -36 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction > 0 ? -36 : 36 }}
+            transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+            className="funnel-step-inner"
           >
-            {/* ── Paso 1: elegir servicio ─────────────────────────────── */}
+            {/* ── Paso 1: elegir sede ─────────────────────────────────── */}
             {step === 1 ? (
+              <section aria-labelledby="paso-sede">
+                <h1 id="paso-sede" className="page-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
+                  ¿Dónde te gustaría atenderte?
+                </h1>
+                <p className="lede">Elige la sede y te mostramos los servicios y horarios disponibles ahí.</p>
+
+                {loadingLocations ? (
+                  <p style={{ color: "var(--muted)", display: "flex", gap: ".5rem", alignItems: "center" }}>
+                    <Loader2 size={16} className="animate-spin" /> Cargando sedes…
+                  </p>
+                ) : locationList && locationList.length > 0 ? (
+                  <div className="stack">
+                    {locationList.map(item => (
+                      <button
+                        key={item.slug}
+                        type="button"
+                        className="choice-card"
+                        aria-pressed={locationSlug === item.slug}
+                        onClick={() => setParams({ sede: item.slug, servicio: null, dia: null, hora: null })}
+                      >
+                        <MapPin size={20} aria-hidden="true" style={{ flex: "0 0 auto", color: "var(--rose)" }} />
+                        <div>
+                          <h3>{item.name}</h3>
+                          <p>
+                            {item.streetAddress ? `${item.streetAddress}, ` : ""}
+                            {item.city}, {item.region}
+                          </p>
+                          {item.note ? <div className="choice-meta">{item.note}</div> : null}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="notice" data-tone="warn">
+                    <TriangleAlert size={18} />
+                    <span>No hay sedes publicadas todavía. Escríbenos por WhatsApp y coordinamos tu hora.</span>
+                  </div>
+                )}
+              </section>
+            ) : null}
+
+            {/* ── Paso 2: elegir servicio ─────────────────────────────── */}
+            {step === 2 ? (
               <section aria-labelledby="paso-servicio">
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => setParams({ sede: null, servicio: null, dia: null, hora: null })}
+                  style={{ marginBottom: "1.4rem", background: "none", border: 0, cursor: "pointer" }}
+                >
+                  <ArrowLeft size={15} /> Cambiar sede
+                </button>
+
                 <h1 id="paso-servicio" className="page-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
                   ¿Qué necesitas?
                 </h1>
@@ -289,8 +400,8 @@ export function BookingFunnel() {
               </section>
             ) : null}
 
-            {/* ── Paso 2: fecha y hora ────────────────────────────────── */}
-            {step === 2 && service ? (
+            {/* ── Paso 3: fecha y hora ────────────────────────────────── */}
+            {step === 3 && service && location ? (
               <section aria-labelledby="paso-fecha">
                 <button
                   type="button"
@@ -310,6 +421,7 @@ export function BookingFunnel() {
 
                 <AvailabilityCalendar
                   serviceId={service.id}
+                  locationId={location.id}
                   selectedDay={selectedDay}
                   maxDay={maxDay}
                   onSelectDay={day => setParams({ dia: day, hora: null })}
@@ -358,8 +470,8 @@ export function BookingFunnel() {
               </section>
             ) : null}
 
-            {/* ── Paso 3: datos de contacto ───────────────────────────── */}
-            {step === 3 && service && slotDate ? (
+            {/* ── Paso 4: datos de contacto ───────────────────────────── */}
+            {step === 4 && service && location && slotDate ? (
               <section aria-labelledby="paso-datos">
                 <button
                   type="button"
@@ -491,7 +603,7 @@ export function BookingFunnel() {
               </section>
             ) : null}
 
-            {/* ── Paso 4: pago ────────────────────────────────────────── */}
+            {/* ── Paso 5: pago ────────────────────────────────────────── */}
             {step === steps.length - 1 && paymentRequired && hold && service ? (
               <section aria-labelledby="paso-pago">
                 <button
@@ -588,66 +700,6 @@ export function BookingFunnel() {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* ── Resumen lateral ──────────────────────────────────────────── */}
-      <aside className="funnel-summary">
-        <h2>Tu reserva</h2>
-
-        {service ? (
-          <>
-            <div className="summary-row">
-              <span>Servicio</span>
-              <strong>{service.name}</strong>
-            </div>
-            <div className="summary-row">
-              <span>Duración</span>
-              <strong>{formatDuration(service.durationMin)}</strong>
-            </div>
-            {slotDate ? (
-              <>
-                <div className="summary-row">
-                  <span>Fecha</span>
-                  <strong style={{ textTransform: "capitalize" }}>{formatBusinessDate(slotDate)}</strong>
-                </div>
-                <div className="summary-row">
-                  <span>Hora</span>
-                  <strong>{formatBusinessTime(slotDate)} h</strong>
-                </div>
-              </>
-            ) : (
-              <div className="summary-row">
-                <span>Fecha y hora</span>
-                <strong style={{ color: "var(--muted)" }}>Por elegir</strong>
-              </div>
-            )}
-
-            <div className="summary-total">
-              <span style={{ color: "var(--muted)", fontSize: ".8rem" }}>Valor</span>
-              <strong>{priceLabel(service.priceClp)}</strong>
-            </div>
-
-            {service.depositClp > 0 ? (
-              <p style={{ margin: ".8rem 0 0", fontSize: ".76rem", color: "var(--muted)", lineHeight: 1.6 }}>
-                Abono para reservar: {formatClp(service.depositClp)}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p
-            style={{
-              margin: 0,
-              color: "var(--muted)",
-              fontSize: ".85rem",
-              lineHeight: 1.7,
-              display: "flex",
-              gap: ".6rem",
-            }}
-          >
-            <CalendarCheck size={17} style={{ flex: "0 0 auto", color: "var(--rose)" }} />
-            Elige un servicio para ver el resumen de tu reserva.
-          </p>
-        )}
-      </aside>
     </div>
   );
 }

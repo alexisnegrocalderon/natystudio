@@ -1,7 +1,20 @@
 import { z } from "zod";
 import { and, asc, eq } from "drizzle-orm";
-import { db, services } from "../db";
+import { db, locations, services } from "../db";
 import { publicProcedure, router } from "../trpc";
+
+const publicLocationColumns = {
+  id: locations.id,
+  slug: locations.slug,
+  name: locations.name,
+  city: locations.city,
+  region: locations.region,
+  streetAddress: locations.streetAddress,
+  latitude: locations.latitude,
+  longitude: locations.longitude,
+  whatsapp: locations.whatsapp,
+  note: locations.note,
+};
 
 /** Sólo los campos que el sitio público necesita. */
 const publicColumns = {
@@ -43,4 +56,12 @@ export const catalogRouter = router({
 
     return rows[0] ?? null;
   }),
+
+  listLocations: publicProcedure.query(() =>
+    db
+      .select(publicLocationColumns)
+      .from(locations)
+      .where(eq(locations.active, true))
+      .orderBy(asc(locations.sortOrder), asc(locations.id)),
+  ),
 });

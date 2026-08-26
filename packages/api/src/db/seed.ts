@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, businessHours, pool, schedulingSettings, services, users } from "./index";
+import { db, businessHours, locations, pool, schedulingSettings, services, users } from "./index";
 
 /**
  * Deja la base lista para trabajar: cuenta de administración, horario comercial
@@ -38,17 +38,29 @@ async function seed() {
     .values({ id: 1, slotGranularityMin: 30, minLeadTimeHours: 12, maxAdvanceDays: 60 })
     .onConflictDoNothing();
 
-  const hours = await db.select().from(businessHours).limit(1);
-  if (!hours[0]) {
-    // Lunes a viernes de 10:00 a 19:00 como punto de partida editable.
-    await db.insert(businessHours).values(
-      [1, 2, 3, 4, 5].map(weekday => ({
-        weekday,
-        startMinute: 10 * 60,
-        endMinute: 19 * 60,
-      })),
-    );
-    console.log("✓ Horario comercial inicial: lunes a viernes, 10:00–19:00");
+  // La migración 0002 siembra las sedes (Valparaíso y Providencia) apenas
+  // corre por primera vez, así que para acá ya existen.
+  const [valparaiso] = await db.select().from(locations).where(eq(locations.slug, "valparaiso")).limit(1);
+
+  if (valparaiso) {
+    const hours = await db
+      .select()
+      .from(businessHours)
+      .where(eq(businessHours.locationId, valparaiso.id))
+      .limit(1);
+
+    if (!hours[0]) {
+      // Lunes a viernes de 10:00 a 19:00 como punto de partida editable.
+      await db.insert(businessHours).values(
+        [1, 2, 3, 4, 5].map(weekday => ({
+          weekday,
+          locationId: valparaiso.id,
+          startMinute: 10 * 60,
+          endMinute: 19 * 60,
+        })),
+      );
+      console.log("✓ Horario comercial inicial en Valparaíso: lunes a viernes, 10:00–19:00");
+    }
   }
 
   const existingService = await db

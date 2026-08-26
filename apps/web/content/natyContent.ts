@@ -7,7 +7,7 @@
  */
 
 export const heroContent = {
-  eyebrow: "Enfermera estética · Valparaíso, Chile",
+  eyebrow: "Enfermera estética · Valparaíso y Providencia, Chile",
   title: "Cuidado experto,",
   accent: "piel en calma.",
   lede: "Especialista en retiro de acrocordones, con una atención cercana, informada y cuidadosamente personalizada.",
@@ -15,7 +15,7 @@ export const heroContent = {
   secondaryAction: "Ver servicios",
   trust: "Tu atención comienza con una evaluación responsable y orientación clara para tu caso.",
   visualNote: "Atención personalizada",
-  location: "Valparaíso",
+  location: "Valparaíso y Providencia",
 };
 
 export const authorityContent = [
@@ -28,7 +28,7 @@ export const aboutContent = {
   eyebrow: "Sobre Naty",
   title: "Mi forma de atender empieza por",
   accent: "escucharte.",
-  lede: "Atención de enfermería estética en Valparaíso, con foco en la evaluación previa, la seguridad del procedimiento y el cuidado posterior.",
+  lede: "Atención de enfermería estética en Valparaíso y Providencia, con foco en la evaluación previa, la seguridad del procedimiento y el cuidado posterior.",
   paragraphs: [
     "Como enfermera estética, combino conocimiento profesional con una atención cálida y simple. Mi objetivo es que entiendas cada paso y que te sientas acompañada desde la primera conversación.",
     "Me especializo en el retiro de acrocordones y también comparto mi experiencia con profesionales de la salud y la estética que quieren profundizar su práctica.",
@@ -37,7 +37,7 @@ export const aboutContent = {
   points: [
     "Evaluación y orientación individualizada.",
     "Indicaciones claras de cuidado posterior.",
-    "Atención en Valparaíso para pacientes y profesionales.",
+    "Atención en Valparaíso y Providencia para pacientes y profesionales.",
   ],
   graphic: "Estética con",
   graphicAccent: "criterio y cercanía.",
@@ -48,7 +48,7 @@ export const servicesPageContent = {
   title: "Un espacio para",
   accent: "sentirte bien en tu piel.",
   description:
-    "Atención personalizada en Valparaíso, centrada en la evaluación, la seguridad y el cuidado de tu piel. Reserva tu hora en línea y recibe la confirmación por correo.",
+    "Atención personalizada en Valparaíso y Providencia, centrada en la evaluación, la seguridad y el cuidado de tu piel. Reserva tu hora en línea y recibe la confirmación por correo.",
   emptyState:
     "Los servicios se están actualizando. Escríbenos por WhatsApp y te contamos la disponibilidad al día.",
 };
@@ -70,7 +70,7 @@ export const contactPageContent = {
   title: "Empecemos por una",
   accent: "conversación.",
   description:
-    "Escríbenos para resolver dudas antes de reservar, consultar por el curso o coordinar una atención presencial en Valparaíso.",
+    "Escríbenos para resolver dudas antes de reservar, consultar por el curso o coordinar una atención presencial en Valparaíso o Providencia.",
 };
 
 export const faqContent = {
@@ -97,7 +97,7 @@ export const faqContent = {
     {
       question: "¿Cómo sé si este servicio es para mí?",
       answer:
-        "Reserva una evaluación o escríbenos con una breve descripción de lo que deseas revisar. Naty te orientará respecto de los próximos pasos y la disponibilidad para una atención presencial en Valparaíso.",
+        "Reserva una evaluación o escríbenos con una breve descripción de lo que deseas revisar. Naty te orientará respecto de los próximos pasos y la disponibilidad para una atención presencial en Valparaíso o Providencia.",
     },
     {
       question: "¿Cómo reservo mi hora?",
@@ -125,5 +125,4 @@ export const resultsContent = {
 
 export const footerContent = {
   description: "Enfermera estética especializada en retiro de acrocordones y formación profesional.",
-  location: "Valparaíso, Chile",
 };

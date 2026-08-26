@@ -5,9 +5,9 @@ import { aboutContent, authorityContent } from "@/content/natyContent";
 import { breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Sobre Naty · Enfermera estética en Valparaíso",
+  title: "Sobre Naty · Enfermera estética en Valparaíso y Providencia",
   description:
-    "Conoce a Naty, enfermera estética en Valparaíso especializada en retiro de acrocordones: su formación, su enfoque de atención y cómo trabaja cada caso.",
+    "Conoce a Naty, enfermera estética en Valparaíso y Providencia especializada en retiro de acrocordones: su formación, su enfoque de atención y cómo trabaja cada caso.",
   path: "/sobre-naty",
 });
 

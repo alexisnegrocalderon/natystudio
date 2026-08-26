@@ -9,9 +9,9 @@ import { breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 export const revalidate = 300;
 
 export const metadata = buildMetadata({
-  title: "Servicios de enfermería estética en Valparaíso",
+  title: "Servicios de enfermería estética en Valparaíso y Providencia",
   description:
-    "Conoce los servicios de naty.studio en Valparaíso: evaluación, retiro de acrocordones e indicaciones de cuidado posterior. Reserva tu hora en línea.",
+    "Conoce los servicios de naty.studio en Valparaíso y Providencia: evaluación, retiro de acrocordones e indicaciones de cuidado posterior. Reserva tu hora en línea.",
   path: "/servicios",
 });
 

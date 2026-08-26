@@ -5,12 +5,12 @@ import { FaqSection } from "@/components/FaqSection";
 import { JsonLd } from "@/components/JsonLd";
 import { contactPageContent, faqContent } from "@/content/natyContent";
 import { breadcrumbJsonLd, buildMetadata, faqJsonLd } from "@/lib/seo";
-import { BUSINESS, whatsappWithMessage } from "@/lib/site";
+import { BUSINESS, LOCATIONS, whatsappWithMessage } from "@/lib/site";
 
 export const metadata = buildMetadata({
-  title: "Contacto y ubicación · naty.studio Valparaíso",
+  title: "Contacto y ubicación · naty.studio",
   description:
-    "Contacta a naty.studio en Valparaíso: reserva tu hora en línea, escríbenos por WhatsApp o revisa nuestro Instagram. Atención de enfermería estética con evaluación previa.",
+    "Contacta a naty.studio en Valparaíso o Providencia (Santiago): reserva tu hora en línea, escríbenos por WhatsApp o revisa nuestro Instagram. Atención de enfermería estética con evaluación previa.",
   path: "/contacto",
 });
 
@@ -75,10 +75,15 @@ export default function ContactPage() {
             <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", margin: "1rem 0 .7rem" }}>
               Dónde atendemos
             </h2>
-            <p style={{ color: "var(--muted)", fontSize: ".9rem", lineHeight: 1.7 }}>
-              Atención presencial en {BUSINESS.city}, {BUSINESS.region}. La dirección exacta se envía en
-              el correo de confirmación de tu cita.
-            </p>
+            <div style={{ display: "grid", gap: ".9rem" }}>
+              {LOCATIONS.map(location => (
+                <p key={location.slug} style={{ color: "var(--muted)", fontSize: ".9rem", lineHeight: 1.7, margin: 0 }}>
+                  <strong style={{ color: "var(--paper)" }}>{location.name}</strong> — atención presencial en{" "}
+                  {location.city}, {location.region}. La dirección exacta se envía en el correo de
+                  confirmación de tu cita.
+                </p>
+              ))}
+            </div>
             <a
               className="ghost-link"
               href={BUSINESS.instagram}

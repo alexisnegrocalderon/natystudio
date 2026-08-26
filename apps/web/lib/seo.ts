@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { absoluteUrl, BUSINESS, INDEXING_ENABLED, SITE_NAME, SITE_URL } from "./site";
+import { absoluteUrl, BUSINESS, INDEXING_ENABLED, LOCATIONS, SITE_NAME, SITE_URL } from "./site";
 
 type PageSeo = {
   title: string;
@@ -63,36 +63,48 @@ export const noIndexMetadata: Metadata = {
 /**
  * Ficha del negocio. Para un servicio local es la señal de mayor impacto:
  * alimenta el panel de conocimiento y los resultados de búsqueda con mapa.
+ *
+ * Naty atiende en dos sedes, así que se declara un `HealthAndBeautyBusiness`
+ * por sede (patrón `@graph` de schema.org) en vez de una sola ficha con una
+ * sola dirección.
  */
 export function localBusinessJsonLd() {
-  const address: Record<string, string> = {
-    "@type": "PostalAddress",
-    addressLocality: BUSINESS.city,
-    addressRegion: BUSINESS.region,
-    addressCountry: BUSINESS.country,
-  };
-  // Sólo se declara la calle si realmente la tenemos: un dato inventado en los
-  // datos estructurados es peor que su ausencia.
-  if (BUSINESS.streetAddress) address.streetAddress = BUSINESS.streetAddress;
-  if (BUSINESS.postalCode) address.postalCode = BUSINESS.postalCode;
-
   return {
     "@context": "https://schema.org",
-    "@type": "HealthAndBeautyBusiness",
-    "@id": `${SITE_URL}#business`,
-    name: BUSINESS.name,
-    description: BUSINESS.description,
-    url: SITE_URL,
-    address,
-    geo: {
-      "@type": "GeoCoordinates",
-      latitude: BUSINESS.latitude,
-      longitude: BUSINESS.longitude,
-    },
-    areaServed: { "@type": "City", name: BUSINESS.city },
-    priceRange: BUSINESS.priceRange,
-    sameAs: [BUSINESS.instagram],
-    image: absoluteUrl("/opengraph-image"),
+    "@graph": LOCATIONS.map(location => {
+      const address: Record<string, string> = {
+        "@type": "PostalAddress",
+        addressLocality: location.city,
+        addressRegion: location.region,
+        addressCountry: BUSINESS.country,
+      };
+      // Sólo se declara la calle si realmente la tenemos: un dato inventado en
+      // los datos estructurados es peor que su ausencia.
+      if (location.streetAddress) address.streetAddress = location.streetAddress;
+      if (BUSINESS.postalCode) address.postalCode = BUSINESS.postalCode;
+
+      return {
+        "@type": "HealthAndBeautyBusiness",
+        "@id": `${SITE_URL}#business-${location.slug}`,
+        name: `${BUSINESS.name} · ${location.name}`,
+        description: BUSINESS.description,
+        url: SITE_URL,
+        address,
+        ...(location.latitude != null && location.longitude != null
+          ? {
+              geo: {
+                "@type": "GeoCoordinates",
+                latitude: location.latitude,
+                longitude: location.longitude,
+              },
+            }
+          : {}),
+        areaServed: { "@type": "City", name: location.city },
+        priceRange: BUSINESS.priceRange,
+        sameAs: [BUSINESS.instagram],
+        image: absoluteUrl("/opengraph-image"),
+      };
+    }),
   };
 }
 
@@ -108,8 +120,8 @@ export function serviceJsonLd(service: {
     name: service.name,
     description: service.description,
     url: absoluteUrl(`/servicios/${service.slug}`),
-    provider: { "@id": `${SITE_URL}#business` },
-    areaServed: { "@type": "City", name: BUSINESS.city },
+    provider: LOCATIONS.map(location => ({ "@id": `${SITE_URL}#business-${location.slug}` })),
+    areaServed: LOCATIONS.map(location => ({ "@type": "City", name: location.city })),
     // El precio sólo se declara si está definido: publicar 0 le diría a Google
     // que el servicio es gratuito.
     ...(service.priceClp > 0
@@ -168,7 +180,7 @@ export function articleJsonLd(post: {
       ? new Date(post.publishedAt).toISOString()
       : undefined,
     author: { "@type": "Person", name: "Naty" },
-    publisher: { "@id": `${SITE_URL}#business` },
+    publisher: { "@id": `${SITE_URL}#business-${LOCATIONS[0].slug}` },
     ...(post.coverImageUrl ? { image: post.coverImageUrl } : {}),
   };
 }
