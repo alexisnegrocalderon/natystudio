@@ -529,7 +529,7 @@ body:has(.admin-theme) .site-footer {
 .hero-content {
   width: min(760px, calc(100% - 40px));
   margin-inline: auto;
-  padding: 7rem 0 3rem;
+  padding: 2.75rem 0 3rem;
   color: #fff6f8;
 }
 
@@ -558,6 +558,10 @@ body:has(.admin-theme) .site-footer {
 .hero .lede {
   color: rgba(255, 246, 248, 0.88);
   max-width: 480px;
+  /* El título sube para dejar más video a la vista arriba; este margen
+     mantiene la descripción donde estaba antes, sin que la separe el
+     mismo padding que ahora ya no tiene el bloque. */
+  margin-top: 4rem;
 }
 
 .hero-actions {
@@ -1090,6 +1094,7 @@ body:has(.admin-theme) .site-footer {
   .hero .lede {
     max-width: 560px;
     font-size: 1.05rem;
+    margin-top: 0;
   }
 }
 
