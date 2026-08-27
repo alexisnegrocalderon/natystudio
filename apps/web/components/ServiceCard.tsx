@@ -23,7 +23,7 @@ export function ServiceCard({ service, index }: { service: ServiceCardData; inde
     <article className="service-card">
       <div className="service-card-top">
         <span className="service-index">{String(index + 1).padStart(2, "0")}</span>
-        <HeartPulse size={24} aria-hidden="true" />
+        <HeartPulse size={18} aria-hidden="true" />
       </div>
 
       <h3>
@@ -44,7 +44,7 @@ export function ServiceCard({ service, index }: { service: ServiceCardData; inde
 
       <div style={{ display: "flex", gap: ".7rem", flexWrap: "wrap" }}>
         <Link className="primary-link" href={`/reservar?servicios=${service.slug}`}>
-          Agendar <ArrowUpRight size={17} aria-hidden="true" />
+          Agendar <ArrowUpRight size={14} aria-hidden="true" />
         </Link>
         <Link className="ghost-link" href={`/servicios/${service.slug}`}>
           Ver detalle
