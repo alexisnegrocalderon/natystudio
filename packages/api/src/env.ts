@@ -57,7 +57,7 @@ export const ENV = {
 
   /** Redacción con IA (mailing y descripciones de servicios). Vacío = los botones de IA quedan apagados. */
   geminiApiKey: optional("GEMINI_API_KEY"),
-  geminiModel: optional("GEMINI_MODEL", "gemini-2.5-flash"),
+  geminiModel: optional("GEMINI_MODEL", "gemini-3.6-flash"),
 
   /** Subida de fotos de servicios. Vacío = el form no ofrece cargar imagen. */
   blobReadWriteToken: optional("BLOB_READ_WRITE_TOKEN"),
