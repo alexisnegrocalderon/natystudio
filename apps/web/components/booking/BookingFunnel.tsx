@@ -165,6 +165,15 @@ export function BookingFunnel() {
     prevStepRef.current = step;
   }, [step]);
 
+  // En mobile el paso anterior puede haber quedado scrolleado hacia abajo
+  // (por ejemplo, eligiendo una hora al final de la lista de horarios): sin
+  // esto, al pasar a "Tus datos" (o a cualquier otro paso) la pregunta nueva
+  // queda fuera de pantalla y hay que scrollear a mano para encontrarla.
+  const stageRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    stageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [step]);
+
   // Ventana máxima de reserva. Se recorta al año para no dibujar un calendario
   // infinito si la configuración fuera muy amplia.
   const maxDay = addDaysToDay(businessToday(), 365);
@@ -224,8 +233,14 @@ export function BookingFunnel() {
   }, [selectedSlot]);
 
   useEffect(() => {
-    if (revealed === 2) emailRef.current?.focus();
-    else if (revealed === 3) phoneRef.current?.focus();
+    // `.focus()` sólo garantiza el mínimo scroll para que el campo quede
+    // visible ("nearest"); acá se pide explícitamente centrado, para que el
+    // campo nuevo no quede pegado al borde inferior de la pantalla en mobile.
+    const next = revealed === 2 ? emailRef.current : revealed === 3 ? phoneRef.current : null;
+    if (next) {
+      next.focus({ preventScroll: true });
+      next.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   }, [revealed]);
 
   /** Enter en nombre/correo/teléfono: valida sólo ese campo y revela el siguiente. */
@@ -360,7 +375,7 @@ export function BookingFunnel() {
   ];
 
   return (
-    <div className="funnel-stage">
+    <div className="funnel-stage" ref={stageRef}>
       <nav className="funnel-crumbs" aria-label="Progreso de la reserva">
         {crumbs.map((crumb, index) => {
           const position = index + 1;
