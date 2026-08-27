@@ -691,7 +691,7 @@ export function BookingFunnel() {
                         type="button"
                         className="mini-button"
                         data-variant="primary"
-                        style={{ marginTop: ".6rem", width: "fit-content" }}
+                        style={{ marginTop: ".6rem", width: "fit-content", display: "inline-flex", alignItems: "center", gap: ".35rem" }}
                         onClick={() => advanceField("name")}
                       >
                         Continuar <ArrowUpRight size={13} />
@@ -733,7 +733,7 @@ export function BookingFunnel() {
                           type="button"
                           className="mini-button"
                           data-variant="primary"
-                          style={{ marginTop: ".6rem", width: "fit-content" }}
+                          style={{ marginTop: ".6rem", width: "fit-content", display: "inline-flex", alignItems: "center", gap: ".35rem" }}
                           onClick={() => advanceField("email")}
                         >
                           Continuar <ArrowUpRight size={13} />
@@ -773,7 +773,7 @@ export function BookingFunnel() {
                           type="button"
                           className="mini-button"
                           data-variant="primary"
-                          style={{ marginTop: ".6rem", width: "fit-content" }}
+                          style={{ marginTop: ".6rem", width: "fit-content", display: "inline-flex", alignItems: "center", gap: ".35rem" }}
                           onClick={() => advanceField("phone")}
                         >
                           Continuar <ArrowUpRight size={13} />
