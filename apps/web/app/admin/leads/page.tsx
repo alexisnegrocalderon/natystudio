@@ -102,6 +102,7 @@ export default function AdminLeadsPage() {
                   <ContactActions
                     name={lead.name || lead.email}
                     phone={lead.phone}
+                    audience="interesada"
                     sending={sendEmail.isPending}
                     onSendEmail={(subject, body) => sendEmail.mutate({ id: lead.id, subject, body })}
                   />

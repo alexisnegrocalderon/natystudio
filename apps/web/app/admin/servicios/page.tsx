@@ -1,10 +1,20 @@
 "use client";
 
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, Sparkles, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatClp, formatDuration, serviceInputSchema, type ServiceInput } from "@naty/shared";
 import { trpc } from "@/lib/trpc";
+
+/** Lee un archivo como base64 puro, sin el prefijo "data:...;base64,". */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 const EMPTY: ServiceInput = {
   slug: "",
@@ -41,8 +51,49 @@ export default function AdminServicesPage() {
   const [form, setForm] = useState<ServiceInput>(EMPTY);
   const [open, setOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState(false);
+  const [aiNotes, setAiNotes] = useState("");
+  const [aiPhoto, setAiPhoto] = useState<{ base64: string; mimeType: string } | null>(null);
+
+  const { data: aiEnabled } = trpc.admin.ai.enabled.useQuery();
+  const draftDescription = trpc.admin.ai.draftServiceDescription.useMutation({
+    onSuccess: data => {
+      setForm(current => ({
+        ...current,
+        shortDescription: data.shortDescription || current.shortDescription,
+        longDescription: data.longDescription || current.longDescription,
+      }));
+      toast.success("Descripción propuesta por IA — revísala antes de guardar.");
+    },
+    onError: error => toast.error(error.message),
+  });
 
   const refresh = () => utils.admin.services.list.invalidate();
+
+  async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const base64 = await fileToBase64(file);
+      setAiPhoto({ base64, mimeType: file.type });
+
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/admin/upload", { method: "POST", body });
+      const data = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !data.url) throw new Error(data.error ?? "No se pudo subir la foto.");
+
+      setForm(current => ({ ...current, imageUrl: data.url }));
+      toast.success("Foto subida.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo subir la foto.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const create = trpc.admin.services.create.useMutation({
     onSuccess: () => {
@@ -75,6 +126,8 @@ export default function AdminServicesPage() {
     setEditingId(null);
     setForm(EMPTY);
     setErrors({});
+    setAiNotes("");
+    setAiPhoto(null);
   }
 
   function startEdit(service: NonNullable<typeof services>[number]) {
@@ -91,10 +144,13 @@ export default function AdminServicesPage() {
       depositPercent: service.depositPercent,
       active: service.active,
       sortOrder: service.sortOrder,
+      imageUrl: service.imageUrl ?? "",
       metaTitle: service.metaTitle ?? "",
       metaDescription: service.metaDescription ?? "",
     });
     setErrors({});
+    setAiNotes("");
+    setAiPhoto(null);
     setOpen(true);
   }
 
@@ -174,6 +230,64 @@ export default function AdminServicesPage() {
             </p>
             {errors.slug ? <p className="field-error">{errors.slug}</p> : null}
           </div>
+
+          <div className="field">
+            <label htmlFor="foto">Foto del servicio</label>
+            <input id="foto" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={handlePhotoChange} />
+            {uploading ? (
+              <p style={{ fontSize: ".78rem", color: "var(--muted)", display: "flex", gap: ".4rem", alignItems: "center" }}>
+                <Loader2 size={13} className="animate-spin" /> Subiendo…
+              </p>
+            ) : form.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={form.imageUrl}
+                alt="Foto del servicio"
+                style={{ maxWidth: "220px", borderRadius: "8px", marginTop: ".5rem" }}
+              />
+            ) : (
+              <p style={{ fontSize: ".78rem", color: "var(--muted)", display: "flex", gap: ".4rem", alignItems: "center" }}>
+                <Upload size={13} /> Opcional — se usa en la tarjeta del servicio en el sitio.
+              </p>
+            )}
+          </div>
+
+          {aiEnabled ? (
+            <div className="field">
+              <label htmlFor="notas-ia">Ayúdame a redactar con IA (opcional)</label>
+              <div className="field-row">
+                <input
+                  id="notas-ia"
+                  value={aiNotes}
+                  onChange={event => setAiNotes(event.target.value)}
+                  placeholder="Unas palabras sobre el servicio…"
+                />
+                <button
+                  type="button"
+                  className="mini-button"
+                  disabled={!form.name.trim() || draftDescription.isPending}
+                  onClick={() =>
+                    draftDescription.mutate({
+                      name: form.name,
+                      notes: aiNotes || undefined,
+                      photoBase64: aiPhoto?.base64,
+                      photoMimeType: aiPhoto?.mimeType,
+                    })
+                  }
+                >
+                  {draftDescription.isPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={14} style={{ display: "inline", marginRight: ".3rem" }} />
+                  )}
+                  Redactar
+                </button>
+              </div>
+              <p style={{ fontSize: ".74rem", color: "var(--muted)", margin: 0 }}>
+                Propone la descripción corta y larga de abajo — revísalas y ajústalas antes de guardar.
+              </p>
+            </div>
+          ) : null}
 
           <div className="field">
             <label htmlFor="corta">Descripción corta</label>

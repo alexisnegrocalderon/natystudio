@@ -149,6 +149,7 @@ export function CustomerDetail({ customerId }: { customerId: number }) {
         <ContactActions
           name={customer.name}
           phone={customer.phone}
+          audience="clienta"
           sending={sendEmail.isPending}
           onSendEmail={(subject, body) => sendEmail.mutate({ id: customerId, subject, body })}
         />

@@ -27,20 +27,24 @@ export type RenderedEmail = {
   text: string;
 };
 
-const INK = "#121014";
-const PAPER = "#f4eeeb";
-const ROSE = "#ea8dac";
-const MUTED = "#b8afb4";
+// Misma paleta clara del sitio y del panel — los hex van literales porque los
+// clientes de correo no soportan variables CSS de forma confiable.
+const PAGE_BG = "#fff6f8";
+const CARD_BG = "#ffffff";
+const TEXT = "#3b1626";
+const ROSE = "#ff5c89";
+const MUTED = "#8a5d70";
+const BORDER = "#f6dce4";
 
 function layout(title: string, bodyHtml: string, footerNote?: string): string {
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
-<body style="margin:0;padding:0;background:${INK};color:${PAPER};font-family:'Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${INK};padding:32px 16px;">
+<body style="margin:0;padding:0;background:${PAGE_BG};color:${TEXT};font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAGE_BG};padding:32px 16px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#1c181d;border-radius:16px;overflow:hidden;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${CARD_BG};border-radius:16px;overflow:hidden;border:1px solid ${BORDER};">
         <tr><td style="padding:28px 32px 8px;">
-          <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:-1px;">naty<span style="color:${ROSE};">.</span>studio</p>
+          <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:-1px;color:${TEXT};">naty<span style="color:${ROSE};">.</span>studio</p>
         </td></tr>
         <tr><td style="padding:8px 32px 32px;">
           ${bodyHtml}
@@ -57,7 +61,7 @@ function layout(title: string, bodyHtml: string, footerNote?: string): string {
 function detailRow(label: string, value: string): string {
   return `<tr>
     <td style="padding:8px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${MUTED};">${label}</td>
-    <td style="padding:8px 0;font-size:15px;font-weight:600;color:${PAPER};text-align:right;">${value}</td>
+    <td style="padding:8px 0;font-size:15px;font-weight:600;color:${TEXT};text-align:right;">${value}</td>
   </tr>`;
 }
 
@@ -79,17 +83,17 @@ function appointmentDetails(data: TemplateData): string {
   }
 
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-    style="margin:20px 0;border-top:1px solid rgba(255,243,248,.17);border-bottom:1px solid rgba(255,243,248,.17);">
+    style="margin:20px 0;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
     ${rows.join("")}
   </table>`;
 }
 
 function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:${ROSE};color:#28151c;font-weight:700;font-size:14px;text-decoration:none;padding:13px 22px;border-radius:999px;">${label}</a>`;
+  return `<a href="${href}" style="display:inline-block;background:${ROSE};color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;padding:13px 22px;border-radius:999px;">${label}</a>`;
 }
 
 function heading(text: string): string {
-  return `<h1 style="margin:16px 0 12px;font-size:24px;line-height:1.25;font-weight:600;color:${PAPER};">${text}</h1>`;
+  return `<h1 style="margin:16px 0 12px;font-size:24px;line-height:1.25;font-weight:600;color:${TEXT};">${text}</h1>`;
 }
 
 function paragraph(text: string): string {
@@ -221,7 +225,7 @@ export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEma
         html: layout(
           "Nueva reserva",
           heading("Tienes una nueva reserva") +
-            paragraph(`<strong style="color:${PAPER};">${data.customerName}</strong> solicitó una hora.`) +
+            paragraph(`<strong style="color:${TEXT};">${data.customerName}</strong> solicitó una hora.`) +
             appointmentDetails(data) +
             button(`${data.siteUrl}/admin/agenda`, "Abrir la agenda"),
           "Aviso interno de naty.studio",

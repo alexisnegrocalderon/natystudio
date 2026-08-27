@@ -8,6 +8,8 @@ import {
   customerSendEmailSchema,
   dateOverrideInputSchema,
   dateOverrideListQuerySchema,
+  draftEmailInputSchema,
+  draftServiceDescriptionInputSchema,
   expenseInputSchema,
   financeSummaryQuerySchema,
   postInputSchema,
@@ -32,6 +34,7 @@ import {
   services,
   timeOff,
 } from "../db";
+import { aiEnabled, draftEmail, draftServiceDescription } from "../services/ai";
 import { rescheduleAppointment } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow, scheduleReminders } from "../services/email";
 import { revalidatePaths } from "../services/revalidate";
@@ -550,6 +553,16 @@ const financeRouter = router({
   }),
 });
 
+const aiRouter = router({
+  enabled: adminProcedure.query(() => aiEnabled),
+
+  draftEmail: adminProcedure.input(draftEmailInputSchema).mutation(({ input }) => draftEmail(input)),
+
+  draftServiceDescription: adminProcedure
+    .input(draftServiceDescriptionInputSchema)
+    .mutation(({ input }) => draftServiceDescription(input)),
+});
+
 export const adminRouter = router({
   services: servicesRouter,
   schedule: scheduleRouter,
@@ -557,6 +570,7 @@ export const adminRouter = router({
   posts: postsRouter,
   customers: adminCustomersRouter,
   finance: financeRouter,
+  ai: aiRouter,
 
   dashboard: adminProcedure.query(async () => {
     const now = new Date();

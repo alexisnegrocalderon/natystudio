@@ -176,6 +176,20 @@ export const financeSummaryQuerySchema = z.object({
   to: z.iso.datetime(),
 });
 
+export const draftEmailInputSchema = z.object({
+  idea: z.string().trim().min(3).max(600),
+  audience: z.enum(["clienta", "interesada"]),
+  recipientName: z.string().trim().max(120).optional(),
+});
+
+export const draftServiceDescriptionInputSchema = z.object({
+  name: z.string().trim().min(2).max(140),
+  notes: z.string().trim().max(600).optional(),
+  /** Base64 sin el prefijo "data:...;base64,". */
+  photoBase64: z.string().max(6_000_000).optional(),
+  photoMimeType: z.string().max(60).optional(),
+});
+
 export const schedulingSettingsInputSchema = z.object({
   slotGranularityMin: z.number().int().min(5).max(120),
   minLeadTimeHours: z.number().int().min(0).max(720),

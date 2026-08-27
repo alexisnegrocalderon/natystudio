@@ -1,24 +1,37 @@
 "use client";
 
-import { Loader2, Mail, MessageCircle, Send, X } from "lucide-react";
+import { Loader2, Mail, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { whatsappTemplates } from "@/lib/messageTemplates";
 import { whatsappTo } from "@/lib/site";
+import { trpc } from "@/lib/trpc";
 
 export function ContactActions({
   name,
   phone,
+  audience,
   onSendEmail,
   sending,
 }: {
   name: string;
   phone?: string | null;
+  /** Contexto para la IA: cambia el tono según a quién va dirigido el correo. */
+  audience: "clienta" | "interesada";
   onSendEmail: (subject: string, body: string) => void;
   sending: boolean;
 }) {
   const [composing, setComposing] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [idea, setIdea] = useState("");
+
+  const { data: aiEnabled } = trpc.admin.ai.enabled.useQuery();
+  const draftEmail = trpc.admin.ai.draftEmail.useMutation({
+    onSuccess: data => {
+      setSubject(data.subject);
+      setBody(data.body);
+    },
+  });
 
   function submit() {
     if (!subject.trim() || !body.trim()) return;
@@ -26,6 +39,7 @@ export function ContactActions({
     setComposing(false);
     setSubject("");
     setBody("");
+    setIdea("");
   }
 
   return (
@@ -60,6 +74,34 @@ export function ContactActions({
               <X size={13} />
             </button>
           </div>
+
+          {aiEnabled ? (
+            <div className="field">
+              <label htmlFor="idea-correo">Redactar con IA — cuéntale la idea</label>
+              <div className="field-row">
+                <input
+                  id="idea-correo"
+                  value={idea}
+                  onChange={event => setIdea(event.target.value)}
+                  placeholder="Ej: avisarle que ya puede reservar el retiro que preguntó"
+                />
+                <button
+                  type="button"
+                  className="mini-button"
+                  disabled={!idea.trim() || draftEmail.isPending}
+                  onClick={() => draftEmail.mutate({ idea, audience, recipientName: name })}
+                >
+                  {draftEmail.isPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={14} style={{ display: "inline", marginRight: ".3rem" }} />
+                  )}
+                  Redactar
+                </button>
+              </div>
+              {draftEmail.error ? <p className="field-error">{draftEmail.error.message}</p> : null}
+            </div>
+          ) : null}
 
           <div className="field">
             <label htmlFor="asunto-correo">Asunto</label>

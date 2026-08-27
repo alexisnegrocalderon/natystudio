@@ -51,6 +51,13 @@ export const ENV = {
     publicKey: optional("MP_PUBLIC_KEY"),
     webhookSecret: optional("MP_WEBHOOK_SECRET"),
   },
+
+  /** Redacción con IA (mailing y descripciones de servicios). Vacío = los botones de IA quedan apagados. */
+  geminiApiKey: optional("GEMINI_API_KEY"),
+  geminiModel: optional("GEMINI_MODEL", "gemini-2.5-flash"),
+
+  /** Subida de fotos de servicios. Vacío = el form no ofrece cargar imagen. */
+  blobReadWriteToken: optional("BLOB_READ_WRITE_TOKEN"),
 } as const;
 
 if (ENV.paymentsEnabled && !ENV.mercadoPago.accessToken) {
