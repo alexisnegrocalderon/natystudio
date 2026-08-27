@@ -243,11 +243,8 @@ export function BookingFunnel() {
     }
   }, [revealed]);
 
-  /** Enter en nombre/correo/teléfono: valida sólo ese campo y revela el siguiente. */
-  function handleFieldEnter(event: KeyboardEvent<HTMLInputElement>, field: "name" | "email" | "phone") {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-
+  /** Valida sólo ese campo y, si pasa, revela el siguiente — desde Enter o desde el botón "Continuar". */
+  function advanceField(field: "name" | "email" | "phone") {
     const result = customerInputSchema.shape[field].safeParse(customer[field]);
     if (!result.success) {
       setErrors(prev => ({ ...prev, [field]: result.error.issues[0]?.message ?? "Revisa este dato." }));
@@ -261,6 +258,12 @@ export function BookingFunnel() {
       return next;
     });
     setRevealed(current => Math.max(current, field === "name" ? 2 : field === "email" ? 3 : 4));
+  }
+
+  function handleFieldEnter(event: KeyboardEvent<HTMLInputElement>, field: "name" | "email" | "phone") {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    advanceField(field);
   }
 
   function validate(): boolean {
@@ -683,6 +686,17 @@ export function BookingFunnel() {
                         {errors.name}
                       </p>
                     ) : null}
+                    {revealed === 1 ? (
+                      <button
+                        type="button"
+                        className="mini-button"
+                        data-variant="primary"
+                        style={{ marginTop: ".6rem", width: "fit-content" }}
+                        onClick={() => advanceField("name")}
+                      >
+                        Continuar <ArrowUpRight size={13} />
+                      </button>
+                    ) : null}
                   </div>
 
                   {revealed >= 2 ? (
@@ -714,6 +728,17 @@ export function BookingFunnel() {
                           Acá te llega la confirmación de la cita — revisa que esté bien escrito.
                         </p>
                       )}
+                      {revealed === 2 ? (
+                        <button
+                          type="button"
+                          className="mini-button"
+                          data-variant="primary"
+                          style={{ marginTop: ".6rem", width: "fit-content" }}
+                          onClick={() => advanceField("email")}
+                        >
+                          Continuar <ArrowUpRight size={13} />
+                        </button>
+                      ) : null}
                     </motion.div>
                   ) : null}
 
@@ -742,6 +767,17 @@ export function BookingFunnel() {
                         <p className="field-error" id="error-telefono">
                           {errors.phone}
                         </p>
+                      ) : null}
+                      {revealed === 3 ? (
+                        <button
+                          type="button"
+                          className="mini-button"
+                          data-variant="primary"
+                          style={{ marginTop: ".6rem", width: "fit-content" }}
+                          onClick={() => advanceField("phone")}
+                        >
+                          Continuar <ArrowUpRight size={13} />
+                        </button>
                       ) : null}
                     </motion.div>
                   ) : null}
