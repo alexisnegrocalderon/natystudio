@@ -23,7 +23,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
   return new Response(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="cita-naty-studio.ics"',
+      // "inline" (no "attachment"): en iOS/macOS Safari esto es lo que hace
+      // que el .ics abra directo la pantalla nativa de "Agregar evento"
+      // (con Cancelar/Agregar) en vez del diálogo genérico de "este sitio
+      // quiere descargar un archivo".
+      "Content-Disposition": 'inline; filename="cita-naty-studio.ics"',
     },
   });
 }
