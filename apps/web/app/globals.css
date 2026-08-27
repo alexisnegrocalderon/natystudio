@@ -95,42 +95,15 @@ body:has(.admin-theme) .site-footer {
 }
 
 /*
- * El panel admin es una herramienta interna, no la vidriera de la marca:
- * mantiene el tema oscuro original aunque el sitio público pase a la paleta
- * clara, redeclarando exactamente los mismos tokens que tenía :root antes de
- * ese cambio. app/admin/layout.tsx envuelve todo el panel en esta clase.
+ * El panel admin ya no tiene un tema propio: comparte la misma paleta clara
+ * que el sitio público (antes redeclaraba acá los tokens oscuros previos al
+ * rediseño). Como todas las clases del panel ya están construidas sobre
+ * var(--ink)/var(--rose)/etc., basta con no pisar esos tokens para que
+ * hereden los valores claros de :root. Esta clase sólo queda para el fondo/
+ * alto mínimo y como selector de las reglas de abajo que ocultan el nav
+ * público y ajustan el padding del contenido en rutas admin.
  */
 .admin-theme {
-  --ink: #121014;
-  --ink-raised: #1c181d;
-  --ink-soft: #282229;
-  --paper: #f4eeeb;
-  --paper-muted: #d6cacd;
-  --rose: #ea8dac;
-  --rose-bright: #ff9ebd;
-  --rose-pale: #ffd4e0;
-  --lavender: #b8a5db;
-  --line: rgba(255, 243, 248, 0.17);
-  --muted: #b8afb4;
-
-  --background: var(--ink);
-  --foreground: var(--paper);
-  --card: var(--ink-raised);
-  --card-foreground: var(--paper);
-  --popover: var(--ink-raised);
-  --popover-foreground: var(--paper);
-  --primary: var(--rose);
-  --primary-foreground: #28151c;
-  --secondary: var(--ink-soft);
-  --secondary-foreground: var(--paper);
-  --muted-bg: var(--ink-soft);
-  --muted-foreground: var(--muted);
-  --accent: var(--ink-soft);
-  --accent-foreground: var(--rose-pale);
-  --border: var(--line);
-  --input: rgba(255, 243, 248, 0.22);
-  --ring: var(--rose);
-
   background: var(--ink);
   color: var(--paper);
   min-height: 100dvh;
@@ -1743,9 +1716,20 @@ button.funnel-crumb[data-state="done"]:hover {
   align-items: start;
 }
 
-.admin-nav {
+/* Envoltorio con aspecto de tarjeta para la sidebar de escritorio — separado
+   de .admin-nav porque esa clase también se reusa suelta dentro de páginas
+   (ej. el selector de sede en horarios), donde no debe llevar este marco. */
+.admin-sidebar {
   position: sticky;
   top: 100px;
+  background: var(--ink-raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.9rem;
+  box-shadow: 0 10px 30px rgba(59, 22, 38, 0.06);
+}
+
+.admin-nav {
   display: grid;
   gap: 0.15rem;
 }
@@ -1762,13 +1746,62 @@ button.funnel-crumb[data-state="done"]:hover {
   transition: all 150ms var(--ease-out);
 }
 
-.admin-nav a:hover {
+/* Barra superior + menú cajón para mobile — ocultos en escritorio, donde
+   manda la sidebar de siempre. */
+.admin-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  width: min(1320px, calc(100% - 40px));
+  margin-inline: auto;
+  padding: 1.4rem 0 0;
+}
+
+.admin-mobile-nav {
+  display: none;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem;
   background: var(--ink-raised);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 20px;
+  right: 20px;
+  box-shadow: 0 16px 38px rgba(59, 22, 38, 0.16);
+  z-index: 40;
+}
+
+.admin-mobile-nav a,
+.admin-mobile-nav button {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.8rem 0.85rem;
+  border-radius: 10px;
+  color: var(--paper-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-mobile-nav a[aria-current="page"] {
+  background: var(--ink-soft);
+  color: var(--rose);
+}
+
+.admin-nav a:hover {
+  background: var(--ink-soft);
   color: var(--paper);
 }
 
 .admin-nav a[aria-current="page"] {
-  background: var(--ink-raised);
+  background: var(--ink-soft);
   color: var(--rose);
 }
 
@@ -1803,7 +1836,42 @@ button.funnel-crumb[data-state="done"]:hover {
 .stat-card {
   background: var(--ink-raised);
   border: 1px solid var(--line);
+  border-radius: 14px;
   padding: 1.3rem;
+  box-shadow: 0 10px 30px rgba(59, 22, 38, 0.05);
+}
+
+/* Chip cuadrado con un tinte de la propia paleta detrás del ícono — la
+   variedad de color de la tarjeta de referencia, sin salir de los tonos
+   rosados/lavanda ya definidos en :root. */
+.stat-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 10px;
+  margin-bottom: 0.9rem;
+}
+
+.stat-card-icon[data-tone="rose"] {
+  background: color-mix(in srgb, var(--rose) 16%, white);
+  color: var(--rose);
+}
+
+.stat-card-icon[data-tone="lavender"] {
+  background: color-mix(in srgb, var(--lavender) 28%, white);
+  color: var(--rose-bright);
+}
+
+.stat-card-icon[data-tone="bright"] {
+  background: color-mix(in srgb, var(--rose-bright) 16%, white);
+  color: var(--rose-bright);
+}
+
+.stat-card-icon[data-tone="pale"] {
+  background: color-mix(in srgb, var(--rose-pale) 55%, white);
+  color: var(--rose);
 }
 
 .stat-card span {
@@ -1948,8 +2016,39 @@ button.funnel-crumb[data-state="done"]:hover {
 .admin-card {
   background: var(--ink-raised);
   border: 1px solid var(--line);
+  border-radius: 14px;
   padding: 1.5rem;
   margin-bottom: 1.2rem;
+  box-shadow: 0 10px 30px rgba(59, 22, 38, 0.05);
+}
+
+/* Página de Ventas: grilla de gráficos chicos lado a lado, una sola columna
+   en mobile por el propio auto-fit — sin breakpoint aparte. */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Sin min-width:0 los hijos del grid (y el SVG de recharts adentro) se
+   miden por su ancho de contenido preferido, así que auto-fit nunca llega a
+   colapsar a una columna en mobile — la grilla termina más ancha que la
+   pantalla en vez de apilarse. */
+.chart-grid > * {
+  min-width: 0;
+}
+
+.chart-wrap {
+  width: 100%;
+  height: 260px;
+  min-width: 0;
+}
+
+.range-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
 }
 
 .admin-card h2 {
@@ -1988,7 +2087,7 @@ button.funnel-crumb[data-state="done"]:hover {
   border-radius: 4px;
   font-size: 0.85rem;
   width: 100%;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .login-shell {
@@ -2017,8 +2116,24 @@ button.funnel-crumb[data-state="done"]:hover {
 
 @media (max-width: 900px) {
   .admin-shell {
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr), no un 1fr suelto: un track "1fr" a secas todavía tiene
+       un mínimo automático "auto" que respeta el min-content de los hijos
+       (ej. el ancho intrínseco del SVG de un gráfico), y eso puede volver a
+       ensanchar todo el panel más allá de la pantalla en mobile. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
+  }
+
+  .admin-sidebar {
+    display: none;
+  }
+
+  .admin-topbar {
+    display: flex;
+  }
+
+  .admin-mobile-nav[data-open="true"] {
+    display: flex;
   }
 
   .admin-nav {
@@ -2043,6 +2158,9 @@ button.funnel-crumb[data-state="done"]:hover {
 
 @media print {
   .admin-nav,
+  .admin-sidebar,
+  .admin-topbar,
+  .admin-mobile-nav,
   .no-print {
     display: none !important;
   }

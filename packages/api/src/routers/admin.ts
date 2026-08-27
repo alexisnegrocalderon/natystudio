@@ -8,6 +8,8 @@ import {
   customerSendEmailSchema,
   dateOverrideInputSchema,
   dateOverrideListQuerySchema,
+  expenseInputSchema,
+  financeSummaryQuerySchema,
   postInputSchema,
   rescheduleAppointmentSchema,
   schedulingSettingsInputSchema,
@@ -21,6 +23,7 @@ import {
   customers,
   dateOverrides,
   emailJobs,
+  expenses,
   leads,
   locations,
   posts,
@@ -417,12 +420,121 @@ const leadsRouter = router({
   }),
 });
 
+/**
+ * Ingresos: se calculan sobre `appointments.amountPaidClp` de citas
+ * "completed" (el mismo criterio que ya usa `dashboard` para "Cobrado este
+ * mes", ver más abajo), agrupado por mes/servicio/sede en vez de sumado de
+ * una sola vez. Se agrupa con `date_trunc` en UTC — para un gráfico de
+ * tendencia mensual el desfase de minutos frente a la hora de Chile no
+ * amerita reusar el ensanchado de rango que sí hace falta para turnos.
+ */
+const financeRouter = router({
+  summary: adminProcedure.input(financeSummaryQuerySchema).query(async ({ input }) => {
+    const from = new Date(input.from);
+    const to = new Date(input.to);
+    const incomeSum = sql<number>`coalesce(sum(${appointments.amountPaidClp}), 0)::int`;
+    const monthBucket = sql<string>`to_char(date_trunc('month', ${appointments.startsAt}), 'YYYY-MM')`;
+    const completedInRange = and(
+      eq(appointments.status, "completed"),
+      gte(appointments.startsAt, from),
+      lte(appointments.startsAt, to),
+    );
+
+    const [incomeByMonth, incomeByService, incomeByLocation, appointmentsByStatus, expenseTotalRow] =
+      await Promise.all([
+        db
+          .select({ month: monthBucket, total: incomeSum })
+          .from(appointments)
+          .where(completedInRange)
+          .groupBy(monthBucket)
+          .orderBy(monthBucket),
+
+        db
+          .select({ name: services.name, total: incomeSum })
+          .from(appointments)
+          .innerJoin(services, eq(appointments.serviceId, services.id))
+          .where(completedInRange)
+          .groupBy(services.name)
+          .orderBy(desc(incomeSum)),
+
+        db
+          .select({ name: locations.name, total: incomeSum })
+          .from(appointments)
+          .innerJoin(locations, eq(appointments.locationId, locations.id))
+          .where(completedInRange)
+          .groupBy(locations.name)
+          .orderBy(desc(incomeSum)),
+
+        db
+          .select({ status: appointments.status, total: count() })
+          .from(appointments)
+          .where(and(gte(appointments.startsAt, from), lte(appointments.startsAt, to)))
+          .groupBy(appointments.status),
+
+        db
+          .select({ total: sql<number>`coalesce(sum(${expenses.amountClp}), 0)::int` })
+          .from(expenses)
+          .where(and(gte(expenses.incurredAt, from), lte(expenses.incurredAt, to))),
+      ]);
+
+    const incomeTotal = incomeByMonth.reduce((sum, row) => sum + row.total, 0);
+    const expenseTotal = expenseTotalRow[0]?.total ?? 0;
+
+    return {
+      incomeByMonth,
+      incomeByService,
+      incomeByLocation,
+      appointmentsByStatus,
+      incomeTotal,
+      expenseTotal,
+      netProfit: incomeTotal - expenseTotal,
+    };
+  }),
+
+  listExpenses: adminProcedure.input(financeSummaryQuerySchema).query(({ input }) =>
+    db
+      .select({
+        id: expenses.id,
+        description: expenses.description,
+        amountClp: expenses.amountClp,
+        category: expenses.category,
+        incurredAt: expenses.incurredAt,
+        locationName: locations.name,
+      })
+      .from(expenses)
+      .leftJoin(locations, eq(expenses.locationId, locations.id))
+      .where(and(gte(expenses.incurredAt, new Date(input.from)), lte(expenses.incurredAt, new Date(input.to))))
+      .orderBy(desc(expenses.incurredAt))
+      .limit(200),
+  ),
+
+  createExpense: adminProcedure.input(expenseInputSchema).mutation(async ({ input }) => {
+    const [created] = await db
+      .insert(expenses)
+      .values({
+        description: input.description,
+        amountClp: input.amountClp,
+        category: input.category,
+        locationId: input.locationId,
+        incurredAt: new Date(input.incurredAt),
+      })
+      .returning();
+    return created;
+  }),
+
+  deleteExpense: adminProcedure.input(idInput).mutation(async ({ input }) => {
+    await db.delete(expenses).where(eq(expenses.id, input.id));
+    return { ok: true as const };
+  }),
+});
+
 export const adminRouter = router({
   services: servicesRouter,
   schedule: scheduleRouter,
   appointments: appointmentsRouter,
   posts: postsRouter,
   customers: adminCustomersRouter,
+  finance: financeRouter,
 
   dashboard: adminProcedure.query(async () => {
     const now = new Date();

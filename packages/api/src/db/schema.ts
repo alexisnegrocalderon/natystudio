@@ -272,6 +272,25 @@ export const payments = pgTable(
   ],
 );
 
+/* -------------------------------------------------------------- expenses */
+
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: serial("id").primaryKey(),
+    description: varchar("description", { length: 200 }).notNull(),
+    amountClp: integer("amount_clp").notNull(),
+    /** Texto libre (arriendo, insumos, marketing, otro...): sólo agrupa en la
+     *  vista de Ventas, no hay lógica de negocio atada a categorías fijas. */
+    category: varchar("category", { length: 60 }).notNull().default("otro"),
+    /** Nulo si el gasto no es de una sede en particular (ej. marketing general). */
+    locationId: integer("location_id").references(() => locations.id, { onDelete: "set null" }),
+    incurredAt: instant("incurred_at").notNull(),
+    createdAt: instant("created_at").notNull().defaultNow(),
+  },
+  table => [index("expenses_incurred_at_idx").on(table.incurredAt)],
+);
+
 /* -------------------------------------------------------------- emailJobs */
 
 export const emailJobs = pgTable(
@@ -370,6 +389,7 @@ export type Customer = typeof customers.$inferSelect;
 export type BusinessHour = typeof businessHours.$inferSelect;
 export type TimeOff = typeof timeOff.$inferSelect;
 export type DateOverride = typeof dateOverrides.$inferSelect;
+export type Expense = typeof expenses.$inferSelect;
 export type SchedulingSettings = typeof schedulingSettings.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type EmailJob = typeof emailJobs.$inferSelect;

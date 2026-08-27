@@ -161,6 +161,19 @@ export const dateOverrideListQuerySchema = z.object({
   to: dayStringSchema,
 });
 
+export const expenseInputSchema = z.object({
+  description: z.string().trim().min(2).max(200),
+  amountClp: z.number().int().positive(),
+  category: z.string().trim().min(1).max(60),
+  locationId: z.number().int().positive().nullable(),
+  incurredAt: z.iso.datetime(),
+});
+
+export const financeSummaryQuerySchema = z.object({
+  from: z.iso.datetime(),
+  to: z.iso.datetime(),
+});
+
 export const schedulingSettingsInputSchema = z.object({
   slotGranularityMin: z.number().int().min(5).max(120),
   minLeadTimeHours: z.number().int().min(0).max(720),

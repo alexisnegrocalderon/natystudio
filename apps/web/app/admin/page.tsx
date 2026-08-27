@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Loader2, MailWarning, TrendingUp, UserPlus } from "lucide-react";
+import { CalendarClock, Loader2, MailWarning, TrendingUp, UserPlus, Wallet } from "lucide-react";
 import Link from "next/link";
 import { formatBusinessDate, formatBusinessTime, formatClp } from "@naty/shared";
 import { StatusPill } from "@/components/admin/StatusPill";
@@ -31,38 +31,41 @@ export default function AdminDashboardPage() {
 
       <div className="stat-grid">
         <div className="stat-card">
-          <span>
-            <CalendarClock size={12} style={{ display: "inline", marginRight: ".3rem" }} />
-            Por confirmar
-          </span>
+          <div className="stat-card-icon" data-tone="rose">
+            <CalendarClock size={17} aria-hidden="true" />
+          </div>
+          <span>Por confirmar</span>
           <strong>{data.pendingApprovalCount}</strong>
           <small>{data.pendingApprovalCount === 1 ? "reserva esperando" : "reservas esperando"}</small>
         </div>
 
-        <div className="stat-card">
-          <span>
-            <TrendingUp size={12} style={{ display: "inline", marginRight: ".3rem" }} />
-            Cobrado este mes
-          </span>
+        <Link href="/admin/ventas" className="stat-card">
+          <div className="stat-card-icon" data-tone="bright">
+            <TrendingUp size={17} aria-hidden="true" />
+          </div>
+          <span>Cobrado este mes</span>
           <strong>{formatClp(data.monthRevenueClp)}</strong>
-          <small>citas realizadas</small>
-        </div>
+          <small>
+            <Wallet size={12} style={{ display: "inline", marginRight: ".25rem" }} />
+            citas realizadas · ver Ventas
+          </small>
+        </Link>
 
         <div className="stat-card">
-          <span>
-            <UserPlus size={12} style={{ display: "inline", marginRight: ".3rem" }} />
-            Interesadas
-          </span>
+          <div className="stat-card-icon" data-tone="lavender">
+            <UserPlus size={17} aria-hidden="true" />
+          </div>
+          <span>Interesadas</span>
           <strong>{data.openLeadsCount}</strong>
           <small>dejaron sus datos sin reservar</small>
         </div>
 
         {data.failedEmailCount > 0 ? (
-          <div className="stat-card" style={{ borderColor: "rgba(255,154,154,.4)" }}>
-            <span style={{ color: "#ff9a9a" }}>
-              <MailWarning size={12} style={{ display: "inline", marginRight: ".3rem" }} />
-              Correos fallidos
-            </span>
+          <div className="stat-card" style={{ borderColor: "rgba(225,29,72,.35)" }}>
+            <div className="stat-card-icon" data-tone="pale">
+              <MailWarning size={17} aria-hidden="true" style={{ color: "#e11d48" }} />
+            </div>
+            <span style={{ color: "#e11d48" }}>Correos fallidos</span>
             <strong>{data.failedEmailCount}</strong>
             <small>revisa la configuración de correo</small>
           </div>

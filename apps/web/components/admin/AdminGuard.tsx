@@ -6,19 +6,23 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  Menu,
   Settings,
   Clock,
   Sparkles,
   UserPlus,
   Users,
+  Wallet,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 
 const ADMIN_LINKS = [
   { href: "/admin", label: "Inicio", icon: LayoutDashboard },
+  { href: "/admin/ventas", label: "Ventas", icon: Wallet },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/clientas", label: "Clientas", icon: Users },
   { href: "/admin/leads", label: "Interesadas", icon: UserPlus },
@@ -32,6 +36,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isLoginPage = pathname === "/admin/login";
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { data: user, isLoading } = trpc.auth.me.useQuery(undefined, { retry: false });
   const utils = trpc.useUtils();
@@ -46,6 +51,12 @@ export function AdminGuard({ children }: { children: ReactNode }) {
     if (isLoading || isLoginPage) return;
     if (!user) router.replace("/admin/login");
   }, [user, isLoading, isLoginPage, router]);
+
+  // Cambiar de página cierra el cajón móvil: sin esto queda abierto sobre
+  // la vista nueva.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   if (isLoginPage) return <>{children}</>;
 
@@ -63,33 +74,70 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   // panel para no mostrar su estructura a quien no ha iniciado sesión.
   if (!user) return null;
 
-  return (
-    <div className="admin-shell">
-      <nav className="admin-nav" aria-label="Navegación del panel">
-        {ADMIN_LINKS.map(link => {
-          const Icon = link.icon;
-          const current = link.href === "/admin" ? pathname === "/admin" : pathname.startsWith(link.href);
-          return (
-            <Link key={link.href} href={link.href} aria-current={current ? "page" : undefined}>
-              <Icon size={16} aria-hidden="true" />
-              {link.label}
-            </Link>
-          );
-        })}
+  const isCurrent = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
 
+  return (
+    <>
+      <div className="admin-topbar">
+        <Link href="/admin" className="wordmark" aria-label="naty.studio, ir al inicio del panel">
+          naty<span>.</span>studio
+        </Link>
         <button
           type="button"
-          className="mini-button"
-          style={{ marginTop: "1rem", justifySelf: "start" }}
-          onClick={() => logout.mutate()}
-          disabled={logout.isPending}
+          className="menu-toggle"
+          onClick={() => setMenuOpen(open => !open)}
+          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuOpen}
+          aria-controls="admin-menu-movil"
         >
-          <LogOut size={13} style={{ display: "inline", marginRight: ".35rem" }} />
-          Cerrar sesión
+          {menuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
-      </nav>
 
-      <div>{children}</div>
-    </div>
+        <nav className="admin-mobile-nav" id="admin-menu-movil" data-open={menuOpen} aria-label="Navegación del panel">
+          {ADMIN_LINKS.map(link => {
+            const Icon = link.icon;
+            return (
+              <Link key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
+                <Icon size={16} aria-hidden="true" />
+                {link.label}
+              </Link>
+            );
+          })}
+          <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
+            <LogOut size={16} aria-hidden="true" />
+            Cerrar sesión
+          </button>
+        </nav>
+      </div>
+
+      <div className="admin-shell">
+        <aside className="admin-sidebar">
+          <nav className="admin-nav" aria-label="Navegación del panel">
+            {ADMIN_LINKS.map(link => {
+              const Icon = link.icon;
+              return (
+                <Link key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
+                  <Icon size={16} aria-hidden="true" />
+                  {link.label}
+                </Link>
+              );
+            })}
+
+            <button
+              type="button"
+              className="mini-button"
+              style={{ marginTop: "1rem", justifySelf: "start" }}
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+            >
+              <LogOut size={13} style={{ display: "inline", marginRight: ".35rem" }} />
+              Cerrar sesión
+            </button>
+          </nav>
+        </aside>
+
+        <div>{children}</div>
+      </div>
+    </>
   );
 }

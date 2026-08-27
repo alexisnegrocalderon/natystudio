@@ -288,7 +288,7 @@ export default function AdminHoursPage() {
             min={today}
             value={overrideDay}
             onChange={event => editOverrideDay(event.target.value)}
-            style={{ colorScheme: "dark" }}
+            style={{ colorScheme: "light" }}
           />
         </div>
 
@@ -427,7 +427,7 @@ export default function AdminHoursPage() {
               type="datetime-local"
               value={blockStart}
               onChange={event => setBlockStart(event.target.value)}
-              style={{ colorScheme: "dark" }}
+              style={{ colorScheme: "light" }}
             />
           </div>
           <div className="field">
@@ -437,7 +437,7 @@ export default function AdminHoursPage() {
               type="datetime-local"
               value={blockEnd}
               onChange={event => setBlockEnd(event.target.value)}
-              style={{ colorScheme: "dark" }}
+              style={{ colorScheme: "light" }}
             />
           </div>
         </div>
