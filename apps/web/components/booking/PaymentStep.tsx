@@ -3,7 +3,7 @@
 import { Payment, initMercadoPago } from "@mercadopago/sdk-react";
 import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { formatClp } from "@naty/shared";
+import { estimateServiceFee, formatClp } from "@naty/shared";
 import { trpc } from "@/lib/trpc";
 
 /** El SDK toca `window` al inicializarse: una sola vez por sesión de página. */
@@ -87,6 +87,9 @@ export function PaymentStep({
   }
 
   const amountClp = kind === "deposit" ? (plan.depositClp ?? plan.fullClp) : plan.fullClp;
+  // Lo que realmente se le cobra a la tarjeta: el monto de Naty + los gastos
+  // por servicio (ver aviso más abajo). El backend cobra este mismo total.
+  const chargeClp = amountClp + estimateServiceFee(amountClp);
 
   if (!config?.mercadoPagoPublicKey) {
     return (
@@ -130,6 +133,11 @@ export function PaymentStep({
         </div>
       ) : null}
 
+      <p style={{ color: "var(--muted)", fontSize: ".8rem", marginBottom: "1rem" }}>
+        + {formatClp(chargeClp - amountClp)} de gastos por servicio (comisión de Mercado Pago y de la
+        plataforma) — total a pagar: {formatClp(chargeClp)}.
+      </p>
+
       {waitingConfirmation ? (
         <div className="notice">
           <Loader2 size={18} className="animate-spin" />
@@ -138,8 +146,8 @@ export function PaymentStep({
       ) : (
         <div className="payment-brick">
           <Payment
-            key={amountClp}
-            initialization={{ amount: amountClp, payer: { email: customerEmail } }}
+            key={chargeClp}
+            initialization={{ amount: chargeClp, payer: { email: customerEmail } }}
             customization={{
               paymentMethods: {
                 creditCard: "all",

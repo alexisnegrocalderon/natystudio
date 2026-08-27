@@ -1,5 +1,6 @@
 import { ENV } from "@naty/api/env";
 import { getMpPayment, verifyWebhookSignature } from "@naty/api/services/mercadopago";
+import { getSellerAccessToken } from "@naty/api/services/mercadopago-connection";
 import { applyPaymentResult, findPaymentRowForMpPayment } from "@naty/api/services/payments";
 
 // El driver `pg` necesita un socket TCP real, que no existe en el runtime Edge.
@@ -43,7 +44,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   try {
-    const mp = await getMpPayment(dataId);
+    const mp = await getMpPayment(dataId, await getSellerAccessToken());
     const paymentRowId = await findPaymentRowForMpPayment(mp);
 
     if (paymentRowId === null) {

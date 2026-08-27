@@ -1,16 +1,37 @@
 "use client";
 
-import { AlertCircle, Loader2, ShieldCheck, ShieldOff } from "lucide-react";
+import { AlertCircle, CreditCard, Loader2, ShieldCheck, ShieldOff, TriangleAlert, Unlink } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { BUSINESS_TIMEZONE } from "@naty/shared";
+import { BUSINESS_TIMEZONE, formatBusinessDate } from "@naty/shared";
 import { trpc } from "@/lib/trpc";
 
 export default function AdminSettingsPage() {
   const utils = trpc.useUtils();
+  const searchParams = useSearchParams();
   const { data: user } = trpc.auth.me.useQuery();
   const { data: settings, isLoading } = trpc.admin.schedule.getSettings.useQuery();
+  const { data: mpStatus } = trpc.admin.mercadopago.status.useQuery();
+
+  useEffect(() => {
+    const mp = searchParams.get("mp");
+    if (mp === "connected") toast.success("Cuenta de Mercado Pago conectada.");
+    if (mp === "error") toast.error("No se pudo conectar la cuenta de Mercado Pago. Intenta de nuevo.");
+    if (mp) {
+      void utils.admin.mercadopago.status.invalidate();
+      window.history.replaceState(null, "", "/admin/ajustes");
+    }
+  }, [searchParams, utils]);
+
+  const disconnectMp = trpc.admin.mercadopago.disconnect.useMutation({
+    onSuccess: () => {
+      toast.success("Cuenta de Mercado Pago desconectada.");
+      void utils.admin.mercadopago.status.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
 
   const [form, setForm] = useState({
     slotGranularityMin: 30,
@@ -148,6 +169,52 @@ export default function AdminSettingsPage() {
                 Guardar ajustes
               </button>
             </div>
+          </>
+        )}
+      </section>
+
+      <section className="admin-card">
+        <h2>Pagos</h2>
+
+        {!mpStatus?.configured ? (
+          <div className="notice" data-tone="warn">
+            <TriangleAlert size={18} />
+            <span>La conexión con Mercado Pago todavía no está configurada del lado técnico.</span>
+          </div>
+        ) : mpStatus.connected ? (
+          <>
+            <div className="notice">
+              <ShieldCheck size={18} />
+              <span>
+                Cuenta conectada{mpStatus.email ? `: ${mpStatus.email}` : ""}
+                {mpStatus.connectedAt ? ` · desde ${formatBusinessDate(new Date(mpStatus.connectedAt))}` : ""}
+              </span>
+            </div>
+            <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.7 }}>
+              Los pagos en línea entran directo a tu cuenta. La plataforma se queda con su comisión
+              automáticamente, sin que tengas que hacer nada.
+            </p>
+            <button
+              type="button"
+              className="mini-button"
+              onClick={() => disconnectMp.mutate()}
+              disabled={disconnectMp.isPending}
+            >
+              {disconnectMp.isPending ? <Loader2 size={13} className="animate-spin" /> : <Unlink size={13} />}
+              Desconectar
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: ".88rem", color: "var(--paper-muted)", lineHeight: 1.7 }}>
+              Conecta tu cuenta de Mercado Pago para cobrar en línea desde{" "}
+              <code>/reservar</code>. El precio de tus servicios te llega completo — a la clienta se le
+              suma aparte un cargo por gastos de servicio.
+            </p>
+            <a href="/api/admin/mercadopago/connect" className="primary-link">
+              <CreditCard size={16} />
+              Conectar Mercado Pago
+            </a>
           </>
         )}
       </section>

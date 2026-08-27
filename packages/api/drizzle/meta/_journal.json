@@ -43,6 +43,13 @@
       "when": 1787798751401,
       "tag": "0005_narrow_deposit_percent",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787800289548,
+      "tag": "0006_woozy_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

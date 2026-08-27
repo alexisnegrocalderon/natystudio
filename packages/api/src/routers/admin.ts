@@ -29,11 +29,13 @@ import {
   expenses,
   leads,
   locations,
+  mercadoPagoConnection,
   posts,
   schedulingSettings,
   services,
   timeOff,
 } from "../db";
+import { ENV } from "../env";
 import { aiEnabled, draftEmail, draftServiceDescription } from "../services/ai";
 import { rescheduleAppointment } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow, scheduleReminders } from "../services/email";
@@ -563,6 +565,25 @@ const aiRouter = router({
     .mutation(({ input }) => draftServiceDescription(input)),
 });
 
+const mercadopagoRouter = router({
+  /** Estado de la conexión de Naty, para mostrar en Ajustes. */
+  status: adminProcedure.query(async () => {
+    const configured = Boolean(ENV.mercadoPago.clientId && ENV.mercadoPago.clientSecret);
+    const [connection] = await db.select().from(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1)).limit(1);
+    return {
+      configured,
+      connected: Boolean(connection),
+      email: connection?.sellerEmail ?? null,
+      connectedAt: connection?.connectedAt ?? null,
+    };
+  }),
+
+  disconnect: adminProcedure.mutation(async () => {
+    await db.delete(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1));
+    return { ok: true };
+  }),
+});
+
 export const adminRouter = router({
   services: servicesRouter,
   schedule: scheduleRouter,
@@ -571,6 +592,7 @@ export const adminRouter = router({
   customers: adminCustomersRouter,
   finance: financeRouter,
   ai: aiRouter,
+  mercadopago: mercadopagoRouter,
 
   dashboard: adminProcedure.query(async () => {
     const now = new Date();

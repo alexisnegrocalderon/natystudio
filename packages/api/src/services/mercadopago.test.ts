@@ -1,7 +1,14 @@
 import { createHmac } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMpPayment, getMpPayment, mapMpStatus, rejectionMessage, verifyWebhookSignature } from "./mercadopago";
+import {
+  calculateServiceCharge,
+  createMpPayment,
+  getMpPayment,
+  mapMpStatus,
+  rejectionMessage,
+  verifyWebhookSignature,
+} from "./mercadopago";
 
 const SECRET = "un-secreto-de-prueba";
 
@@ -94,6 +101,29 @@ describe("verifyWebhookSignature", () => {
     expect(verifyWebhookSignature({ signatureHeader: null, requestId: "req-1", dataId: "123", secret: SECRET })).toBe(
       false,
     );
+  });
+});
+
+describe("calculateServiceCharge", () => {
+  it("suma el 2.8% estimado de Mercado Pago y el 1.5% de la plataforma sobre el precio", () => {
+    // 100.000 * 2.8% = 2.800, 100.000 * 1.5% = 1.500
+    const charge = calculateServiceCharge(100_000);
+    expect(charge).toEqual({ chargeClp: 104_300, feeClp: 4_300, platformFeeClp: 1_500 });
+  });
+
+  it("redondea cada comisión por separado, no el total", () => {
+    // 33.333 * 2.8% = 933.324 → 933, 33.333 * 1.5% = 499.995 → 500
+    const charge = calculateServiceCharge(33_333);
+    expect(charge.platformFeeClp).toBe(500);
+    expect(charge.feeClp).toBe(933 + 500);
+    expect(charge.chargeClp).toBe(33_333 + 933 + 500);
+  });
+
+  it("a Naty le queda exactamente el precio del servicio: chargeClp - feeClp === baseClp", () => {
+    for (const base of [0, 1, 15_000, 49_990, 250_000]) {
+      const charge = calculateServiceCharge(base);
+      expect(charge.chargeClp - charge.feeClp).toBe(base);
+    }
   });
 });
 

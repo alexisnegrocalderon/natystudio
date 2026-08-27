@@ -2,6 +2,7 @@ import { and, eq, lt } from "drizzle-orm";
 import { db, appointments, payments } from "./db";
 import { processPendingEmailJobs } from "./services/email";
 import { cancelMpPayment, getMpPayment } from "./services/mercadopago";
+import { getSellerAccessToken } from "./services/mercadopago-connection";
 import { applyPaymentResult, HOLD_TIMEOUT_MS, shouldReleaseHold } from "./services/payments";
 
 /**
@@ -40,7 +41,7 @@ export async function releaseExpiredHolds(): Promise<number> {
       const stuck = paymentRows.find(row => row.status === "pending" && row.externalId);
       if (stuck?.externalId) {
         try {
-          await cancelMpPayment(stuck.externalId);
+          await cancelMpPayment(stuck.externalId, await getSellerAccessToken());
         } catch (error) {
           console.error(`[scheduler] no se pudo cancelar en Mercado Pago el pago ${stuck.externalId}:`, error);
         }
@@ -74,7 +75,7 @@ export async function reconcileStalePayments(limit = 25): Promise<number> {
     if (!row.externalId) continue;
 
     try {
-      const mp = await getMpPayment(row.externalId);
+      const mp = await getMpPayment(row.externalId, await getSellerAccessToken());
       const result = await applyPaymentResult({ paymentRowId: row.id, mp });
       if (result.changed) reconciled += 1;
     } catch (error) {

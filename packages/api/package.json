@@ -8,11 +8,14 @@
   "exports": {
     ".": "./src/routers/index.ts",
     "./context": "./src/context.ts",
+    "./db": "./src/db/index.ts",
     "./env": "./src/env.ts",
+    "./auth/cookies": "./src/auth/cookies.ts",
     "./scheduler": "./src/scheduler.ts",
     "./services/calendar": "./src/services/calendar.ts",
     "./services/csv": "./src/services/csv.ts",
     "./services/mercadopago": "./src/services/mercadopago.ts",
+    "./services/mercadopago-connection": "./src/services/mercadopago-connection.ts",
     "./services/payments": "./src/services/payments.ts",
     "./routers/admin-customers": "./src/routers/admin-customers.ts"
   },

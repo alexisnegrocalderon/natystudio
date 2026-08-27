@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import type { PaymentStatus } from "@naty/shared";
+import { MP_ESTIMATED_PROCESSING_FEE_PERCENT, PLATFORM_FEE_PERCENT, type PaymentStatus } from "@naty/shared";
 import { ENV } from "../env";
 
 const API_BASE = "https://api.mercadopago.com";
@@ -106,13 +106,13 @@ export function rejectionMessage(statusDetail: string): string {
 
 /* ----------------------------------------------------------------- API --- */
 
-async function mpFetch(path: string, init: RequestInit): Promise<MpPayment> {
+async function mpFetch(path: string, init: RequestInit, accessToken = ENV.mercadoPago.accessToken): Promise<MpPayment> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${ENV.mercadoPago.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         ...init.headers,
       },
@@ -159,36 +159,133 @@ export async function createMpPayment(input: {
   externalReference: string;
   metadata: Record<string, unknown>;
   idempotencyKey: string;
+  /** Cuenta conectada de Naty (marketplace). Sin ella, cae al token fijo de siempre. */
+  sellerAccessToken?: string;
+  /** Comisión de la plataforma sobre este pago — Mercado Pago la transfiere sola a la cuenta dueña de la Aplicación. */
+  applicationFeeClp?: number;
 }): Promise<MpPayment> {
   if (!Number.isInteger(input.amountClp) || input.amountClp <= 0) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "El monto a cobrar no es válido." });
   }
 
-  return mpFetch("/v1/payments", {
-    method: "POST",
-    headers: { "X-Idempotency-Key": input.idempotencyKey },
-    body: JSON.stringify({
-      transaction_amount: input.amountClp,
-      token: input.token,
-      payment_method_id: input.paymentMethodId,
-      issuer_id: input.issuerId,
-      installments: input.installments,
-      description: input.description,
-      external_reference: input.externalReference,
-      metadata: input.metadata,
-      notification_url: `${ENV.siteUrl}/api/webhooks/mercadopago`,
-      payer: {
-        email: input.payerEmail,
-        identification: input.payerIdentification,
-      },
-    }),
+  return mpFetch(
+    "/v1/payments",
+    {
+      method: "POST",
+      headers: { "X-Idempotency-Key": input.idempotencyKey },
+      body: JSON.stringify({
+        transaction_amount: input.amountClp,
+        token: input.token,
+        payment_method_id: input.paymentMethodId,
+        issuer_id: input.issuerId,
+        installments: input.installments,
+        description: input.description,
+        external_reference: input.externalReference,
+        metadata: input.metadata,
+        notification_url: `${ENV.siteUrl}/api/webhooks/mercadopago`,
+        application_fee: input.applicationFeeClp,
+        payer: {
+          email: input.payerEmail,
+          identification: input.payerIdentification,
+        },
+      }),
+    },
+    input.sellerAccessToken || ENV.mercadoPago.accessToken,
+  );
+}
+
+export async function getMpPayment(id: string | number, sellerAccessToken?: string): Promise<MpPayment> {
+  return mpFetch(`/v1/payments/${id}`, { method: "GET" }, sellerAccessToken || ENV.mercadoPago.accessToken);
+}
+
+export async function cancelMpPayment(id: string | number, sellerAccessToken?: string): Promise<MpPayment> {
+  return mpFetch(
+    `/v1/payments/${id}`,
+    { method: "PUT", body: JSON.stringify({ status: "cancelled" }) },
+    sellerAccessToken || ENV.mercadoPago.accessToken,
+  );
+}
+
+/* --------------------------------------------------------- marketplace --- */
+
+export type ServiceCharge = {
+  /** Lo que se le cobra a la clienta: precio del servicio + comisiones. */
+  chargeClp: number;
+  /** Comisiones totales (Mercado Pago + plataforma) dentro de `chargeClp`. */
+  feeClp: number;
+  /** Sólo la parte de la plataforma — es lo que viaja como `application_fee`. */
+  platformFeeClp: number;
+};
+
+/** A partir del monto que le corresponde a Naty (abono o total), calcula cuánto cobrarle a la clienta. */
+export function calculateServiceCharge(baseClp: number): ServiceCharge {
+  const platformFeeClp = Math.round((baseClp * PLATFORM_FEE_PERCENT) / 100);
+  const mpFeeEstimateClp = Math.round((baseClp * MP_ESTIMATED_PROCESSING_FEE_PERCENT) / 100);
+  return { chargeClp: baseClp + platformFeeClp + mpFeeEstimateClp, feeClp: platformFeeClp + mpFeeEstimateClp, platformFeeClp };
+}
+
+const OAUTH_AUTHORIZE_URL = "https://auth.mercadopago.com/authorization";
+const OAUTH_TOKEN_URL = `${API_BASE}/oauth/token`;
+
+export type MpOAuthToken = {
+  access_token: string;
+  refresh_token: string;
+  user_id: number;
+  expires_in: number;
+  public_key?: string;
+};
+
+/** URL a la que se manda a Naty para que autorice la conexión de su cuenta. */
+export function buildMpAuthorizationUrl(redirectUri: string, state: string): string {
+  const params = new URLSearchParams({
+    client_id: ENV.mercadoPago.clientId,
+    response_type: "code",
+    platform_id: "mp",
+    redirect_uri: redirectUri,
+    state,
   });
+  return `${OAUTH_AUTHORIZE_URL}?${params.toString()}`;
 }
 
-export async function getMpPayment(id: string | number): Promise<MpPayment> {
-  return mpFetch(`/v1/payments/${id}`, { method: "GET" });
+async function oauthFetch(body: Record<string, string>): Promise<MpOAuthToken> {
+  let response: Response;
+  try {
+    response = await fetch(OAUTH_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: ENV.mercadoPago.clientId, client_secret: ENV.mercadoPago.clientSecret, ...body }),
+    });
+  } catch (error) {
+    throw new TRPCError({ code: "BAD_GATEWAY", message: "No se pudo contactar a Mercado Pago.", cause: error });
+  }
+  const data = (await response.json().catch(() => null)) as MpOAuthToken | { message?: string } | null;
+  if (!response.ok || !data || !("access_token" in data)) {
+    throw new TRPCError({
+      code: "BAD_GATEWAY",
+      message: `Mercado Pago rechazó la conexión${data && "message" in data && data.message ? `: ${data.message}` : "."}`,
+    });
+  }
+  return data;
 }
 
-export async function cancelMpPayment(id: string | number): Promise<MpPayment> {
-  return mpFetch(`/v1/payments/${id}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+/** Intercambia el `code` que Mercado Pago devuelve tras la autorización por los tokens de la cuenta de Naty. */
+export function exchangeMpAuthorizationCode(code: string, redirectUri: string): Promise<MpOAuthToken> {
+  return oauthFetch({ grant_type: "authorization_code", code, redirect_uri: redirectUri });
+}
+
+/** Renueva el access token de Naty cuando está por vencer, usando el refresh token guardado. */
+export function refreshMpSellerToken(refreshToken: string): Promise<MpOAuthToken> {
+  return oauthFetch({ grant_type: "refresh_token", refresh_token: refreshToken });
+}
+
+/** El correo de la cuenta recién conectada — sólo para mostrarlo en Ajustes, no se usa para nada más. */
+export async function fetchMpAccountEmail(accessToken: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE}/users/me`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { email?: string };
+    return data.email ?? null;
+  } catch {
+    return null;
+  }
 }

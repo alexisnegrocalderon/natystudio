@@ -1,4 +1,4 @@
-import { BUSINESS_TIMEZONE } from "./constants";
+import { BUSINESS_TIMEZONE, MP_ESTIMATED_PROCESSING_FEE_PERCENT, PLATFORM_FEE_PERCENT } from "./constants";
 
 /** El peso chileno no tiene decimales: los montos viajan y se guardan como enteros. */
 export function formatClp(amount: number): string {
@@ -55,4 +55,9 @@ export function minutesToLabel(minutesFromMidnight: number): string {
 export function labelToMinutes(label: string): number {
   const [hours, minutes] = label.split(":").map(Number);
   return hours * 60 + minutes;
+}
+
+/** "Gastos por servicio" que se le suman al monto a pagar — ver `PLATFORM_FEE_PERCENT`. */
+export function estimateServiceFee(baseClp: number): number {
+  return Math.round((baseClp * (MP_ESTIMATED_PROCESSING_FEE_PERCENT + PLATFORM_FEE_PERCENT)) / 100);
 }

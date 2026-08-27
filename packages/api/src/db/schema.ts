@@ -295,7 +295,15 @@ export const payments = pgTable(
     externalId: varchar("external_id", { length: 64 }).unique(),
     kind: paymentKindEnum("kind").notNull(),
     status: paymentStatusEnum("status").notNull().default("pending"),
+    /** Monto realmente cobrado a la clienta: precio del servicio + comisiones. */
     amountClp: integer("amount_clp").notNull(),
+    /**
+     * Parte de `amountClp` que corresponde a comisiones (Mercado Pago +
+     * plataforma), no al servicio en sí. `amountClp - feeClp` es lo que le
+     * corresponde a Naty — eso es lo que se suma a `appointments.amount_paid_clp`,
+     * para que el dashboard de Ventas siga leyendo sólo su parte.
+     */
+    feeClp: integer("fee_clp").notNull().default(0),
     rawPayload: text("raw_payload"),
     createdAt: instant("created_at").notNull().defaultNow(),
     updatedAt: instant("updated_at").notNull().defaultNow(),
@@ -306,6 +314,24 @@ export const payments = pgTable(
     index("payments_status_updated_idx").on(table.status, table.updatedAt),
   ],
 );
+
+/**
+ * Cuenta de Mercado Pago de Naty conectada por OAuth (marketplace/split de
+ * pagos). Fila única a propósito, igual que `scheduling_settings`: hoy sólo
+ * hay un negocio en el sitio. El día que exista multi-negocio, pasar esto a
+ * una fila por negocio es un cambio acotado sobre esta misma tabla. Sin fila
+ * (o con `sellerAccessToken` vacío), el paso de pago del sitio no se muestra.
+ */
+export const mercadoPagoConnection = pgTable("mercado_pago_connection", {
+  id: integer("id").primaryKey().default(1),
+  sellerAccessToken: varchar("seller_access_token", { length: 300 }).notNull(),
+  sellerRefreshToken: varchar("seller_refresh_token", { length: 300 }).notNull(),
+  sellerUserId: varchar("seller_user_id", { length: 60 }).notNull(),
+  sellerEmail: varchar("seller_email", { length: 320 }),
+  connectedAt: instant("connected_at").notNull().defaultNow(),
+  tokenExpiresAt: instant("token_expires_at").notNull(),
+  updatedAt: instant("updated_at").notNull().defaultNow(),
+});
 
 /* -------------------------------------------------------------- expenses */
 
@@ -426,6 +452,7 @@ export type BusinessHour = typeof businessHours.$inferSelect;
 export type TimeOff = typeof timeOff.$inferSelect;
 export type DateOverride = typeof dateOverrides.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
+export type MercadoPagoConnection = typeof mercadoPagoConnection.$inferSelect;
 export type SchedulingSettings = typeof schedulingSettings.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type EmailJob = typeof emailJobs.$inferSelect;

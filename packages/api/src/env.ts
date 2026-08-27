@@ -50,6 +50,9 @@ export const ENV = {
     accessToken: optional("MP_ACCESS_TOKEN"),
     publicKey: optional("MP_PUBLIC_KEY"),
     webhookSecret: optional("MP_WEBHOOK_SECRET"),
+    /** Aplicación de Mercado Pago (marketplace) para conectar la cuenta de Naty vía OAuth. */
+    clientId: optional("MP_CLIENT_ID"),
+    clientSecret: optional("MP_CLIENT_SECRET"),
   },
 
   /** Redacción con IA (mailing y descripciones de servicios). Vacío = los botones de IA quedan apagados. */

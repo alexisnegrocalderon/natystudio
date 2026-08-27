@@ -3,7 +3,8 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import type { AppointmentStatus, PaymentStatus, ProcessPaymentInput } from "@naty/shared";
 import { db, appointments, appointmentServices, customers, leads, payments, services, type Appointment } from "../db";
 import { enqueuePaymentEmails } from "./email";
-import { createMpPayment, mapMpStatus, rejectionMessage, type MpPayment } from "./mercadopago";
+import { calculateServiceCharge, createMpPayment, mapMpStatus, rejectionMessage, type MpPayment } from "./mercadopago";
+import { getSellerAccessToken } from "./mercadopago-connection";
 
 /** Una reserva que quedó esperando pago no puede retener el horario para siempre. */
 export const HOLD_TIMEOUT_MS = 15 * 60_000;
@@ -150,7 +151,10 @@ export async function applyPaymentResult(args: {
       .update(appointments)
       .set({
         status: appointmentStatus,
-        amountPaidClp: appointment.amountPaidClp + updatedPayment.amountClp,
+        // `amountClp - feeClp`: sólo la parte que le corresponde a Naty, no
+        // las comisiones — así el dashboard de Ventas sigue leyendo nada más
+        // que su ingreso real sin necesitar cambios.
+        amountPaidClp: appointment.amountPaidClp + (updatedPayment.amountClp - updatedPayment.feeClp),
         updatedAt: new Date(),
       })
       .where(eq(appointments.id, appointment.id))
@@ -232,7 +236,11 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
   if (!plan.required) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Esta reserva no requiere pago en línea." });
   }
-  const amountClp = resolveChargeAmount(plan, input.kind);
+  // `baseClp` es lo que le corresponde a Naty (abono o total del servicio);
+  // `charge` suma encima las comisiones que efectivamente se le cobran a la
+  // clienta, para que a Naty le llegue el monto completo.
+  const baseClp = resolveChargeAmount(plan, input.kind);
+  const charge = calculateServiceCharge(baseClp);
 
   const priorAttempts = await db
     .select({ id: payments.id })
@@ -247,13 +255,15 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
 
   const [paymentRow] = await db
     .insert(payments)
-    .values({ appointmentId: appointment.id, kind: input.kind, status: "pending", amountClp })
+    .values({ appointmentId: appointment.id, kind: input.kind, status: "pending", amountClp: charge.chargeClp, feeClp: charge.feeClp })
     .returning();
+
+  const sellerAccessToken = await getSellerAccessToken();
 
   let mpPayment: MpPayment;
   try {
     mpPayment = await createMpPayment({
-      amountClp,
+      amountClp: charge.chargeClp,
       token: input.formData.token,
       paymentMethodId: input.formData.payment_method_id,
       issuerId: input.formData.issuer_id,
@@ -264,6 +274,8 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
       externalReference: appointment.publicId,
       metadata: { appointment_id: appointment.id, payment_row_id: paymentRow.id },
       idempotencyKey: `${appointment.publicId}:${paymentRow.id}`,
+      sellerAccessToken,
+      applicationFeeClp: sellerAccessToken ? charge.platformFeeClp : undefined,
     });
   } catch (error) {
     // El cobro no llegó a Mercado Pago: la fila queda "pending" y la persona
@@ -280,8 +292,8 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
       outcome: "approved",
       message: "Pago aprobado. Tu hora quedó confirmada.",
       appointmentStatus: refreshed?.status ?? "confirmed",
-      amountPaidClp: refreshed?.amountPaidClp ?? amountClp,
-      remainingClp: Math.max(0, appointment.priceClp - (refreshed?.amountPaidClp ?? amountClp)),
+      amountPaidClp: refreshed?.amountPaidClp ?? baseClp,
+      remainingClp: Math.max(0, appointment.priceClp - (refreshed?.amountPaidClp ?? baseClp)),
     };
   }
 

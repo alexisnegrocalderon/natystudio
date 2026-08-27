@@ -51,6 +51,17 @@ export const EMAIL_JOB_KINDS = [
 ] as const;
 export type EmailJobKind = (typeof EMAIL_JOB_KINDS)[number];
 
+/**
+ * Comisiones que se suman aparte del precio de un servicio al pagar en
+ * línea: el ~2.8% que Mercado Pago descuenta por procesar el cobro (no hay
+ * forma de conocer el monto exacto por adelantado, varía por medio de pago)
+ * más el 1.5% fijo de la plataforma. A Naty le llega el precio completo del
+ * servicio — quien paga estas comisiones es la clienta, como un cargo
+ * separado ("gastos por servicio").
+ */
+export const MP_ESTIMATED_PROCESSING_FEE_PERCENT = 2.8;
+export const PLATFORM_FEE_PERCENT = 1.5;
+
 /** Días de la semana como los guarda `businessHours.weekday` (0 = domingo, igual que `Date#getDay`). */
 export const WEEKDAY_LABELS = [
   "Domingo",

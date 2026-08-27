@@ -1,4 +1,4 @@
-import { serialize, type SerializeOptions } from "cookie";
+import { parse, serialize, type SerializeOptions } from "cookie";
 
 /**
  * Fija una cookie sobre un objeto `Headers` de la Fetch API.
@@ -20,4 +20,9 @@ export function setCookie(
 
 export function clearCookie(resHeaders: Headers, name: string, options: SerializeOptions = {}): void {
   resHeaders.append("set-cookie", serialize(name, "", { ...options, maxAge: 0 }));
+}
+
+/** Lee una cookie de un `Request` entrante — para rutas fuera de tRPC que no pasan por `createContext`. */
+export function readCookie(req: Request, name: string): string | undefined {
+  return parse(req.headers.get("cookie") ?? "")[name];
 }
