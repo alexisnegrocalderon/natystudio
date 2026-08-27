@@ -248,14 +248,13 @@ body:has(.admin-theme) #contenido {
 }
 
 .wordmark {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.075em;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
-.wordmark span {
-  color: var(--rose);
+.wordmark img {
+  height: 34px;
+  width: auto;
 }
 
 .desktop-nav {
@@ -590,6 +589,13 @@ body:has(.admin-theme) #contenido {
   margin-inline: auto;
   padding: calc(var(--nav-offset) + 0.75rem) 0 3rem;
   color: #fff6f8;
+}
+
+.hero-logo {
+  display: block;
+  height: 52px;
+  width: auto;
+  margin-bottom: 1.4rem;
 }
 
 .hero-content .eyebrow {
@@ -1193,6 +1199,11 @@ body:has(.admin-theme) #contenido {
     padding: 0;
   }
 
+  .hero-logo {
+    height: 84px;
+    margin-bottom: 1.8rem;
+  }
+
   .hero h1 {
     max-width: 760px;
     font-size: clamp(3.4rem, 6.2vw, 5.6rem);
@@ -1247,8 +1258,8 @@ body:has(.admin-theme) #contenido {
     padding-inline: 14px;
   }
 
-  .wordmark {
-    font-size: 1.35rem;
+  .wordmark img {
+    height: 28px;
   }
 
   .service-meta {

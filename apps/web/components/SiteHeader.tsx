@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight, Menu, X } from "lucide-react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TransitionLink } from "@/components/TransitionLink";
@@ -32,8 +33,8 @@ export function SiteHeader() {
     <header className="site-header" data-scrolled={scrolled}>
       <div className="header-shell">
         <div className="header-inner">
-          <TransitionLink className="wordmark" href="/" aria-label="naty.studio, ir al inicio">
-            naty<span>.</span>studio
+          <TransitionLink className="wordmark" href="/" aria-label="Natalia Rodríguez Studio, ir al inicio">
+            <Image src="/logo-black.png" alt="Natalia Rodríguez Studio" width={1519} height={572} priority />
           </TransitionLink>
 
           <nav className="desktop-nav" aria-label="Navegación principal">

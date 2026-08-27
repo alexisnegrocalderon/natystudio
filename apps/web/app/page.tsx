@@ -1,4 +1,5 @@
 import { ArrowUpRight, GraduationCap, ShieldCheck, Stethoscope } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { ClosingCta } from "@/components/ClosingCta";
 import { FaqSection } from "@/components/FaqSection";
@@ -42,6 +43,14 @@ export default async function HomePage() {
         <HeroVideoBackground />
 
         <div className="hero-content reveal-up">
+          <Image
+            src="/logo-white.png"
+            alt="Natalia Rodríguez Studio"
+            width={1519}
+            height={572}
+            priority
+            className="hero-logo"
+          />
           <p className="eyebrow">
             <span className="eyebrow-dot" />
             {heroContent.eyebrow}

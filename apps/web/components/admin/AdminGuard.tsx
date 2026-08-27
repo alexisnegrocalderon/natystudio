@@ -15,6 +15,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -79,8 +80,8 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   return (
     <>
       <div className="admin-topbar">
-        <Link href="/admin" className="wordmark" aria-label="naty.studio, ir al inicio del panel">
-          naty<span>.</span>studio
+        <Link href="/admin" className="wordmark" aria-label="Natalia Rodríguez Studio, ir al inicio del panel">
+          <Image src="/logo-black.png" alt="Natalia Rodríguez Studio" width={1519} height={572} />
         </Link>
         <button
           type="button"

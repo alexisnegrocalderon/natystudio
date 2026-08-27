@@ -1,4 +1,5 @@
 import { Instagram, MapPin, MessageCircle } from "lucide-react";
+import Image from "next/image";
 import { TransitionLink } from "@/components/TransitionLink";
 import { footerContent } from "@/content/natyContent";
 import { BUSINESS, LOCATIONS, NAV_LINKS } from "@/lib/site";
@@ -8,8 +9,8 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="footer-top section-wrap">
         <div>
-          <TransitionLink className="wordmark" href="/">
-            naty<span>.</span>studio
+          <TransitionLink className="wordmark" href="/" aria-label="Natalia Rodríguez Studio, ir al inicio">
+            <Image src="/logo-black.png" alt="Natalia Rodríguez Studio" width={1519} height={572} />
           </TransitionLink>
           <p style={{ color: "var(--muted)", fontSize: ".84rem", lineHeight: 1.7, marginTop: "1rem", maxWidth: "290px" }}>
             {footerContent.description}

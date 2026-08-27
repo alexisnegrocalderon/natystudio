@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -35,9 +36,16 @@ export default function AdminLoginPage() {
 
   return (
     <div className="login-shell">
+      <Image
+        src="/logo-black.png"
+        alt="Natalia Rodríguez Studio"
+        width={1519}
+        height={572}
+        style={{ height: "34px", width: "auto", marginBottom: "1rem" }}
+      />
       <p className="eyebrow">
         <span className="eyebrow-dot" />
-        Panel de naty.studio
+        Panel de administración
       </p>
       <h1 style={{ fontSize: "2rem", marginBottom: "1.6rem" }}>
         {challengeId ? (
