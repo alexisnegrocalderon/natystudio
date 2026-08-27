@@ -40,8 +40,8 @@ const PaymentStep = dynamic(
   },
 );
 
-const STEPS_SIN_PAGO = ["Sede", "Servicio", "Fecha y hora", "Tus datos", "Listo"] as const;
-const STEPS_CON_PAGO = ["Sede", "Servicio", "Fecha y hora", "Tus datos", "Pago", "Listo"] as const;
+const STEPS_SIN_PAGO = ["Sede", "Servicios", "Fecha y hora", "Tus datos", "Listo"] as const;
+const STEPS_CON_PAGO = ["Sede", "Servicios", "Fecha y hora", "Tus datos", "Pago", "Listo"] as const;
 
 type Hold = {
   publicId: string;
@@ -71,7 +71,14 @@ export function BookingFunnel() {
 
   // El estado vive en la URL: recargar o compartir el enlace no pierde el avance.
   const locationSlug = params.get("sede");
-  const serviceSlug = params.get("servicio");
+  const serviceSlugs = useMemo(
+    () => (params.get("servicios")?.split(",").filter(Boolean) ?? []),
+    [params],
+  );
+  // "listo" separa "ya elegí servicios" de "confirmé la selección y quiero
+  // avanzar" — con selección múltiple, tocar un servicio ya no basta para
+  // saber que la persona terminó de elegir.
+  const servicesConfirmed = params.get("listo") === "1";
   const selectedDay = params.get("dia");
   const selectedSlot = params.get("hora");
 
@@ -99,10 +106,15 @@ export function BookingFunnel() {
     [locationList, locationSlug],
   );
 
-  const service = useMemo(
-    () => services?.find(item => item.slug === serviceSlug) ?? null,
-    [services, serviceSlug],
+  // En el orden en que se eligieron, no el orden del catálogo — así "el
+  // primer servicio" (el que queda como principal en la reserva) es
+  // predecible para quien reserva.
+  const selectedServices = useMemo(
+    () => serviceSlugs.map(slug => services?.find(item => item.slug === slug)).filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    [services, serviceSlugs],
   );
+  const totalDurationMin = selectedServices.reduce((sum, item) => sum + item.durationMin, 0);
+  const totalPriceClp = selectedServices.reduce((sum, item) => sum + item.priceClp, 0);
 
   const setParams = useCallback(
     (next: Record<string, string | null>) => {
@@ -120,7 +132,7 @@ export function BookingFunnel() {
   // pago (mismo criterio que `resolvePaymentPlan` en el servidor), para que
   // la barra de progreso muestre la cantidad correcta de pasos desde el
   // principio, no recién después de crear la reserva.
-  const paymentRequired = Boolean(config?.paymentsEnabled) && Boolean(service) && (service?.priceClp ?? 0) > 0;
+  const paymentRequired = Boolean(config?.paymentsEnabled) && selectedServices.length > 0 && totalPriceClp > 0;
   const steps = paymentRequired ? STEPS_CON_PAGO : STEPS_SIN_PAGO;
 
   const step = confirmation
@@ -129,7 +141,7 @@ export function BookingFunnel() {
       ? steps.length - 1
       : !location
         ? 1
-        : !service
+        : !(selectedServices.length > 0 && servicesConfirmed)
           ? 2
           : !selectedSlot
             ? 3
@@ -148,13 +160,40 @@ export function BookingFunnel() {
   // Ventana máxima de reserva. Se recorta al año para no dibujar un calendario
   // infinito si la configuración fuera muy amplia.
   const maxDay = addDaysToDay(businessToday(), 365);
+  const serviceIds = useMemo(() => selectedServices.map(item => item.id), [selectedServices]);
 
   const { data: dayAvailability } = trpc.availability.getSlots.useQuery(
-    { serviceId: service?.id ?? 0, locationId: location?.id ?? 0, from: selectedDay ?? "", to: selectedDay ?? "" },
-    { enabled: Boolean(service && location && selectedDay) },
+    { serviceIds, locationId: location?.id ?? 0, from: selectedDay ?? "", to: selectedDay ?? "" },
+    { enabled: Boolean(serviceIds.length && location && selectedDay) },
   );
 
   const slots = dayAvailability?.[0]?.slots ?? [];
+
+  // Si el día elegido no alcanza para la suma de servicios, se investiga por
+  // qué: ¿alcanza al menos para el primero? ¿y cuál es la fecha más cercana
+  // donde sí entran todos juntos? Sólo se consulta cuando hace falta — nunca
+  // en el camino feliz de "sí había hora".
+  const noRoomForCombo = Boolean(selectedDay) && dayAvailability !== undefined && slots.length === 0;
+
+  const { data: singleServiceCheck } = trpc.availability.getSlots.useQuery(
+    { serviceIds: serviceIds.slice(0, 1), locationId: location?.id ?? 0, from: selectedDay ?? "", to: selectedDay ?? "" },
+    { enabled: Boolean(noRoomForCombo && selectedServices.length > 1 && location && selectedDay) },
+  );
+  const onlyFitsOne = (singleServiceCheck?.[0]?.slots.length ?? 0) > 0;
+
+  const nearestRangeTo = selectedDay ? addDaysToDay(selectedDay, 30) : null;
+  const { data: nearestAvailability } = trpc.availability.getSlots.useQuery(
+    { serviceIds, locationId: location?.id ?? 0, from: selectedDay ?? "", to: nearestRangeTo ?? "" },
+    { enabled: Boolean(noRoomForCombo && location && selectedDay && nearestRangeTo) },
+  );
+  const nearestSlot = useMemo(() => {
+    for (const day of nearestAvailability ?? []) {
+      if (day.slots.length > 0) {
+        return { day: day.date, startsAt: new Date(day.slots[0].startsAt).toISOString(), label: day.slots[0].label };
+      }
+    }
+    return null;
+  }, [nearestAvailability]);
 
   // Si el horario elegido deja de estar disponible mientras la clienta completa
   // sus datos, se limpia la selección en vez de dejarla enviar una reserva que
@@ -188,11 +227,11 @@ export function BookingFunnel() {
   }
 
   async function submit() {
-    if (!service || !location || !selectedSlot || !validate()) return;
+    if (selectedServices.length === 0 || !location || !selectedSlot || !validate()) return;
 
     try {
       const result = await createBooking.mutateAsync({
-        serviceId: service.id,
+        serviceIds,
         locationId: location.id,
         startsAt: selectedSlot,
         customer: {
@@ -235,7 +274,7 @@ export function BookingFunnel() {
         email,
         name: customer.name || undefined,
         phone: customer.phone || undefined,
-        serviceId: service?.id,
+        serviceId: selectedServices[0]?.id,
         step: "datos",
       });
     }, 800);
@@ -243,23 +282,30 @@ export function BookingFunnel() {
     return () => clearTimeout(timer);
     // captureLead se omite a propósito: su referencia cambia en cada render y
     // reiniciaría el temporizador sin necesidad.
-  }, [customer.email, customer.name, customer.phone, service?.id]);
+  }, [customer.email, customer.name, customer.phone, selectedServices]);
 
   const slotDate = selectedSlot ? new Date(selectedSlot) : null;
 
   // Migas de las respuestas ya elegidas: reemplazan la tarjeta lateral de
   // resumen. Cada una, cuando ya está respondida, se puede tocar para volver
   // a ese paso — limpia esa respuesta y todas las que dependían de ella.
+  const serviceCrumbLabel =
+    selectedServices.length === 0
+      ? "Servicios"
+      : selectedServices.length === 1
+        ? selectedServices[0].name
+        : `${selectedServices.length} servicios`;
+
   const crumbs: { label: string; done: boolean; onEdit?: () => void }[] = [
     {
       label: location?.name ?? "Sede",
       done: step > 1,
-      onEdit: () => setParams({ sede: null, servicio: null, dia: null, hora: null }),
+      onEdit: () => setParams({ sede: null, servicios: null, listo: null, dia: null, hora: null }),
     },
     {
-      label: service?.name ?? "Servicio",
+      label: serviceCrumbLabel,
       done: step > 2,
-      onEdit: () => setParams({ servicio: null, dia: null, hora: null }),
+      onEdit: () => setParams({ listo: null, dia: null, hora: null }),
     },
     {
       label: slotDate ? shortDate(slotDate) : "Fecha y hora",
@@ -323,7 +369,7 @@ export function BookingFunnel() {
                         type="button"
                         className="choice-card"
                         aria-pressed={locationSlug === item.slug}
-                        onClick={() => setParams({ sede: item.slug, servicio: null, dia: null, hora: null })}
+                        onClick={() => setParams({ sede: item.slug, servicios: null, listo: null, dia: null, hora: null })}
                       >
                         <MapPin size={20} aria-hidden="true" style={{ flex: "0 0 auto", color: "var(--rose)" }} />
                         <div>
@@ -346,13 +392,13 @@ export function BookingFunnel() {
               </section>
             ) : null}
 
-            {/* ── Paso 2: elegir servicio ─────────────────────────────── */}
+            {/* ── Paso 2: elegir servicios (selección múltiple) ───────── */}
             {step === 2 ? (
               <section aria-labelledby="paso-servicio">
                 <button
                   type="button"
                   className="text-link"
-                  onClick={() => setParams({ sede: null, servicio: null, dia: null, hora: null })}
+                  onClick={() => setParams({ sede: null, servicios: null, listo: null, dia: null, hora: null })}
                   style={{ marginBottom: "1.4rem", background: "none", border: 0, cursor: "pointer" }}
                 >
                   <ArrowLeft size={15} /> Cambiar sede
@@ -361,33 +407,73 @@ export function BookingFunnel() {
                 <h1 id="paso-servicio" className="page-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
                   ¿Qué necesitas?
                 </h1>
-                <p className="lede">Elige el servicio y luego te mostramos las horas disponibles.</p>
+                <p className="lede">
+                  Elige uno o más servicios — se suman la duración y el valor. Toca cada uno para
+                  seleccionarlo.
+                </p>
 
                 {loadingServices ? (
                   <p style={{ color: "var(--muted)", display: "flex", gap: ".5rem", alignItems: "center" }}>
                     <Loader2 size={16} className="animate-spin" /> Cargando servicios…
                   </p>
                 ) : services && services.length > 0 ? (
-                  <div className="stack">
-                    {services.map(item => (
-                      <button
-                        key={item.slug}
-                        type="button"
-                        className="choice-card"
-                        aria-pressed={serviceSlug === item.slug}
-                        onClick={() => setParams({ servicio: item.slug, dia: null, hora: null })}
-                      >
-                        <div>
-                          <h3>{item.name}</h3>
-                          <p>{item.shortDescription}</p>
-                          <div className="choice-meta">
-                            <span>{formatDuration(item.durationMin)}</span>
-                            <span>{priceLabel(item.priceClp)}</span>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="stack">
+                      {services.map(item => {
+                        const selected = serviceSlugs.includes(item.slug);
+                        return (
+                          <button
+                            key={item.slug}
+                            type="button"
+                            className="choice-card"
+                            aria-pressed={selected}
+                            onClick={() => {
+                              const next = selected
+                                ? serviceSlugs.filter(slug => slug !== item.slug)
+                                : [...serviceSlugs, item.slug];
+                              setParams({
+                                servicios: next.length > 0 ? next.join(",") : null,
+                                listo: null,
+                                dia: null,
+                                hora: null,
+                              });
+                            }}
+                          >
+                            <CheckCircle2
+                              size={20}
+                              aria-hidden="true"
+                              className="choice-check"
+                              style={{ flex: "0 0 auto" }}
+                            />
+                            <div>
+                              <h3>{item.name}</h3>
+                              <p>{item.shortDescription}</p>
+                              <div className="choice-meta">
+                                <span>{formatDuration(item.durationMin)}</span>
+                                <span>{priceLabel(item.priceClp)}</span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedServices.length > 0 ? (
+                      <div className="form-actions" style={{ marginTop: "1.6rem" }}>
+                        <button
+                          type="button"
+                          className="primary-link"
+                          onClick={() => setParams({ listo: "1" })}
+                        >
+                          Continuar con {selectedServices.length === 1 ? "este servicio" : `estos ${selectedServices.length} servicios`}{" "}
+                          <ArrowUpRight size={17} />
+                        </button>
+                        <span style={{ color: "var(--muted)", fontSize: ".85rem", alignSelf: "center" }}>
+                          {formatDuration(totalDurationMin)} · {priceLabel(totalPriceClp)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </>
                 ) : (
                   <div className="notice" data-tone="warn">
                     <TriangleAlert size={18} />
@@ -401,15 +487,15 @@ export function BookingFunnel() {
             ) : null}
 
             {/* ── Paso 3: fecha y hora ────────────────────────────────── */}
-            {step === 3 && service && location ? (
+            {step === 3 && selectedServices.length > 0 && location ? (
               <section aria-labelledby="paso-fecha">
                 <button
                   type="button"
                   className="text-link"
-                  onClick={() => setParams({ servicio: null, dia: null, hora: null })}
+                  onClick={() => setParams({ listo: null, dia: null, hora: null })}
                   style={{ marginBottom: "1.4rem", background: "none", border: 0, cursor: "pointer" }}
                 >
-                  <ArrowLeft size={15} /> Cambiar servicio
+                  <ArrowLeft size={15} /> Cambiar servicio{selectedServices.length > 1 ? "s" : ""}
                 </button>
 
                 <h1 id="paso-fecha" className="page-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
@@ -417,10 +503,11 @@ export function BookingFunnel() {
                 </h1>
                 <p className="lede">
                   Los días con puntos tienen horarios libres. Selecciona uno para ver las horas.
+                  {selectedServices.length > 1 ? ` Buscamos ${formatDuration(totalDurationMin)} seguidos para tus ${selectedServices.length} servicios.` : ""}
                 </p>
 
                 <AvailabilityCalendar
-                  serviceId={service.id}
+                  serviceIds={serviceIds}
                   locationId={location.id}
                   selectedDay={selectedDay}
                   maxDay={maxDay}
@@ -462,8 +549,31 @@ export function BookingFunnel() {
                       </div>
                     </>
                   ) : (
-                    <div className="empty-slots" style={{ marginTop: "1.6rem" }}>
-                      No quedan horarios ese día. Prueba con otra fecha del calendario.
+                    <div className="notice" data-tone="warn" style={{ marginTop: "1.6rem" }}>
+                      <TriangleAlert size={18} />
+                      <span>
+                        {onlyFitsOne
+                          ? "Ese día sólo alcanza para uno de los servicios elegidos — hay algo agendado después. Prueba con menos servicios o elige otro día."
+                          : "No quedan horarios ese día para tus servicios combinados. Prueba con otra fecha del calendario."}
+                        {nearestSlot ? (
+                          <>
+                            {" "}
+                            El horario más cercano donde entran todos juntos es el{" "}
+                            <strong>
+                              {formatBusinessDate(new Date(`${nearestSlot.day}T12:00:00Z`))} a las {nearestSlot.label}
+                            </strong>
+                            .{" "}
+                            <button
+                              type="button"
+                              className="text-link"
+                              style={{ background: "none", border: 0, cursor: "pointer", padding: 0 }}
+                              onClick={() => setParams({ dia: nearestSlot.day, hora: nearestSlot.startsAt })}
+                            >
+                              Usar ese horario
+                            </button>
+                          </>
+                        ) : null}
+                      </span>
                     </div>
                   )
                 ) : null}
@@ -471,7 +581,7 @@ export function BookingFunnel() {
             ) : null}
 
             {/* ── Paso 4: datos de contacto ───────────────────────────── */}
-            {step === 4 && service && location && slotDate ? (
+            {step === 4 && selectedServices.length > 0 && location && slotDate ? (
               <section aria-labelledby="paso-datos">
                 <button
                   type="button"
@@ -604,7 +714,7 @@ export function BookingFunnel() {
             ) : null}
 
             {/* ── Paso 5: pago ────────────────────────────────────────── */}
-            {step === steps.length - 1 && paymentRequired && hold && service ? (
+            {step === steps.length - 1 && paymentRequired && hold ? (
               <section aria-labelledby="paso-pago">
                 <button
                   type="button"
@@ -670,13 +780,13 @@ export function BookingFunnel() {
                   </span>
                 </div>
 
-                {confirmation.amountPaidClp !== undefined && service ? (
+                {confirmation.amountPaidClp !== undefined && totalPriceClp > 0 ? (
                   <div className="notice" style={{ marginBottom: "1.5rem" }}>
                     <CheckCircle2 size={18} />
                     <span>
                       Pagaste {formatClp(confirmation.amountPaidClp)}.{" "}
-                      {service.priceClp - confirmation.amountPaidClp > 0
-                        ? `Saldo pendiente: ${formatClp(service.priceClp - confirmation.amountPaidClp)}, se paga en el estudio.`
+                      {totalPriceClp - confirmation.amountPaidClp > 0
+                        ? `Saldo pendiente: ${formatClp(totalPriceClp - confirmation.amountPaidClp)}, se paga en el estudio.`
                         : "Tu servicio quedó pagado por completo."}
                     </span>
                   </div>

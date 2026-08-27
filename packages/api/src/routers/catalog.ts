@@ -26,7 +26,7 @@ const publicColumns = {
   kind: services.kind,
   durationMin: services.durationMin,
   priceClp: services.priceClp,
-  depositClp: services.depositClp,
+  depositPercent: services.depositPercent,
   imageUrl: services.imageUrl,
   metaTitle: services.metaTitle,
   metaDescription: services.metaDescription,

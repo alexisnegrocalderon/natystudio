@@ -9,7 +9,7 @@ import {
   leadCaptureSchema,
 } from "@naty/shared";
 import { ENV } from "../env";
-import { db, appointments, customers, leads, locations, services } from "../db";
+import { db, appointments, appointmentServices, customers, leads, locations, services } from "../db";
 import { createBooking } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow } from "../services/email";
 import { HOLD_TIMEOUT_MS } from "../services/payments";
@@ -24,7 +24,7 @@ function clientIp(req: Request): string {
 
 export const availabilityRouter = router({
   getSlots: publicProcedure.input(availabilityQuerySchema).query(async ({ input }) => {
-    return getAvailability(input.serviceId, input.locationId, input.from, input.to);
+    return getAvailability(input.serviceIds, input.locationId, input.from, input.to);
   }),
 });
 
@@ -39,22 +39,33 @@ async function loadPublicBooking(publicId: string) {
       priceClp: appointments.priceClp,
       amountPaidClp: appointments.amountPaidClp,
       cancelToken: appointments.cancelToken,
-      serviceName: services.name,
-      serviceSlug: services.slug,
-      durationMin: services.durationMin,
       customerName: customers.name,
       customerEmail: customers.email,
       locationName: locations.name,
       locationAddress: locations.streetAddress,
     })
     .from(appointments)
-    .innerJoin(services, eq(appointments.serviceId, services.id))
     .innerJoin(customers, eq(appointments.customerId, customers.id))
     .innerJoin(locations, eq(appointments.locationId, locations.id))
     .where(eq(appointments.publicId, publicId))
     .limit(1);
 
-  return rows[0] ?? null;
+  const booking = rows[0];
+  if (!booking) return null;
+
+  const items = await db
+    .select({ name: services.name, slug: services.slug, durationMin: appointmentServices.durationMin })
+    .from(appointmentServices)
+    .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+    .innerJoin(appointments, eq(appointmentServices.appointmentId, appointments.id))
+    .where(eq(appointments.publicId, publicId));
+
+  return {
+    ...booking,
+    serviceName: items.map(item => item.name).join(" + "),
+    serviceSlug: items[0]?.slug ?? "",
+    durationMin: items.reduce((sum, item) => sum + item.durationMin, 0),
+  };
 }
 
 export const bookingRouter = router({

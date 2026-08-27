@@ -8,7 +8,6 @@ export type ServiceCardData = {
   shortDescription: string;
   durationMin: number;
   priceClp: number;
-  depositClp: number;
 };
 
 /**
@@ -44,7 +43,7 @@ export function ServiceCard({ service, index }: { service: ServiceCardData; inde
       </div>
 
       <div style={{ display: "flex", gap: ".7rem", flexWrap: "wrap" }}>
-        <Link className="primary-link" href={`/reservar?servicio=${service.slug}`}>
+        <Link className="primary-link" href={`/reservar?servicios=${service.slug}`}>
           Agendar <ArrowUpRight size={17} aria-hidden="true" />
         </Link>
         <Link className="ghost-link" href={`/servicios/${service.slug}`}>

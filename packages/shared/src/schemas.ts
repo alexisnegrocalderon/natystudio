@@ -21,7 +21,8 @@ export const customerInputSchema = z.object({
 export type CustomerInput = z.infer<typeof customerInputSchema>;
 
 export const availabilityQuerySchema = z.object({
-  serviceId: z.number().int().positive(),
+  /** Uno o más servicios combinados: la duración a reservar es la suma de todos. */
+  serviceIds: z.array(z.number().int().positive()).min(1).max(10),
   locationId: z.number().int().positive(),
   /** Día inicial y final del rango consultado, en formato YYYY-MM-DD y en hora de Chile. */
   from: z.iso.date(),
@@ -29,7 +30,7 @@ export const availabilityQuerySchema = z.object({
 });
 
 export const createBookingSchema = z.object({
-  serviceId: z.number().int().positive(),
+  serviceIds: z.array(z.number().int().positive()).min(1).max(10),
   locationId: z.number().int().positive(),
   /** Instante exacto de inicio en UTC (ISO 8601). Lo entrega `availability.getSlots`. */
   startsAt: z.iso.datetime(),
@@ -98,7 +99,8 @@ export const serviceInputSchema = z.object({
   durationMin: z.number().int().min(5).max(600),
   bufferMin: z.number().int().min(0).max(240).default(0),
   priceClp: z.number().int().min(0),
-  depositClp: z.number().int().min(0).default(0),
+  /** % mínimo del precio que se puede cobrar como abono online. */
+  depositPercent: z.number().int().min(1).max(100).default(60),
   active: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),
   imageUrl: z.url().max(500).optional().or(z.literal("")),

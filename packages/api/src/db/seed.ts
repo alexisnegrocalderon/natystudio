@@ -79,9 +79,8 @@ async function seed() {
         "Atención presencial en Valparaíso centrada en la evaluación previa, la técnica adecuada para cada caso y las indicaciones de cuidado posterior. La primera conversación permite orientar el procedimiento más apropiado para tu piel.",
       durationMin: 45,
       bufferMin: 15,
-      // Precio y abono quedan en cero hasta que Naty confirme los valores reales.
+      // Precio queda en cero hasta que Naty confirme el valor real.
       priceClp: 0,
-      depositClp: 0,
       sortOrder: 0,
       metaTitle: "Retiro de acrocordones en Valparaíso",
       metaDescription:

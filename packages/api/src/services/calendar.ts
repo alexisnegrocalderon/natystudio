@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { BUSINESS_TIMEZONE } from "@naty/shared";
-import { appointments, customers, db, locations, services } from "../db";
+import { appointments, appointmentServices, customers, db, locations, services } from "../db";
 import { ENV } from "../env";
 
 export type CalendarEvent = {
@@ -115,9 +115,8 @@ export function buildGoogleCalendarUrl(event: CalendarEvent): string {
  */
 export async function buildIcsForAppointment(publicId: string): Promise<string | null> {
   const rows = await db
-    .select({ appointment: appointments, service: services, customer: customers, location: locations })
+    .select({ appointment: appointments, customer: customers, location: locations })
     .from(appointments)
-    .innerJoin(services, eq(appointments.serviceId, services.id))
     .innerJoin(customers, eq(appointments.customerId, customers.id))
     .innerJoin(locations, eq(appointments.locationId, locations.id))
     .where(eq(appointments.publicId, publicId))
@@ -125,6 +124,13 @@ export async function buildIcsForAppointment(publicId: string): Promise<string |
 
   const found = rows[0];
   if (!found) return null;
+
+  const items = await db
+    .select({ name: services.name })
+    .from(appointmentServices)
+    .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+    .where(eq(appointmentServices.appointmentId, found.appointment.id));
+  const serviceNames = items.map(item => item.name).join(" + ") || "Cita";
 
   const locationLine = found.location.streetAddress
     ? `${found.location.streetAddress}, ${found.location.city}`
@@ -134,7 +140,7 @@ export async function buildIcsForAppointment(publicId: string): Promise<string |
     uid: `${found.appointment.publicId}@naty.studio`,
     startsAt: found.appointment.startsAt,
     endsAt: found.appointment.endsAt,
-    title: `${found.service.name} · naty.studio`,
+    title: `${serviceNames} · naty.studio`,
     description: `Tu cita en naty.studio, ${found.location.city}.`,
     location: locationLine,
     url: `${ENV.siteUrl}/reserva/${found.appointment.publicId}`,

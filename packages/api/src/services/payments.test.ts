@@ -10,28 +10,15 @@ import {
 
 describe("resolvePaymentPlan", () => {
   it("sin pagos activados, no requiere pago", () => {
-    expect(resolvePaymentPlan({ priceClp: 50_000, depositClp: 10_000 }, false)).toEqual({ required: false });
+    expect(resolvePaymentPlan([{ priceClp: 50_000, depositPercent: 20 }], false)).toEqual({ required: false });
   });
 
   it("con precio en 0 (Consulta el valor), no requiere pago aunque los pagos estén activados", () => {
-    expect(resolvePaymentPlan({ priceClp: 0, depositClp: 0 }, true)).toEqual({ required: false });
+    expect(resolvePaymentPlan([{ priceClp: 0, depositPercent: 60 }], true)).toEqual({ required: false });
   });
 
-  it("con abono en 0, sólo ofrece pagar el total", () => {
-    expect(resolvePaymentPlan({ priceClp: 50_000, depositClp: 0 }, true)).toEqual({
-      required: true,
-      fullClp: 50_000,
-      depositClp: null,
-    });
-  });
-
-  it("con abono igual o mayor al precio, sólo ofrece pagar el total", () => {
-    expect(resolvePaymentPlan({ priceClp: 50_000, depositClp: 50_000 }, true)).toEqual({
-      required: true,
-      fullClp: 50_000,
-      depositClp: null,
-    });
-    expect(resolvePaymentPlan({ priceClp: 50_000, depositClp: 60_000 }, true)).toEqual({
+  it("con abono al 100%, sólo ofrece pagar el total", () => {
+    expect(resolvePaymentPlan([{ priceClp: 50_000, depositPercent: 100 }], true)).toEqual({
       required: true,
       fullClp: 50_000,
       depositClp: null,
@@ -39,10 +26,27 @@ describe("resolvePaymentPlan", () => {
   });
 
   it("con abono entre 0 y el precio, ofrece elegir", () => {
-    expect(resolvePaymentPlan({ priceClp: 50_000, depositClp: 15_000 }, true)).toEqual({
+    expect(resolvePaymentPlan([{ priceClp: 50_000, depositPercent: 30 }], true)).toEqual({
       required: true,
       fullClp: 50_000,
       depositClp: 15_000,
+    });
+  });
+
+  it("con varios servicios, suma el precio y el abono de cada uno sobre su propio precio", () => {
+    expect(
+      resolvePaymentPlan(
+        [
+          { priceClp: 50_000, depositPercent: 60 },
+          { priceClp: 30_000, depositPercent: 80 },
+        ],
+        true,
+      ),
+    ).toEqual({
+      required: true,
+      fullClp: 80_000,
+      // round(50000*0.6) + round(30000*0.8) = 30000 + 24000
+      depositClp: 54_000,
     });
   });
 });

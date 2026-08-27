@@ -131,7 +131,7 @@ export function serviceJsonLd(service: {
             price: service.priceClp,
             priceCurrency: "CLP",
             availability: "https://schema.org/InStock",
-            url: absoluteUrl(`/reservar?servicio=${service.slug}`),
+            url: absoluteUrl(`/reservar?servicios=${service.slug}`),
           },
         }
       : {}),

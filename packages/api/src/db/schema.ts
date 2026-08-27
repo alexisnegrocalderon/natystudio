@@ -72,7 +72,8 @@ export const services = pgTable(
     bufferMin: integer("buffer_min").notNull().default(0),
     /** Montos en pesos chilenos, siempre enteros: el CLP no tiene decimales. */
     priceClp: integer("price_clp").notNull().default(0),
-    depositClp: integer("deposit_clp").notNull().default(0),
+    /** % mínimo del precio que se puede cobrar como abono online (1-100). */
+    depositPercent: integer("deposit_percent").notNull().default(60),
     active: boolean("active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     imageUrl: varchar("image_url", { length: 500 }),
@@ -208,6 +209,13 @@ export const appointments = pgTable(
     customerId: integer("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "restrict" }),
+    /**
+     * Primer servicio elegido — se mantiene para que todo el código que ya
+     * hace join con `services` para mostrar un solo nombre (agenda,
+     * dashboard, .ics, emails, exports) siga andando sin reescribirse.
+     * `appointmentServices` (más abajo) es la fuente de verdad para el
+     * listado completo cuando la reserva combina más de un servicio.
+     */
     serviceId: integer("service_id")
       .notNull()
       .references(() => services.id, { onDelete: "restrict" }),
@@ -241,6 +249,33 @@ export const appointments = pgTable(
     index("appointments_status_starts_at_idx").on(table.status, table.startsAt),
     index("appointments_customer_idx").on(table.customerId),
   ],
+);
+
+/**
+ * Un servicio por fila, incluido el primero (no sólo los "extra") — así el
+ * precio/duración total de una reserva sale siempre de sumar esta tabla, sin
+ * casos especiales entre "el servicio principal" y "los adicionales". Los
+ * valores quedan congelados al momento de reservar (snapshot): si Naty
+ * después cambia el precio o el % de abono de un servicio, las reservas ya
+ * hechas no se ven afectadas.
+ */
+export const appointmentServices = pgTable(
+  "appointment_services",
+  {
+    id: serial("id").primaryKey(),
+    appointmentId: integer("appointment_id")
+      .notNull()
+      .references(() => appointments.id, { onDelete: "cascade" }),
+    serviceId: integer("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "restrict" }),
+    priceClp: integer("price_clp").notNull(),
+    depositPercent: integer("deposit_percent").notNull(),
+    durationMin: integer("duration_min").notNull(),
+    bufferMin: integer("buffer_min").notNull(),
+    createdAt: instant("created_at").notNull().defaultNow(),
+  },
+  table => [index("appointment_services_appointment_idx").on(table.appointmentId)],
 );
 
 /* --------------------------------------------------------------- payments */
@@ -384,6 +419,7 @@ export type Service = typeof services.$inferSelect;
 export type InsertService = typeof services.$inferInsert;
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertAppointment = typeof appointments.$inferInsert;
+export type AppointmentService = typeof appointmentServices.$inferSelect;
 export type Location = typeof locations.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type BusinessHour = typeof businessHours.$inferSelect;

@@ -2,7 +2,7 @@ import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { Resend } from "resend";
 import type { EmailJobKind } from "@naty/shared";
 import { ENV } from "../env";
-import { db, appointments, customers, emailJobs, locations, services, type Appointment, type Service } from "../db";
+import { db, appointments, appointmentServices, customers, emailJobs, locations, services, type Appointment } from "../db";
 import { buildIcs } from "./calendar";
 import { renderEmail, renderManualMessage, type TemplateData } from "./email-templates";
 
@@ -44,18 +44,18 @@ async function deliver(
 
 function buildTemplateData(
   appointment: Appointment,
-  service: Pick<Service, "name" | "durationMin">,
+  serviceItems: { name: string; durationMin: number }[],
   customerName: string,
   location: { name: string; city: string },
 ): TemplateData {
   return {
     customerName,
-    serviceName: service.name,
+    serviceName: serviceItems.map(item => item.name).join(" + "),
     locationName: location.name,
     locationCity: location.city,
     startsAt: appointment.startsAt,
     endsAt: appointment.endsAt,
-    durationMin: service.durationMin,
+    durationMin: serviceItems.reduce((sum, item) => sum + item.durationMin, 0),
     priceClp: appointment.priceClp,
     amountPaidClp: appointment.amountPaidClp,
     publicId: appointment.publicId,
@@ -100,7 +100,6 @@ export async function enqueueManualMessage(recipient: string, subject: string, b
 /** Avisos que se disparan al crear la reserva. */
 export async function enqueueBookingEmails(
   appointment: Appointment,
-  service: Service,
   customer: { email: string; name: string },
 ): Promise<void> {
   // Una reserva que espera pago todavía no es un compromiso: si no paga en
@@ -207,16 +206,30 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
 
   const appointmentIds = [...new Set(dueJobs.map(job => job.appointmentId).filter((id): id is number => id !== null))];
 
-  const appointmentRows = appointmentIds.length
-    ? await db
-        .select({ appointment: appointments, service: services, customer: customers, location: locations })
-        .from(appointments)
-        .innerJoin(services, eq(appointments.serviceId, services.id))
-        .innerJoin(customers, eq(appointments.customerId, customers.id))
-        .innerJoin(locations, eq(appointments.locationId, locations.id))
-        .where(inArray(appointments.id, appointmentIds))
-    : [];
+  const [appointmentRows, serviceRows] = await Promise.all([
+    appointmentIds.length
+      ? db
+          .select({ appointment: appointments, customer: customers, location: locations })
+          .from(appointments)
+          .innerJoin(customers, eq(appointments.customerId, customers.id))
+          .innerJoin(locations, eq(appointments.locationId, locations.id))
+          .where(inArray(appointments.id, appointmentIds))
+      : Promise.resolve([]),
+    appointmentIds.length
+      ? db
+          .select({ appointmentId: appointmentServices.appointmentId, name: services.name, durationMin: appointmentServices.durationMin })
+          .from(appointmentServices)
+          .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+          .where(inArray(appointmentServices.appointmentId, appointmentIds))
+      : Promise.resolve([]),
+  ]);
   const byAppointmentId = new Map(appointmentRows.map(row => [row.appointment.id, row]));
+  const servicesByAppointmentId = new Map<number, { name: string; durationMin: number }[]>();
+  for (const row of serviceRows) {
+    const list = servicesByAppointmentId.get(row.appointmentId) ?? [];
+    list.push({ name: row.name, durationMin: row.durationMin });
+    servicesByAppointmentId.set(row.appointmentId, list);
+  }
 
   let sent = 0;
 
@@ -246,7 +259,8 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
         continue;
       }
 
-      const data = buildTemplateData(found.appointment, found.service, found.customer.name, found.location);
+      const serviceItems = servicesByAppointmentId.get(found.appointment.id) ?? [];
+      const data = buildTemplateData(found.appointment, serviceItems, found.customer.name, found.location);
       rendered = renderEmail(job.kind, data);
 
       // Sólo la confirmación lleva el archivo de calendario: es el único
@@ -255,6 +269,7 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
         const locationLine = found.location.streetAddress
           ? `${found.location.streetAddress}, ${found.location.city}`
           : `${found.location.city}, Chile`;
+        const serviceNames = serviceItems.map(item => item.name).join(" + ") || "Cita";
 
         attachments = [
           {
@@ -263,7 +278,7 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
               uid: `${found.appointment.publicId}@naty.studio`,
               startsAt: found.appointment.startsAt,
               endsAt: found.appointment.endsAt,
-              title: `${found.service.name} · naty.studio`,
+              title: `${serviceNames} · naty.studio`,
               description: `Tu cita en naty.studio, ${found.location.city}.`,
               location: locationLine,
               url: `${ENV.siteUrl}/reserva/${found.appointment.publicId}`,

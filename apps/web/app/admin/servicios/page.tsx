@@ -15,7 +15,7 @@ const EMPTY: ServiceInput = {
   durationMin: 45,
   bufferMin: 15,
   priceClp: 0,
-  depositClp: 0,
+  depositPercent: 60,
   active: true,
   sortOrder: 0,
   metaTitle: "",
@@ -88,7 +88,7 @@ export default function AdminServicesPage() {
       durationMin: service.durationMin,
       bufferMin: service.bufferMin,
       priceClp: service.priceClp,
-      depositClp: service.depositClp,
+      depositPercent: service.depositPercent,
       active: service.active,
       sortOrder: service.sortOrder,
       metaTitle: service.metaTitle ?? "",
@@ -238,14 +238,20 @@ export default function AdminServicesPage() {
               </p>
             </div>
             <div className="field">
-              <label htmlFor="abono">Abono para reservar (CLP)</label>
+              <label htmlFor="abono">Abono mínimo para reservar (%)</label>
               <input
                 id="abono"
                 type="number"
-                min={0}
-                value={form.depositClp}
-                onChange={event => setForm({ ...form, depositClp: Number(event.target.value) })}
+                min={1}
+                max={100}
+                value={form.depositPercent}
+                onChange={event => setForm({ ...form, depositPercent: Number(event.target.value) })}
               />
+              <p style={{ fontSize: ".74rem", color: "var(--muted)", margin: 0 }}>
+                {form.priceClp > 0
+                  ? `≈ ${formatClp(Math.round((form.priceClp * form.depositPercent) / 100))} sobre el valor actual`
+                  : "Se calcula sobre el valor del servicio al reservar."}
+              </p>
             </div>
           </div>
 

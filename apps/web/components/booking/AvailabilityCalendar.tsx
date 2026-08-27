@@ -16,7 +16,7 @@ import {
 import { trpc } from "@/lib/trpc";
 
 type Props = {
-  serviceId: number;
+  serviceIds: number[];
   locationId: number;
   selectedDay: string | null;
   onSelectDay: (day: string) => void;
@@ -24,7 +24,7 @@ type Props = {
   maxDay: string;
 };
 
-export function AvailabilityCalendar({ serviceId, locationId, selectedDay, onSelectDay, maxDay }: Props) {
+export function AvailabilityCalendar({ serviceIds, locationId, selectedDay, onSelectDay, maxDay }: Props) {
   const today = businessToday();
   const initial = parseDay(selectedDay ?? today);
   const [cursor, setCursor] = useState({ year: initial.year, month: initial.month - 1 });
@@ -36,8 +36,8 @@ export function AvailabilityCalendar({ serviceId, locationId, selectedDay, onSel
   // Se consulta el mes completo de una vez: así el calendario puede mostrar la
   // disponibilidad real de cada día en lugar de obligar a probar uno por uno.
   const { data, isLoading } = trpc.availability.getSlots.useQuery(
-    { serviceId, locationId, from, to },
-    { enabled: serviceId > 0 && locationId > 0 },
+    { serviceIds, locationId, from, to },
+    { enabled: serviceIds.length > 0 && locationId > 0 },
   );
 
   const slotCountByDay = useMemo(() => {

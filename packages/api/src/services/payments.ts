@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull, ne } from "drizzle-orm";
 import type { AppointmentStatus, PaymentStatus, ProcessPaymentInput } from "@naty/shared";
-import { db, appointments, customers, leads, payments, services, type Appointment, type Service } from "../db";
+import { db, appointments, appointmentServices, customers, leads, payments, services, type Appointment } from "../db";
 import { enqueuePaymentEmails } from "./email";
 import { createMpPayment, mapMpStatus, rejectionMessage, type MpPayment } from "./mercadopago";
 
@@ -26,18 +26,24 @@ export type PaymentPlan =
 
 /**
  * Decide si una reserva pasa por el paso de pago y con qué montos. Con los
- * pagos apagados, o un precio en "Consulta el valor" (0), el flujo de hoy
- * sigue intacto: la cita nace `pending_approval`/`confirmed` según
+ * pagos apagados, o un precio total en "Consulta el valor" (0), el flujo de
+ * hoy sigue intacto: la cita nace `pending_approval`/`confirmed` según
  * corresponda y no hay nada que cobrar.
+ *
+ * Una reserva puede combinar varios servicios: el total y el abono son la
+ * suma de cada uno aplicado a su propio precio — un servicio que pide 80%
+ * de abono no se diluye porque otro de la misma reserva pida menos.
  */
 export function resolvePaymentPlan(
-  service: Pick<Service, "priceClp" | "depositClp">,
+  items: { priceClp: number; depositPercent: number }[],
   paymentsEnabled: boolean,
 ): PaymentPlan {
-  if (!paymentsEnabled || service.priceClp <= 0) return { required: false };
+  const fullClp = items.reduce((sum, item) => sum + item.priceClp, 0);
+  if (!paymentsEnabled || fullClp <= 0) return { required: false };
 
-  const depositClp = service.depositClp > 0 && service.depositClp < service.priceClp ? service.depositClp : null;
-  return { required: true, fullClp: service.priceClp, depositClp };
+  const depositSum = items.reduce((sum, item) => sum + Math.round((item.priceClp * item.depositPercent) / 100), 0);
+  const depositClp = depositSum > 0 && depositSum < fullClp ? depositSum : null;
+  return { required: true, fullClp, depositClp };
 }
 
 /** El monto nunca lo decide el cliente: siempre se relee del servicio en el servidor. */
@@ -215,10 +221,14 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
     throw SLOT_NO_LONGER_HELD;
   }
 
-  const [service] = await db.select().from(services).where(eq(services.id, appointment.serviceId)).limit(1);
-  if (!service) throw new TRPCError({ code: "NOT_FOUND", message: "El servicio de la reserva ya no existe." });
+  const items = await db
+    .select({ name: services.name, priceClp: appointmentServices.priceClp, depositPercent: appointmentServices.depositPercent })
+    .from(appointmentServices)
+    .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+    .where(eq(appointmentServices.appointmentId, appointment.id));
+  if (items.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "El servicio de la reserva ya no existe." });
 
-  const plan = resolvePaymentPlan(service, true);
+  const plan = resolvePaymentPlan(items, true);
   if (!plan.required) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Esta reserva no requiere pago en línea." });
   }
@@ -250,7 +260,7 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
       installments: input.formData.installments,
       payerEmail: input.formData.payer.email,
       payerIdentification: input.formData.payer.identification,
-      description: `${service.name} · naty.studio`,
+      description: `${items.map(item => item.name).join(" + ")} · naty.studio`,
       externalReference: appointment.publicId,
       metadata: { appointment_id: appointment.id, payment_row_id: paymentRow.id },
       idempotencyKey: `${appointment.publicId}:${paymentRow.id}`,
@@ -271,7 +281,7 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
       message: "Pago aprobado. Tu hora quedó confirmada.",
       appointmentStatus: refreshed?.status ?? "confirmed",
       amountPaidClp: refreshed?.amountPaidClp ?? amountClp,
-      remainingClp: Math.max(0, service.priceClp - (refreshed?.amountPaidClp ?? amountClp)),
+      remainingClp: Math.max(0, appointment.priceClp - (refreshed?.amountPaidClp ?? amountClp)),
     };
   }
 
@@ -281,7 +291,7 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
       message: rejectionMessage(mpPayment.status_detail),
       appointmentStatus: "pending_payment",
       amountPaidClp: appointment.amountPaidClp,
-      remainingClp: service.priceClp - appointment.amountPaidClp,
+      remainingClp: appointment.priceClp - appointment.amountPaidClp,
     };
   }
 
@@ -290,7 +300,7 @@ export async function processPayment(input: ProcessPaymentInput): Promise<Proces
     message: "Estamos validando tu pago. Te avisaremos apenas se confirme.",
     appointmentStatus: "pending_payment",
     amountPaidClp: appointment.amountPaidClp,
-    remainingClp: service.priceClp - appointment.amountPaidClp,
+    remainingClp: appointment.priceClp - appointment.amountPaidClp,
   };
 }
 

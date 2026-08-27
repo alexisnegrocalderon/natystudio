@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gt, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import {
   customerBroadcastSchema,
@@ -7,7 +7,7 @@ import {
   customerSendEmailSchema,
   customerUpdateSchema,
 } from "@naty/shared";
-import { db, appointments, customers, payments, services } from "../db";
+import { db, appointments, appointmentServices, customers, payments, services } from "../db";
 import { enqueueManualMessage } from "../services/email";
 import { adminProcedure, router } from "../trpc";
 
@@ -80,7 +80,7 @@ export const adminCustomersRouter = router({
     const customer = found[0];
     if (!customer) throw new TRPCError({ code: "NOT_FOUND", message: "La clienta no existe." });
 
-    const history = await db
+    const historyRows = await db
       .select({
         id: appointments.id,
         publicId: appointments.publicId,
@@ -88,15 +88,31 @@ export const adminCustomersRouter = router({
         startsAt: appointments.startsAt,
         priceClp: appointments.priceClp,
         amountPaidClp: appointments.amountPaidClp,
-        serviceName: services.name,
       })
       .from(appointments)
-      .innerJoin(services, eq(appointments.serviceId, services.id))
       .where(eq(appointments.customerId, input.id))
       .orderBy(desc(appointments.startsAt))
       .limit(100);
 
-    const appointmentIds = history.map(item => item.id);
+    const appointmentIds = historyRows.map(item => item.id);
+
+    const serviceRows = appointmentIds.length
+      ? await db
+          .select({ appointmentId: appointmentServices.appointmentId, name: services.name })
+          .from(appointmentServices)
+          .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+          .where(inArray(appointmentServices.appointmentId, appointmentIds))
+      : [];
+    const namesByAppointmentId = new Map<number, string[]>();
+    for (const row of serviceRows) {
+      const list = namesByAppointmentId.get(row.appointmentId) ?? [];
+      list.push(row.name);
+      namesByAppointmentId.set(row.appointmentId, list);
+    }
+    const history = historyRows.map(row => ({
+      ...row,
+      serviceName: (namesByAppointmentId.get(row.id) ?? []).join(" + "),
+    }));
     const paymentHistory = appointmentIds.length
       ? await db
           .select({

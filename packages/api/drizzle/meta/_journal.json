@@ -36,6 +36,13 @@
       "when": 1787792691476,
       "tag": "0004_slippery_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787798751401,
+      "tag": "0005_narrow_deposit_percent",
+      "breakpoints": true
     }
   ]
 }

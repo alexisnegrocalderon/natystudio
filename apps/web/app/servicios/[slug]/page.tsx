@@ -97,7 +97,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         <p className="lede">{service.shortDescription}</p>
 
         <div className="hero-actions">
-          <Link className="primary-link" href={`/reservar?servicio=${service.slug}`}>
+          <Link className="primary-link" href={`/reservar?servicios=${service.slug}`}>
             Agendar este servicio <ArrowUpRight size={18} aria-hidden="true" />
           </Link>
           <Link className="ghost-link" href="/contacto">
@@ -120,10 +120,10 @@ export default async function ServiceDetailPage({ params }: Props) {
             <span>Modalidad</span>
             <strong>Presencial · Valparaíso o Providencia</strong>
           </p>
-          {service.depositClp > 0 ? (
+          {service.priceClp > 0 ? (
             <p>
-              <span>Abono para reservar</span>
-              <strong>{priceLabel(service.depositClp)}</strong>
+              <span>Abono mínimo para reservar</span>
+              <strong>{priceLabel(Math.round((service.priceClp * service.depositPercent) / 100))}</strong>
             </p>
           ) : null}
         </div>
@@ -189,7 +189,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         title="Reserva tu hora para"
         accent={service.name.toLowerCase()}
         description="Elige el día y la hora que te acomoden. Recibirás la confirmación por correo."
-        href={`/reservar?servicio=${service.slug}`}
+        href={`/reservar?servicios=${service.slug}`}
       />
     </>
   );

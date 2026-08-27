@@ -4,10 +4,10 @@ import { nanoid } from "nanoid";
 import type { CreateBookingInput } from "@naty/shared";
 import { generateToken } from "../auth/session";
 import { ENV } from "../env";
-import { db, appointments, customers, services, type Appointment } from "../db";
+import { db, appointments, appointmentServices, customers, type Appointment } from "../db";
 import { enqueueBookingEmails } from "./email";
 import { resolvePaymentPlan, type PaymentPlan } from "./payments";
-import { getSettings, isSlotAvailable } from "./scheduling";
+import { combinedDuration, getSettings, isSlotAvailable, loadActiveServices } from "./scheduling";
 
 /** Código de PostgreSQL para la violación de un constraint de exclusión. */
 const EXCLUSION_VIOLATION = "23P01";
@@ -24,27 +24,34 @@ const SLOT_TAKEN = new TRPCError({
 export async function createBooking(
   input: CreateBookingInput,
 ): Promise<{ appointment: Appointment; plan: PaymentPlan }> {
-  const found = await db.select().from(services).where(eq(services.id, input.serviceId)).limit(1);
-  const service = found[0];
-
-  if (!service || !service.active) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "El servicio no está disponible." });
+  // Se cargan en el orden pedido: el primero es el "servicio principal" que
+  // queda en appointments.serviceId (ver comentario en schema.ts).
+  const rows = await loadActiveServices(input.serviceIds);
+  if (!rows) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Alguno de los servicios elegidos no está disponible." });
   }
+  const orderedServices = input.serviceIds.map(id => rows.find(row => row.id === id)!);
+  const primaryService = orderedServices[0];
 
   const startsAt = new Date(input.startsAt);
   if (Number.isNaN(startsAt.getTime())) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "La fecha de la reserva no es válida." });
   }
 
-  if (!(await isSlotAvailable(service.id, input.locationId, startsAt))) {
+  if (!(await isSlotAvailable(input.serviceIds, input.locationId, startsAt))) {
     throw SLOT_TAKEN;
   }
 
   const settings = await getSettings();
-  const endsAt = new Date(startsAt.getTime() + service.durationMin * 60_000);
-  const blockedUntil = new Date(endsAt.getTime() + service.bufferMin * 60_000);
+  const { durationMin, bufferMin } = combinedDuration(orderedServices);
+  const endsAt = new Date(startsAt.getTime() + durationMin * 60_000);
+  const blockedUntil = new Date(endsAt.getTime() + bufferMin * 60_000);
 
-  const plan = resolvePaymentPlan(service, ENV.paymentsEnabled);
+  const totalPriceClp = orderedServices.reduce((sum, service) => sum + service.priceClp, 0);
+  const plan = resolvePaymentPlan(
+    orderedServices.map(service => ({ priceClp: service.priceClp, depositPercent: service.depositPercent })),
+    ENV.paymentsEnabled,
+  );
 
   const appointment = await db.transaction(async tx => {
     // Una misma persona vuelve: se reutiliza su ficha y se actualizan sus datos.
@@ -71,7 +78,7 @@ export async function createBooking(
         .values({
           publicId: nanoid(12),
           customerId: customer.id,
-          serviceId: service.id,
+          serviceId: primaryService.id,
           locationId: input.locationId,
           startsAt,
           endsAt,
@@ -80,11 +87,22 @@ export async function createBooking(
           // vence en 15 minutos). Si no, el flujo de siempre: Naty confirma a
           // mano, salvo que la aprobación automática esté activada.
           status: plan.required ? "pending_payment" : settings.autoApprove ? "confirmed" : "pending_approval",
-          priceClp: service.priceClp,
+          priceClp: totalPriceClp,
           cancelToken: generateToken(),
           customerNotes: input.customer.notes,
         })
         .returning();
+
+      await tx.insert(appointmentServices).values(
+        orderedServices.map(service => ({
+          appointmentId: created.id,
+          serviceId: service.id,
+          priceClp: service.priceClp,
+          depositPercent: service.depositPercent,
+          durationMin: service.durationMin,
+          bufferMin: service.bufferMin,
+        })),
+      );
 
       return created;
     } catch (error) {
@@ -96,7 +114,7 @@ export async function createBooking(
     }
   });
 
-  await enqueueBookingEmails(appointment, service, {
+  await enqueueBookingEmails(appointment, {
     email: input.customer.email,
     name: input.customer.name,
   });
@@ -111,14 +129,17 @@ export async function rescheduleAppointment(id: number, startsAt: Date): Promise
     throw new TRPCError({ code: "NOT_FOUND", message: "La cita no existe." });
   }
 
-  const found = await db.select().from(services).where(eq(services.id, appointment.serviceId)).limit(1);
-  const service = found[0];
-  if (!service) {
+  const items = await db
+    .select({ durationMin: appointmentServices.durationMin, bufferMin: appointmentServices.bufferMin })
+    .from(appointmentServices)
+    .where(eq(appointmentServices.appointmentId, appointment.id));
+  if (items.length === 0) {
     throw new TRPCError({ code: "NOT_FOUND", message: "El servicio de la cita ya no existe." });
   }
 
-  const endsAt = new Date(startsAt.getTime() + service.durationMin * 60_000);
-  const blockedUntil = new Date(endsAt.getTime() + service.bufferMin * 60_000);
+  const { durationMin, bufferMin } = combinedDuration(items);
+  const endsAt = new Date(startsAt.getTime() + durationMin * 60_000);
+  const blockedUntil = new Date(endsAt.getTime() + bufferMin * 60_000);
 
   try {
     const [updated] = await db

@@ -19,6 +19,7 @@ import {
 import {
   db,
   appointments,
+  appointmentServices,
   businessHours,
   customers,
   dateOverrides,
@@ -220,7 +221,7 @@ const appointmentsRouter = router({
     if (input?.to) conditions.push(lte(appointments.startsAt, new Date(input.to)));
     if (input?.status?.length) conditions.push(inArray(appointments.status, input.status));
 
-    return db
+    const rows = await db
       .select({
         id: appointments.id,
         publicId: appointments.publicId,
@@ -231,20 +232,41 @@ const appointmentsRouter = router({
         amountPaidClp: appointments.amountPaidClp,
         customerNotes: appointments.customerNotes,
         adminNotes: appointments.adminNotes,
-        serviceName: services.name,
-        durationMin: services.durationMin,
         customerName: customers.name,
         customerEmail: customers.email,
         customerPhone: customers.phone,
         locationName: locations.name,
       })
       .from(appointments)
-      .innerJoin(services, eq(appointments.serviceId, services.id))
       .innerJoin(customers, eq(appointments.customerId, customers.id))
       .innerJoin(locations, eq(appointments.locationId, locations.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(asc(appointments.startsAt))
       .limit(500);
+
+    if (rows.length === 0) return [];
+
+    const serviceRows = await db
+      .select({ appointmentId: appointmentServices.appointmentId, name: services.name, durationMin: appointmentServices.durationMin })
+      .from(appointmentServices)
+      .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+      .where(inArray(appointmentServices.appointmentId, rows.map(row => row.id)));
+
+    const servicesByAppointmentId = new Map<number, { name: string; durationMin: number }[]>();
+    for (const row of serviceRows) {
+      const list = servicesByAppointmentId.get(row.appointmentId) ?? [];
+      list.push({ name: row.name, durationMin: row.durationMin });
+      servicesByAppointmentId.set(row.appointmentId, list);
+    }
+
+    return rows.map(row => {
+      const items = servicesByAppointmentId.get(row.id) ?? [];
+      return {
+        ...row,
+        serviceName: items.map(item => item.name).join(" + "),
+        durationMin: items.reduce((sum, item) => sum + item.durationMin, 0),
+      };
+    });
   }),
 
   approve: adminProcedure.input(idInput).mutation(async ({ input }) => {
@@ -541,19 +563,17 @@ export const adminRouter = router({
     const in7Days = new Date(now.getTime() + 7 * 86_400_000);
     const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-    const [upcoming, pendingApproval, monthRevenue, openLeads, failedEmails] = await Promise.all([
+    const [upcomingRows, pendingApproval, monthRevenue, openLeads, failedEmails] = await Promise.all([
       db
         .select({
           id: appointments.id,
           publicId: appointments.publicId,
           startsAt: appointments.startsAt,
           status: appointments.status,
-          serviceName: services.name,
           customerName: customers.name,
           locationName: locations.name,
         })
         .from(appointments)
-        .innerJoin(services, eq(appointments.serviceId, services.id))
         .innerJoin(customers, eq(appointments.customerId, customers.id))
         .innerJoin(locations, eq(appointments.locationId, locations.id))
         .where(
@@ -583,6 +603,24 @@ export const adminRouter = router({
 
       db.select({ total: count() }).from(emailJobs).where(eq(emailJobs.status, "failed")),
     ]);
+
+    const upcomingServiceRows = upcomingRows.length
+      ? await db
+          .select({ appointmentId: appointmentServices.appointmentId, name: services.name })
+          .from(appointmentServices)
+          .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+          .where(inArray(appointmentServices.appointmentId, upcomingRows.map(row => row.id)))
+      : [];
+    const namesByAppointmentId = new Map<number, string[]>();
+    for (const row of upcomingServiceRows) {
+      const list = namesByAppointmentId.get(row.appointmentId) ?? [];
+      list.push(row.name);
+      namesByAppointmentId.set(row.appointmentId, list);
+    }
+    const upcoming = upcomingRows.map(row => ({
+      ...row,
+      serviceName: (namesByAppointmentId.get(row.id) ?? []).join(" + "),
+    }));
 
     return {
       upcoming,

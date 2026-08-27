@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, lte, or } from "drizzle-orm";
 import { BLOCKING_APPOINTMENT_STATUSES } from "@naty/shared";
-import { db, appointments, businessHours, dateOverrides, schedulingSettings, services, timeOff } from "../db";
+import { db, appointments, businessHours, dateOverrides, schedulingSettings, services, timeOff, type Service } from "../db";
 import { computeSlots, eachDayInRange, type DayAvailability } from "./availability";
 
 const DAY_MS = 86_400_000;
@@ -85,23 +85,43 @@ export async function loadScheduleContext(locationId: number, from: string, to: 
   return { hours, overrides, settings, busy, blocks };
 }
 
+/** Carga los servicios pedidos y valida que existan y estén activos, en cualquier orden. */
+export async function loadActiveServices(serviceIds: number[]): Promise<Service[] | null> {
+  const rows = await db.select().from(services).where(inArray(services.id, serviceIds));
+  if (rows.length !== serviceIds.length || rows.some(row => !row.active)) return null;
+  return rows;
+}
+
+/** Duración y buffer combinados de una reserva con uno o más servicios. */
+export function combinedDuration(rows: Pick<Service, "durationMin" | "bufferMin">[]): {
+  durationMin: number;
+  bufferMin: number;
+} {
+  return rows.reduce(
+    (total, row) => ({
+      durationMin: total.durationMin + row.durationMin,
+      bufferMin: total.bufferMin + row.bufferMin,
+    }),
+    { durationMin: 0, bufferMin: 0 },
+  );
+}
+
 export async function getAvailability(
-  serviceId: number,
+  serviceIds: number[],
   locationId: number,
   from: string,
   to: string,
   now = new Date(),
 ): Promise<DayAvailability[]> {
-  const found = await db.select().from(services).where(eq(services.id, serviceId)).limit(1);
-  const service = found[0];
-  if (!service || !service.active) return [];
+  const rows = await loadActiveServices(serviceIds);
+  if (!rows) return [];
 
   const { hours, overrides, settings, busy, blocks } = await loadScheduleContext(locationId, from, to);
 
   return computeSlots({
     from,
     to,
-    service: { durationMin: service.durationMin, bufferMin: service.bufferMin },
+    service: combinedDuration(rows),
     businessHours: hours,
     dateOverrides: overrides,
     appointments: busy,
@@ -120,7 +140,7 @@ export async function getAvailability(
  * aflore un error de PostgreSQL.
  */
 export async function isSlotAvailable(
-  serviceId: number,
+  serviceIds: number[],
   locationId: number,
   startsAt: Date,
   now = new Date(),
@@ -132,6 +152,6 @@ export async function isSlotAvailable(
     day: "2-digit",
   }).format(startsAt);
 
-  const [availability] = await getAvailability(serviceId, locationId, day, day, now);
+  const [availability] = await getAvailability(serviceIds, locationId, day, day, now);
   return (availability?.slots ?? []).some(slot => slot.startsAt.getTime() === startsAt.getTime());
 }
