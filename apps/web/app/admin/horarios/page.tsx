@@ -1,14 +1,28 @@
 "use client";
 
-import { CalendarOff, Info, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarOff, Info, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { formatBusinessDateTime, labelToMinutes, minutesToLabel, WEEKDAY_LABELS } from "@naty/shared";
+import {
+  formatBusinessDate,
+  formatBusinessDateTime,
+  labelToMinutes,
+  minutesToLabel,
+  WEEKDAY_LABELS,
+} from "@naty/shared";
+import { addDaysToDay, businessToday } from "@/lib/dates";
 import { trpc } from "@/lib/trpc";
 
 type DayRow = { enabled: boolean; start: string; end: string };
 
 const DEFAULT_ROW: DayRow = { enabled: false, start: "10:00", end: "19:00" };
+
+type TimeRange = { start: string; end: string };
+
+const EMPTY_RANGE: TimeRange = { start: "10:00", end: "13:00" };
+
+/** Días a futuro que se traen para mostrar la lista de excepciones ya cargadas. */
+const OVERRIDE_WINDOW_DAYS = 180;
 
 export default function AdminHoursPage() {
   const utils = trpc.useUtils();
@@ -78,6 +92,71 @@ export default function AdminHoursPage() {
     },
     onError: error => toast.error(error.message),
   });
+
+  // Excepciones por fecha: para sedes sin horario fijo, Naty abre horas
+  // sueltas día por día en vez de mantener una plantilla semanal.
+  const today = businessToday();
+  const overridesTo = addDaysToDay(today, OVERRIDE_WINDOW_DAYS);
+
+  const { data: overrides } = trpc.admin.schedule.listDateOverrides.useQuery(
+    { locationId: locationId ?? 0, from: today, to: overridesTo },
+    { enabled: locationId !== null },
+  );
+
+  const [overrideDay, setOverrideDay] = useState("");
+  const [overrideRanges, setOverrideRanges] = useState<TimeRange[]>([]);
+
+  const overridesByDay = new Map<string, { startMinute: number; endMinute: number }[]>();
+  for (const entry of overrides ?? []) {
+    const list = overridesByDay.get(entry.day) ?? [];
+    list.push(entry);
+    overridesByDay.set(entry.day, list);
+  }
+  const upcomingOverrideDays = [...overridesByDay.keys()].sort();
+
+  const saveOverride = trpc.admin.schedule.setDayOverride.useMutation({
+    onSuccess: () => {
+      toast.success("Horario del día guardado.");
+      void utils.admin.schedule.listDateOverrides.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  /** Carga las excepciones ya guardadas de un día en el editor, o una fila vacía si no tiene. */
+  function editOverrideDay(day: string) {
+    setOverrideDay(day);
+    const existing = overridesByDay.get(day);
+    setOverrideRanges(
+      existing && existing.length > 0
+        ? existing.map(entry => ({ start: minutesToLabel(entry.startMinute), end: minutesToLabel(entry.endMinute) }))
+        : [{ ...EMPTY_RANGE }],
+    );
+  }
+
+  function submitOverride() {
+    if (!locationId || !overrideDay) return;
+
+    const entries = overrideRanges.map(range => ({
+      startMinute: labelToMinutes(range.start),
+      endMinute: labelToMinutes(range.end),
+    }));
+
+    const invalid = entries.find(entry => entry.endMinute <= entry.startMinute);
+    if (invalid) {
+      toast.error("Cada tramo debe terminar después de empezar.");
+      return;
+    }
+
+    saveOverride.mutate(
+      { locationId, day: overrideDay, entries },
+      {
+        onSuccess: () => {
+          setOverrideDay("");
+          setOverrideRanges([]);
+        },
+      },
+    );
+  }
 
   function submitHours() {
     if (!locationId) return;
@@ -186,6 +265,146 @@ export default function AdminHoursPage() {
               </button>
             </div>
           </>
+        )}
+      </section>
+
+      <section className="admin-card">
+        <h2>Horario por fecha (excepciones)</h2>
+
+        <div className="notice" style={{ marginBottom: "1.2rem" }}>
+          <Info size={18} />
+          <span>
+            Para sedes sin horario fijo: agrega un día puntual con sus horas y ese día usa sólo esas
+            horas, sin importar lo que diga el horario semanal. Un día sin excepción sigue el horario
+            semanal de siempre.
+          </span>
+        </div>
+
+        <div className="field">
+          <label htmlFor="fecha-excepcion">Fecha</label>
+          <input
+            id="fecha-excepcion"
+            type="date"
+            min={today}
+            value={overrideDay}
+            onChange={event => editOverrideDay(event.target.value)}
+            style={{ colorScheme: "dark" }}
+          />
+        </div>
+
+        {overrideDay ? (
+          <>
+            {overrideRanges.map((range, index) => (
+              <div className="override-range-row" key={index}>
+                <div className="field">
+                  <label htmlFor={`tramo-inicio-${index}`}>Desde</label>
+                  <input
+                    id={`tramo-inicio-${index}`}
+                    type="time"
+                    value={range.start}
+                    onChange={event =>
+                      setOverrideRanges(current =>
+                        current.map((item, i) => (i === index ? { ...item, start: event.target.value } : item)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`tramo-fin-${index}`}>Hasta</label>
+                  <input
+                    id={`tramo-fin-${index}`}
+                    type="time"
+                    value={range.end}
+                    onChange={event =>
+                      setOverrideRanges(current =>
+                        current.map((item, i) => (i === index ? { ...item, end: event.target.value } : item)),
+                      )
+                    }
+                  />
+                </div>
+                {overrideRanges.length > 1 ? (
+                  <button
+                    type="button"
+                    className="mini-button"
+                    data-variant="danger"
+                    onClick={() => setOverrideRanges(current => current.filter((_, i) => i !== index))}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => setOverrideRanges(current => [...current, { ...EMPTY_RANGE }])}
+              >
+                <Plus size={13} style={{ display: "inline", marginRight: ".3rem" }} />
+                Agregar otro tramo
+              </button>
+              <button
+                type="button"
+                className="primary-link"
+                onClick={submitOverride}
+                disabled={saveOverride.isPending}
+              >
+                {saveOverride.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+                Guardar ese día
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {upcomingOverrideDays.length > 0 ? (
+          <div className="table-scroll" style={{ marginTop: "1.5rem", border: 0, background: "transparent" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Día</th>
+                  <th>Horas</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {upcomingOverrideDays.map(day => (
+                  <tr key={day}>
+                    <td style={{ textTransform: "capitalize" }}>
+                      {formatBusinessDate(new Date(`${day}T12:00:00Z`))}
+                    </td>
+                    <td>
+                      {(overridesByDay.get(day) ?? [])
+                        .map(entry => `${minutesToLabel(entry.startMinute)}–${minutesToLabel(entry.endMinute)}`)
+                        .join(", ")}
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <button type="button" className="mini-button" onClick={() => editOverrideDay(day)}>
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-button"
+                          data-variant="danger"
+                          onClick={() => {
+                            if (!locationId) return;
+                            saveOverride.mutate({ locationId, day, entries: [] });
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p style={{ marginTop: "1.5rem", color: "var(--muted)", fontSize: ".85rem", display: "flex", gap: ".5rem" }}>
+            <CalendarOff size={16} /> No hay excepciones cargadas.
+          </p>
         )}
       </section>
 

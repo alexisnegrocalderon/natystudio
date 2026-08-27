@@ -136,6 +136,31 @@ export const timeOffInputSchema = z
     path: ["endsAt"],
   });
 
+const dayStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido");
+
+export const dateOverrideInputSchema = z.object({
+  locationId: z.number().int().positive(),
+  day: dayStringSchema,
+  entries: z
+    .array(
+      z.object({
+        startMinute: z.number().int().min(0).max(1439),
+        endMinute: z.number().int().min(1).max(1440),
+      }),
+    )
+    .max(10)
+    .refine(
+      entries => entries.every(entry => entry.endMinute > entry.startMinute),
+      "Cada tramo debe terminar después de empezar",
+    ),
+});
+
+export const dateOverrideListQuerySchema = z.object({
+  locationId: z.number().int().positive(),
+  from: dayStringSchema,
+  to: dayStringSchema,
+});
+
 export const schedulingSettingsInputSchema = z.object({
   slotGranularityMin: z.number().int().min(5).max(120),
   minLeadTimeHours: z.number().int().min(0).max(720),

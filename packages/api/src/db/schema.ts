@@ -148,6 +148,29 @@ export const timeOff = pgTable(
   table => [index("time_off_range_idx").on(table.startsAt, table.endsAt)],
 );
 
+/**
+ * Excepciones puntuales a la plantilla semanal de una sede: para una fecha
+ * concreta con filas acá, esas filas REEMPLAZAN por completo el horario de
+ * ese día (no se combinan con `businessHours`). Pensado para sedes sin
+ * patrón fijo, donde Naty abre horas sueltas fecha por fecha en vez de
+ * mantener un horario semanal recurrente.
+ */
+export const dateOverrides = pgTable(
+  "date_overrides",
+  {
+    id: serial("id").primaryKey(),
+    locationId: integer("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "cascade" }),
+    /** YYYY-MM-DD en hora de Chile, mismo formato que usa el resto de la agenda. */
+    day: varchar("day", { length: 10 }).notNull(),
+    startMinute: integer("start_minute").notNull(),
+    endMinute: integer("end_minute").notNull(),
+    createdAt: instant("created_at").notNull().defaultNow(),
+  },
+  table => [index("date_overrides_location_day_idx").on(table.locationId, table.day)],
+);
+
 /** Fila única (id = 1) con la configuración global de la agenda. */
 export const schedulingSettings = pgTable("scheduling_settings", {
   id: integer("id").primaryKey().default(1),
@@ -346,6 +369,7 @@ export type Location = typeof locations.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type BusinessHour = typeof businessHours.$inferSelect;
 export type TimeOff = typeof timeOff.$inferSelect;
+export type DateOverride = typeof dateOverrides.$inferSelect;
 export type SchedulingSettings = typeof schedulingSettings.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type EmailJob = typeof emailJobs.$inferSelect;

@@ -6,6 +6,8 @@ import {
   appointmentListQuerySchema,
   businessHoursInputSchema,
   customerSendEmailSchema,
+  dateOverrideInputSchema,
+  dateOverrideListQuerySchema,
   postInputSchema,
   rescheduleAppointmentSchema,
   schedulingSettingsInputSchema,
@@ -17,6 +19,7 @@ import {
   appointments,
   businessHours,
   customers,
+  dateOverrides,
   emailJobs,
   leads,
   locations,
@@ -150,6 +153,42 @@ const scheduleRouter = router({
 
   deleteTimeOff: adminProcedure.input(idInput).mutation(async ({ input }) => {
     await db.delete(timeOff).where(eq(timeOff.id, input.id));
+    return { ok: true as const };
+  }),
+
+  listDateOverrides: adminProcedure.input(dateOverrideListQuerySchema).query(({ input }) =>
+    db
+      .select()
+      .from(dateOverrides)
+      .where(
+        and(
+          eq(dateOverrides.locationId, input.locationId),
+          gte(dateOverrides.day, input.from),
+          lte(dateOverrides.day, input.to),
+        ),
+      )
+      .orderBy(asc(dateOverrides.day), asc(dateOverrides.startMinute))
+      .limit(500),
+  ),
+
+  setDayOverride: adminProcedure.input(dateOverrideInputSchema).mutation(async ({ input }) => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
+    if (input.day < today) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "No se puede editar una fecha pasada." });
+    }
+
+    // Igual que setHours: se reemplaza completo, pero acotado a un solo
+    // (sede, día) — nunca toca otras fechas ni la plantilla semanal.
+    await db.transaction(async tx => {
+      await tx
+        .delete(dateOverrides)
+        .where(and(eq(dateOverrides.locationId, input.locationId), eq(dateOverrides.day, input.day)));
+      if (input.entries.length > 0) {
+        await tx
+          .insert(dateOverrides)
+          .values(input.entries.map(entry => ({ ...entry, locationId: input.locationId, day: input.day })));
+      }
+    });
     return { ok: true as const };
   }),
 

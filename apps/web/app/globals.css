@@ -1646,6 +1646,23 @@ button.funnel-crumb[data-state="done"]:hover {
   gap: 1rem;
 }
 
+/* Fila de un tramo horario editable (excepciones por fecha): dos campos de
+   hora más un botón de borrar, alineado con la base de los inputs y no con
+   las etiquetas. */
+.override-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 40px;
+  gap: 1rem;
+  align-items: end;
+}
+
+@media (max-width: 560px) {
+  .override-range-row {
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.6rem;
+  }
+}
+
 .form-actions {
   display: flex;
   gap: 0.8rem;

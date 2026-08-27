@@ -154,6 +154,53 @@ describe("solapamientos", () => {
   });
 });
 
+describe("excepciones por fecha", () => {
+  it("una excepción para el día reemplaza por completo la plantilla semanal", () => {
+    const labels = labelsFor({
+      dateOverrides: [{ day: MONDAY, startMinute: 14 * 60, endMinute: 16 * 60 }],
+    });
+    // La plantilla semanal (09:00-13:00) queda ignorada del todo ese día.
+    expect(labels).toEqual(["14:00", "14:30", "15:00"]);
+  });
+
+  it("sin excepción para el día, se usa la plantilla semanal de siempre", () => {
+    const labels = labelsFor({
+      dateOverrides: [{ day: "2026-03-17", startMinute: 14 * 60, endMinute: 16 * 60 }],
+    });
+    expect(labels).toEqual(["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00"]);
+  });
+
+  it("una excepción puede abrir horas en un día sin plantilla semanal", () => {
+    const [saturday] = computeSlots({
+      from: SATURDAY,
+      to: SATURDAY,
+      service,
+      businessHours: weekdayHours,
+      dateOverrides: [{ day: SATURDAY, startMinute: 10 * 60, endMinute: 12 * 60 }],
+      appointments: [],
+      timeOff: [],
+      settings,
+      now: new Date("2026-03-01T12:00:00Z"),
+      timeZone: TZ,
+    });
+    expect(saturday.slots.map(slot => slot.label)).toEqual(["10:00", "10:30", "11:00"]);
+  });
+
+  it("un bloqueo sigue restando horas de las ventanas de una excepción", () => {
+    const labels = labelsFor({
+      dateOverrides: [{ day: MONDAY, startMinute: 14 * 60, endMinute: 18 * 60 }],
+      timeOff: [
+        {
+          // Bloqueo de 15:00 a 18:00 hora de Chile.
+          startsAt: new Date("2026-03-16T18:00:00Z"),
+          endsAt: new Date("2026-03-16T21:00:00Z"),
+        },
+      ],
+    });
+    expect(labels).toEqual(["14:00"]);
+  });
+});
+
 /**
  * Chile adelanta y atrasa la hora una vez al año. Estos casos son la razón por
  * la que todo se guarda en UTC: con offsets fijos las citas se correrían una

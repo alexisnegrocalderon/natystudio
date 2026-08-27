@@ -23,6 +23,13 @@ export type TimeOffInterval = {
   endsAt: Date;
 };
 
+/** Excepción puntual: para su `day`, reemplaza por completo la plantilla semanal. */
+export type AvailabilityDateOverride = {
+  day: string;
+  startMinute: number;
+  endMinute: number;
+};
+
 export type AvailabilitySettings = {
   slotGranularityMin: number;
   minLeadTimeHours: number;
@@ -36,6 +43,8 @@ export type ComputeSlotsInput = {
   to: string;
   service: AvailabilityService;
   businessHours: AvailabilityBusinessHour[];
+  /** Si trae filas para un día, esas reemplazan la plantilla semanal ese día. */
+  dateOverrides?: AvailabilityDateOverride[];
   appointments: BusyInterval[];
   timeOff: TimeOffInterval[];
   settings: AvailabilitySettings;
@@ -152,6 +161,13 @@ export function computeSlots(input: ComputeSlotsInput): DayAvailability[] {
     hoursByWeekday.set(entry.weekday, list);
   }
 
+  const overridesByDay = new Map<string, { startMinute: number; endMinute: number }[]>();
+  for (const entry of input.dateOverrides ?? []) {
+    const list = overridesByDay.get(entry.day) ?? [];
+    list.push({ startMinute: entry.startMinute, endMinute: entry.endMinute });
+    overridesByDay.set(entry.day, list);
+  }
+
   const busy = input.appointments.map(item => ({
     start: item.startsAt.getTime(),
     end: item.blockedUntil.getTime(),
@@ -162,7 +178,10 @@ export function computeSlots(input: ComputeSlotsInput): DayAvailability[] {
   }));
 
   return eachDayInRange(input.from, input.to).map(day => {
-    const windows = hoursByWeekday.get(weekdayOf(day, timeZone)) ?? [];
+    // Una excepción para esta fecha reemplaza la plantilla semanal por
+    // completo (no se combinan) — si no hay excepción, se cae al patrón
+    // recurrente de siempre.
+    const windows = overridesByDay.get(day) ?? hoursByWeekday.get(weekdayOf(day, timeZone)) ?? [];
     const slots: Slot[] = [];
 
     for (const window of windows) {

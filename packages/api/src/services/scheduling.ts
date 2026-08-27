@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, lte, or } from "drizzle-orm";
 import { BLOCKING_APPOINTMENT_STATUSES } from "@naty/shared";
-import { db, appointments, businessHours, schedulingSettings, services, timeOff } from "../db";
+import { db, appointments, businessHours, dateOverrides, schedulingSettings, services, timeOff } from "../db";
 import { computeSlots, eachDayInRange, type DayAvailability } from "./availability";
 
 const DAY_MS = 86_400_000;
@@ -45,8 +45,15 @@ function boundsFor(from: string, to: string): { start: Date; end: Date } {
 export async function loadScheduleContext(locationId: number, from: string, to: string) {
   const { start, end } = boundsFor(from, to);
 
-  const [hours, settings, busy, blocks] = await Promise.all([
+  const [hours, overrides, settings, busy, blocks] = await Promise.all([
     db.select().from(businessHours).where(eq(businessHours.locationId, locationId)),
+    // `day` ya es la fecha de negocio en texto, así que se compara directo
+    // contra `from`/`to` sin necesitar el ensanchado que sí hace falta para
+    // instantes absolutos (busy/blocks, más abajo).
+    db
+      .select({ day: dateOverrides.day, startMinute: dateOverrides.startMinute, endMinute: dateOverrides.endMinute })
+      .from(dateOverrides)
+      .where(and(eq(dateOverrides.locationId, locationId), gte(dateOverrides.day, from), lte(dateOverrides.day, to))),
     getSettings(),
     // Global entre sedes a propósito: una sola persona no puede tener dos
     // citas al mismo tiempo aunque sean en direcciones distintas.
@@ -75,7 +82,7 @@ export async function loadScheduleContext(locationId: number, from: string, to: 
       ),
   ]);
 
-  return { hours, settings, busy, blocks };
+  return { hours, overrides, settings, busy, blocks };
 }
 
 export async function getAvailability(
@@ -89,13 +96,14 @@ export async function getAvailability(
   const service = found[0];
   if (!service || !service.active) return [];
 
-  const { hours, settings, busy, blocks } = await loadScheduleContext(locationId, from, to);
+  const { hours, overrides, settings, busy, blocks } = await loadScheduleContext(locationId, from, to);
 
   return computeSlots({
     from,
     to,
     service: { durationMin: service.durationMin, bufferMin: service.bufferMin },
     businessHours: hours,
+    dateOverrides: overrides,
     appointments: busy,
     timeOff: blocks,
     settings,

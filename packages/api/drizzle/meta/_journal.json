@@ -22,6 +22,13 @@
       "when": 1787786507908,
       "tag": "0002_vengeful_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787789635810,
+      "tag": "0003_far_meteorite",
+      "breakpoints": true
     }
   ]
 }
