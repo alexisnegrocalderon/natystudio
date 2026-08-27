@@ -14,7 +14,7 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   customerInputSchema,
   formatBusinessDate,
@@ -84,6 +84,14 @@ export function BookingFunnel() {
 
   const [customer, setCustomer] = useState<CustomerFields>(EMPTY_CUSTOMER);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Cuántos campos del paso "Tus datos" están revelados (1 = sólo nombre, 4 =
+  // todos + notas + botón). Se recalcula al llegar a la hora elegida, a
+  // partir de lo que ya sea válido — así volver desde "Cambiar la hora" no
+  // esconde datos que la persona ya había escrito bien.
+  const [revealed, setRevealed] = useState(1);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
   const [confirmation, setConfirmation] = useState<{
     publicId: string;
     status: string;
@@ -203,6 +211,42 @@ export function BookingFunnel() {
     const stillFree = slots.some(slot => new Date(slot.startsAt).toISOString() === selectedSlot);
     if (!stillFree) setParams({ hora: null });
   }, [dayAvailability, selectedSlot, selectedDay, slots, setParams]);
+
+  // Se recalcula sólo cuando cambia el horario elegido (o sea, al llegar de
+  // nuevo al paso de datos), no en cada tecla — así no compite con `revealed`
+  // mientras la persona está escribiendo.
+  useEffect(() => {
+    const nameOk = customerInputSchema.shape.name.safeParse(customer.name).success;
+    const emailOk = nameOk && customerInputSchema.shape.email.safeParse(customer.email).success;
+    const phoneOk = emailOk && customerInputSchema.shape.phone.safeParse(customer.phone).success;
+    setRevealed(phoneOk ? 4 : emailOk ? 3 : nameOk ? 2 : 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSlot]);
+
+  useEffect(() => {
+    if (revealed === 2) emailRef.current?.focus();
+    else if (revealed === 3) phoneRef.current?.focus();
+  }, [revealed]);
+
+  /** Enter en nombre/correo/teléfono: valida sólo ese campo y revela el siguiente. */
+  function handleFieldEnter(event: KeyboardEvent<HTMLInputElement>, field: "name" | "email" | "phone") {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+
+    const result = customerInputSchema.shape[field].safeParse(customer[field]);
+    if (!result.success) {
+      setErrors(prev => ({ ...prev, [field]: result.error.issues[0]?.message ?? "Revisa este dato." }));
+      return;
+    }
+
+    setErrors(prev => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    setRevealed(current => Math.max(current, field === "name" ? 2 : field === "email" ? 3 : 4));
+  }
 
   function validate(): boolean {
     const result = customerInputSchema.safeParse({
@@ -612,8 +656,10 @@ export function BookingFunnel() {
                       id="nombre"
                       name="name"
                       autoComplete="name"
+                      ref={nameRef}
                       value={customer.name}
                       onChange={event => setCustomer({ ...customer, name: event.target.value })}
+                      onKeyDown={event => handleFieldEnter(event, "name")}
                       aria-invalid={Boolean(errors.name)}
                       aria-describedby={errors.name ? "error-nombre" : undefined}
                     />
@@ -624,36 +670,56 @@ export function BookingFunnel() {
                     ) : null}
                   </div>
 
-                  <div className="field-row">
-                    <div className="field">
+                  {revealed >= 2 ? (
+                    <motion.div
+                      className="field"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22 }}
+                    >
                       <label htmlFor="correo">Correo electrónico</label>
                       <input
                         id="correo"
                         name="email"
                         type="email"
                         autoComplete="email"
+                        ref={emailRef}
                         value={customer.email}
                         onChange={event => setCustomer({ ...customer, email: event.target.value })}
+                        onKeyDown={event => handleFieldEnter(event, "email")}
                         aria-invalid={Boolean(errors.email)}
-                        aria-describedby={errors.email ? "error-correo" : undefined}
+                        aria-describedby={errors.email ? "error-correo" : "hint-correo"}
                       />
                       {errors.email ? (
                         <p className="field-error" id="error-correo">
                           {errors.email}
                         </p>
-                      ) : null}
-                    </div>
+                      ) : (
+                        <p id="hint-correo" style={{ fontSize: ".76rem", color: "var(--muted)", margin: ".35rem 0 0" }}>
+                          Acá te llega la confirmación de la cita — revisa que esté bien escrito.
+                        </p>
+                      )}
+                    </motion.div>
+                  ) : null}
 
-                    <div className="field">
-                      <label htmlFor="telefono">Teléfono</label>
+                  {revealed >= 3 ? (
+                    <motion.div
+                      className="field"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      <label htmlFor="telefono">Teléfono / WhatsApp</label>
                       <input
                         id="telefono"
                         name="phone"
                         type="tel"
                         autoComplete="tel"
                         placeholder="+56 9 1234 5678"
+                        ref={phoneRef}
                         value={customer.phone}
                         onChange={event => setCustomer({ ...customer, phone: event.target.value })}
+                        onKeyDown={event => handleFieldEnter(event, "phone")}
                         aria-invalid={Boolean(errors.phone)}
                         aria-describedby={errors.phone ? "error-telefono" : undefined}
                       />
@@ -662,53 +728,57 @@ export function BookingFunnel() {
                           {errors.phone}
                         </p>
                       ) : null}
-                    </div>
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="notas">¿Algo que debamos saber? (opcional)</label>
-                    <textarea
-                      id="notas"
-                      name="notes"
-                      value={customer.notes}
-                      onChange={event => setCustomer({ ...customer, notes: event.target.value })}
-                      placeholder="Cuéntanos brevemente qué te gustaría evaluar."
-                    />
-                  </div>
-
-                  <div className="notice">
-                    <Info size={18} />
-                    <span>
-                      {paymentRequired
-                        ? "El siguiente paso es pagar el abono o el total para dejar tu hora asegurada."
-                        : "Tu solicitud queda registrada y Naty la confirmará por correo."}
-                    </span>
-                  </div>
-
-                  {createBooking.error ? (
-                    <div className="notice" data-tone="error" style={{ marginTop: "1rem" }}>
-                      <TriangleAlert size={18} />
-                      <span>{createBooking.error.message}</span>
-                    </div>
+                    </motion.div>
                   ) : null}
 
-                  <div className="form-actions">
-                    <button type="submit" className="primary-link" disabled={createBooking.isPending}>
-                      {createBooking.isPending ? (
-                        <>
-                          <Loader2 size={17} className="animate-spin" /> Enviando…
-                        </>
-                      ) : paymentRequired ? (
-                        <>
-                          Continuar al pago <ArrowUpRight size={17} />
-                        </>
-                      ) : (
-                        <>
-                          Confirmar mi reserva <ArrowUpRight size={17} />
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  {revealed >= 4 ? (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
+                      <div className="field">
+                        <label htmlFor="notas">¿Algo que debamos saber? (opcional)</label>
+                        <textarea
+                          id="notas"
+                          name="notes"
+                          value={customer.notes}
+                          onChange={event => setCustomer({ ...customer, notes: event.target.value })}
+                          placeholder="Cuéntanos brevemente qué te gustaría evaluar."
+                        />
+                      </div>
+
+                      <div className="notice">
+                        <Info size={18} />
+                        <span>
+                          {paymentRequired
+                            ? "El siguiente paso es pagar el abono o el total para dejar tu hora asegurada."
+                            : "Tu solicitud queda registrada y Naty la confirmará por correo."}
+                        </span>
+                      </div>
+
+                      {createBooking.error ? (
+                        <div className="notice" data-tone="error" style={{ marginTop: "1rem" }}>
+                          <TriangleAlert size={18} />
+                          <span>{createBooking.error.message}</span>
+                        </div>
+                      ) : null}
+
+                      <div className="form-actions">
+                        <button type="submit" className="primary-link" disabled={createBooking.isPending}>
+                          {createBooking.isPending ? (
+                            <>
+                              <Loader2 size={17} className="animate-spin" /> Enviando…
+                            </>
+                          ) : paymentRequired ? (
+                            <>
+                              Continuar al pago <ArrowUpRight size={17} />
+                            </>
+                          ) : (
+                            <>
+                              Confirmar mi reserva <ArrowUpRight size={17} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : null}
                 </form>
               </section>
             ) : null}
