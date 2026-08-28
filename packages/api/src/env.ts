@@ -82,3 +82,11 @@ if (ENV.paymentsEnabled && !ENV.mercadoPago.webhookSecret) {
 if (ENV.isProduction && ENV.adminSessionSecret === "desarrollo-inseguro-cambiar") {
   throw new Error("ADMIN_SESSION_SECRET no puede quedarse con el valor de desarrollo en producción.");
 }
+
+if (ENV.isProduction && new URL(ENV.siteUrl).hostname === "localhost") {
+  // Sin esto, un SITE_URL sin configurar cae en silencio a localhost — y recién
+  // se nota semanas después, cuando algo que depende del dominio real (los
+  // enlaces de los correos, o el RP ID de las passkeys de Face ID) falla en
+  // producción sin ningún aviso en el momento del deploy.
+  throw new Error("SITE_URL sigue apuntando a localhost en producción — configúrala en Vercel con el dominio real.");
+}
