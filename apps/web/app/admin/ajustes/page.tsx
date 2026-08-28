@@ -1,6 +1,17 @@
 "use client";
 
-import { AlertCircle, CreditCard, Loader2, ShieldCheck, ShieldOff, TriangleAlert, Unlink } from "lucide-react";
+import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
+import {
+  AlertCircle,
+  CreditCard,
+  Fingerprint,
+  Loader2,
+  ShieldCheck,
+  ShieldOff,
+  Trash2,
+  TriangleAlert,
+  Unlink,
+} from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -44,6 +55,13 @@ export default function AdminSettingsPage() {
   const [totpCode, setTotpCode] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
 
+  const [faceIdSupported, setFaceIdSupported] = useState(false);
+  const [faceIdPending, setFaceIdPending] = useState(false);
+  const [deviceName, setDeviceName] = useState("");
+  useEffect(() => {
+    setFaceIdSupported(browserSupportsWebAuthn());
+  }, []);
+
   useEffect(() => {
     if (!settings) return;
     setForm({
@@ -77,6 +95,38 @@ export default function AdminSettingsPage() {
     },
     onError: error => toast.error(error.message),
   });
+
+  const { data: credentials } = trpc.auth.webauthnCredentials.useQuery();
+  const regOptions = trpc.auth.webauthnRegistrationOptions.useMutation();
+  const regVerify = trpc.auth.webauthnRegistrationVerify.useMutation({
+    onSuccess: () => {
+      toast.success("Face ID / Touch ID activado en este dispositivo.");
+      setDeviceName("");
+      void utils.auth.webauthnCredentials.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+  const removeCredential = trpc.auth.webauthnRemoveCredential.useMutation({
+    onSuccess: () => {
+      toast.success("Dispositivo eliminado.");
+      void utils.auth.webauthnCredentials.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  async function registerFaceId() {
+    setFaceIdPending(true);
+    try {
+      const options = await regOptions.mutateAsync();
+      const response = await startRegistration({ optionsJSON: options });
+      await regVerify.mutateAsync({ response, name: deviceName.trim() || "Dispositivo" });
+    } catch (error) {
+      const isCancel = error instanceof Error && error.name === "NotAllowedError";
+      if (!isCancel) toast.error(error instanceof Error ? error.message : "No se pudo activar Face ID.");
+    } finally {
+      setFaceIdPending(false);
+    }
+  }
 
   return (
     <>
@@ -308,6 +358,72 @@ export default function AdminSettingsPage() {
                 <code key={code}>{code}</code>
               ))}
             </div>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="admin-card">
+        <h2>Face ID / Touch ID</h2>
+        <p style={{ color: "var(--paper-muted)", fontSize: ".88rem", lineHeight: 1.7 }}>
+          Un atajo adicional para entrar más rápido desde este dispositivo, sin escribir la contraseña. La
+          contraseña sigue funcionando siempre, en cualquier equipo — esto sólo agrega una opción más rápida
+          en los que actives.
+        </p>
+
+        {!faceIdSupported ? (
+          <div className="notice" data-tone="warn">
+            <TriangleAlert size={18} />
+            <span>Este navegador o dispositivo no ofrece Face ID/Touch ID.</span>
+          </div>
+        ) : (
+          <div className="field-row" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div className="field" style={{ maxWidth: "260px" }}>
+              <label htmlFor="deviceName">Nombre del dispositivo</label>
+              <input
+                id="deviceName"
+                value={deviceName}
+                onChange={event => setDeviceName(event.target.value)}
+                placeholder="iPhone de Naty"
+              />
+            </div>
+            <button type="button" className="primary-link" onClick={registerFaceId} disabled={faceIdPending}>
+              {faceIdPending ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} />}
+              Activar en este dispositivo
+            </button>
+          </div>
+        )}
+
+        {credentials?.length ? (
+          <div className="table-scroll" style={{ marginTop: "1.2rem" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Dispositivo</th>
+                  <th>Agregado</th>
+                  <th>Último uso</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {credentials.map(credential => (
+                  <tr key={credential.id}>
+                    <td>{credential.name}</td>
+                    <td>{formatBusinessDate(credential.createdAt)}</td>
+                    <td>{credential.lastUsedAt ? formatBusinessDate(credential.lastUsedAt) : "—"}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="mini-button"
+                        onClick={() => removeCredential.mutate({ id: credential.id })}
+                        disabled={removeCredential.isPending}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
       </section>

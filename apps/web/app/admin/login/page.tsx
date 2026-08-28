@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertCircle, KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
+import { AlertCircle, Fingerprint, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 
 export default function AdminLoginPage() {
@@ -14,6 +15,13 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [faceIdSupported, setFaceIdSupported] = useState(false);
+  const [faceIdError, setFaceIdError] = useState<string | null>(null);
+  const [faceIdPending, setFaceIdPending] = useState(false);
+
+  useEffect(() => {
+    setFaceIdSupported(browserSupportsWebAuthn());
+  }, []);
 
   async function finish() {
     await utils.auth.me.invalidate();
@@ -30,6 +38,30 @@ export default function AdminLoginPage() {
   });
 
   const verify = trpc.auth.verifyTotp.useMutation({ onSuccess: finish });
+
+  const authOptions = trpc.auth.webauthnAuthenticationOptions.useMutation();
+  const authVerify = trpc.auth.webauthnAuthenticationVerify.useMutation();
+
+  async function loginWithFaceId() {
+    setFaceIdError(null);
+    setFaceIdPending(true);
+    try {
+      const { options, challengeId: newChallengeId } = await authOptions.mutateAsync();
+      const response = await startAuthentication({ optionsJSON: options });
+      await authVerify.mutateAsync({ challengeId: newChallengeId, response });
+      await finish();
+    } catch (error) {
+      // El usuario cancela el prompt del sistema con bastante frecuencia — no es un error real.
+      const isCancel = error instanceof Error && error.name === "NotAllowedError";
+      if (!isCancel) {
+        setFaceIdError(
+          error instanceof Error ? error.message : "No se pudo entrar con Face ID. Usa tu contraseña.",
+        );
+      }
+    } finally {
+      setFaceIdPending(false);
+    }
+  }
 
   const pending = login.isPending || verify.isPending;
   const error = login.error ?? verify.error;
@@ -101,40 +133,70 @@ export default function AdminLoginPage() {
           </button>
         </form>
       ) : (
-        <form
-          onSubmit={event => {
-            event.preventDefault();
-            login.mutate({ email, password });
-          }}
-        >
-          <div className="field">
-            <label htmlFor="correo">Correo</label>
-            <input
-              id="correo"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={event => setEmail(event.target.value)}
-              autoFocus
-            />
-          </div>
+        <>
+          {faceIdSupported ? (
+            <>
+              <button
+                type="button"
+                className="primary-link"
+                style={{ width: "100%", marginBottom: "1.2rem" }}
+                onClick={loginWithFaceId}
+                disabled={faceIdPending}
+              >
+                {faceIdPending ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} />}
+                Entrar con Face ID
+              </button>
 
-          <div className="field">
-            <label htmlFor="clave">Contraseña</label>
-            <input
-              id="clave"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={event => setPassword(event.target.value)}
-            />
-          </div>
+              {faceIdError ? (
+                <div className="notice" data-tone="error" style={{ marginBottom: "1.2rem" }}>
+                  <AlertCircle size={18} />
+                  <span>{faceIdError}</span>
+                </div>
+              ) : null}
 
-          <button type="submit" className="primary-link" style={{ width: "100%" }} disabled={pending}>
-            {login.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-            Entrar
-          </button>
-        </form>
+              <div style={{ display: "flex", alignItems: "center", gap: ".7rem", margin: "0 0 1.2rem" }}>
+                <span style={{ flex: 1, height: "1px", background: "var(--line)" }} />
+                <span style={{ fontSize: ".76rem", color: "var(--muted)" }}>o con tu contraseña</span>
+                <span style={{ flex: 1, height: "1px", background: "var(--line)" }} />
+              </div>
+            </>
+          ) : null}
+
+          <form
+            onSubmit={event => {
+              event.preventDefault();
+              login.mutate({ email, password });
+            }}
+          >
+            <div className="field">
+              <label htmlFor="correo">Correo</label>
+              <input
+                id="correo"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="clave">Contraseña</label>
+              <input
+                id="clave"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+              />
+            </div>
+
+            <button type="submit" className="primary-link" style={{ width: "100%" }} disabled={pending}>
+              {login.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+              Entrar
+            </button>
+          </form>
+        </>
       )}
     </div>
   );

@@ -50,6 +50,13 @@
       "when": 1787800289548,
       "tag": "0006_woozy_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787884700375,
+      "tag": "0007_classy_silver_centurion",
+      "breakpoints": true
     }
   ]
 }

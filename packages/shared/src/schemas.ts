@@ -269,3 +269,18 @@ export const totpVerifySchema = z.object({
 export const totpConfirmSchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/, "El código son 6 dígitos"),
 });
+
+/**
+ * La respuesta del navegador (`RegistrationResponseJSON`/`AuthenticationResponseJSON`
+ * de @simplewebauthn/browser) es un objeto anidado con forma fija que ya valida
+ * `@simplewebauthn/server` al verificarla — acá sólo se exige que llegue algo.
+ */
+export const webauthnRegistrationVerifySchema = z.object({
+  response: z.unknown(),
+  name: z.string().trim().min(1).max(80).default("Dispositivo"),
+});
+
+export const webauthnAuthenticationVerifySchema = z.object({
+  challengeId: z.string().trim().min(10),
+  response: z.unknown(),
+});

@@ -1,10 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+  type AuthenticationResponseJSON,
+  type AuthenticatorTransportFuture,
+  type RegistrationResponseJSON,
+} from "@simplewebauthn/server";
 import bcrypt from "bcryptjs";
 import { and, eq, gt, lt } from "drizzle-orm";
 import QRCode from "qrcode";
 import { z } from "zod";
-import { ADMIN_SESSION_COOKIE, adminLoginSchema, totpConfirmSchema, totpVerifySchema } from "@naty/shared";
+import {
+  ADMIN_SESSION_COOKIE,
+  adminLoginSchema,
+  totpConfirmSchema,
+  totpVerifySchema,
+  webauthnAuthenticationVerifySchema,
+  webauthnRegistrationVerifySchema,
+} from "@naty/shared";
 import { createSessionToken, SESSION_MAX_AGE_MS } from "../auth/session";
 import { clearCookie, setCookie } from "../auth/cookies";
 import {
@@ -14,13 +30,21 @@ import {
   generateBackupCodes,
   verifyTotpCode,
 } from "../auth/totp";
-import { db, totpChallenges, users } from "../db";
+import { db, totpChallenges, users, webauthnChallenges, webauthnCredentials } from "../db";
 import { ENV } from "../env";
 import { adminProcedure, publicProcedure, router } from "../trpc";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60_000;
 const CHALLENGE_TTL_MS = 5 * 60_000;
+
+/**
+ * El RP ID de WebAuthn es el dominio "pelado" (sin protocolo/puerto) donde
+ * viven las passkeys — cambiar de dominio (ej. a retirolunares.cl) invalida
+ * las ya registradas, porque el estándar las ata a este valor a propósito.
+ */
+const RP_ID = new URL(ENV.siteUrl).hostname;
+const RP_NAME = "Panel de administración";
 
 /**
  * Mensaje único para credenciales inválidas. Distinguir "no existe la cuenta" de
@@ -200,4 +224,191 @@ export const authRouter = router({
 
     return { ok: true as const };
   }),
+
+  /** Passkeys ya registradas (Face ID/Touch ID), para listarlas y poder borrarlas en Ajustes. */
+  webauthnCredentials: adminProcedure.query(async ({ ctx }) => {
+    const rows = await db
+      .select({
+        id: webauthnCredentials.id,
+        name: webauthnCredentials.name,
+        deviceType: webauthnCredentials.deviceType,
+        createdAt: webauthnCredentials.createdAt,
+        lastUsedAt: webauthnCredentials.lastUsedAt,
+      })
+      .from(webauthnCredentials)
+      .where(eq(webauthnCredentials.userId, ctx.user.id));
+    return rows;
+  }),
+
+  webauthnRemoveCredential: adminProcedure.input(z.object({ id: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    await db
+      .delete(webauthnCredentials)
+      .where(and(eq(webauthnCredentials.id, input.id), eq(webauthnCredentials.userId, ctx.user.id)));
+    return { ok: true as const };
+  }),
+
+  /** Primer paso para registrar una passkey nueva desde Ajustes (sesión ya iniciada). */
+  webauthnRegistrationOptions: adminProcedure.mutation(async ({ ctx }) => {
+    const existing = await db
+      .select({ id: webauthnCredentials.id, transports: webauthnCredentials.transports })
+      .from(webauthnCredentials)
+      .where(eq(webauthnCredentials.userId, ctx.user.id));
+
+    const options = await generateRegistrationOptions({
+      rpName: RP_NAME,
+      rpID: RP_ID,
+      userID: new TextEncoder().encode(String(ctx.user.id)),
+      userName: ctx.user.email,
+      userDisplayName: ctx.user.name ?? ctx.user.email,
+      attestationType: "none",
+      excludeCredentials: existing.map(credential => ({
+        id: credential.id,
+        transports: (credential.transports ?? undefined) as AuthenticatorTransportFuture[] | undefined,
+      })),
+      // "required" habilita el atajo sin escribir el correo: el propio celular
+      // recuerda a quién pertenece la passkey guardada.
+      authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
+    });
+
+    await db.delete(webauthnChallenges).where(eq(webauthnChallenges.userId, ctx.user.id));
+    await db.insert(webauthnChallenges).values({
+      id: randomUUID(),
+      userId: ctx.user.id,
+      challenge: options.challenge,
+      expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS),
+    });
+
+    return options;
+  }),
+
+  webauthnRegistrationVerify: adminProcedure
+    .input(webauthnRegistrationVerifySchema)
+    .mutation(async ({ ctx, input }) => {
+      await db.delete(webauthnChallenges).where(lt(webauthnChallenges.expiresAt, new Date()));
+
+      const rows = await db
+        .select()
+        .from(webauthnChallenges)
+        .where(and(eq(webauthnChallenges.userId, ctx.user.id), gt(webauthnChallenges.expiresAt, new Date())))
+        .orderBy(webauthnChallenges.createdAt)
+        .limit(1);
+      const challenge = rows[rows.length - 1];
+      if (!challenge) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "El registro expiró. Intenta de nuevo." });
+      }
+
+      let verification;
+      try {
+        verification = await verifyRegistrationResponse({
+          response: input.response as unknown as RegistrationResponseJSON,
+          expectedChallenge: challenge.challenge,
+          expectedOrigin: ENV.siteUrl,
+          expectedRPID: RP_ID,
+        });
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No se pudo verificar el dispositivo." });
+      }
+
+      if (!verification.verified) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No se pudo verificar el dispositivo." });
+      }
+
+      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      await db.insert(webauthnCredentials).values({
+        id: credential.id,
+        userId: ctx.user.id,
+        publicKey: Buffer.from(credential.publicKey).toString("base64url"),
+        counter: credential.counter,
+        deviceType: credentialDeviceType,
+        backedUp: credentialBackedUp,
+        transports: credential.transports ?? [],
+        name: input.name,
+      });
+
+      await db.delete(webauthnChallenges).where(eq(webauthnChallenges.id, challenge.id));
+      return { ok: true as const };
+    }),
+
+  /** Primer paso del login sin contraseña: no exige saber quién es todavía. */
+  webauthnAuthenticationOptions: publicProcedure.mutation(async () => {
+    const options = await generateAuthenticationOptions({
+      rpID: RP_ID,
+      userVerification: "preferred",
+    });
+
+    const challengeId = randomUUID();
+    await db.insert(webauthnChallenges).values({
+      id: challengeId,
+      userId: null,
+      challenge: options.challenge,
+      expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS),
+    });
+
+    return { options, challengeId };
+  }),
+
+  webauthnAuthenticationVerify: publicProcedure
+    .input(webauthnAuthenticationVerifySchema)
+    .mutation(async ({ ctx, input }) => {
+      await db.delete(webauthnChallenges).where(lt(webauthnChallenges.expiresAt, new Date()));
+
+      const challengeRows = await db
+        .select()
+        .from(webauthnChallenges)
+        .where(and(eq(webauthnChallenges.id, input.challengeId), gt(webauthnChallenges.expiresAt, new Date())))
+        .limit(1);
+      const challenge = challengeRows[0];
+      if (!challenge) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "La verificación expiró. Intenta de nuevo." });
+      }
+
+      const response = input.response as unknown as AuthenticationResponseJSON;
+      const credentialRows = await db
+        .select()
+        .from(webauthnCredentials)
+        .where(eq(webauthnCredentials.id, response.id))
+        .limit(1);
+      const stored = credentialRows[0];
+      if (!stored) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Ese dispositivo no está registrado." });
+      }
+
+      let verification;
+      try {
+        verification = await verifyAuthenticationResponse({
+          response,
+          expectedChallenge: challenge.challenge,
+          expectedOrigin: ENV.siteUrl,
+          expectedRPID: RP_ID,
+          credential: {
+            id: stored.id,
+            publicKey: Buffer.from(stored.publicKey, "base64url"),
+            counter: stored.counter,
+            transports: (stored.transports ?? undefined) as AuthenticatorTransportFuture[] | undefined,
+          },
+        });
+      } catch {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "No se pudo verificar el dispositivo." });
+      }
+
+      if (!verification.verified) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "No se pudo verificar el dispositivo." });
+      }
+
+      const userRows = await db.select().from(users).where(eq(users.id, stored.userId)).limit(1);
+      const user = userRows[0];
+      if (!user || user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Esta cuenta no administra el sitio." });
+      }
+
+      await db
+        .update(webauthnCredentials)
+        .set({ counter: verification.authenticationInfo.newCounter, lastUsedAt: new Date() })
+        .where(eq(webauthnCredentials.id, stored.id));
+      await db.delete(webauthnChallenges).where(eq(webauthnChallenges.id, challenge.id));
+
+      setSessionCookie(ctx.resHeaders, user.id);
+      await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
+      return { ok: true as const };
+    }),
 });

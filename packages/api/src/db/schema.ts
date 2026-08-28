@@ -439,8 +439,45 @@ export const totpChallenges = pgTable("totp_challenges", {
   createdAt: instant("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Una credencial de passkey (Face ID/Touch ID/Windows Hello) por dispositivo
+ * registrado. `id` es el ID de credencial que entrega el navegador
+ * (base64url), único globalmente — sirve de clave primaria directamente.
+ */
+export const webauthnCredentials = pgTable("webauthn_credentials", {
+  id: varchar("id", { length: 400 }).primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  publicKey: text("public_key").notNull(),
+  /** Contador anti-clonación: debe crecer en cada uso, nunca repetirse. */
+  counter: integer("counter").notNull().default(0),
+  deviceType: varchar("device_type", { length: 40 }).notNull(),
+  backedUp: boolean("backed_up").notNull().default(false),
+  transports: text("transports").array(),
+  /** Nombre elegido al registrar (ej. "iPhone de Naty"), para listarlas en Ajustes. */
+  name: varchar("name", { length: 80 }).notNull().default("Dispositivo"),
+  lastUsedAt: instant("last_used_at"),
+  createdAt: instant("created_at").notNull().defaultNow(),
+});
+
+/**
+ * Desafío intermedio del registro/autenticación WebAuthn (el "challenge"
+ * que exige el estándar). `userId` es nulo durante la autenticación
+ * usernameless: recién se sabe qué usuario fue una vez que el navegador
+ * responde con una credencial ya registrada.
+ */
+export const webauthnChallenges = pgTable("webauthn_challenges", {
+  id: varchar("id", { length: 40 }).primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  challenge: varchar("challenge", { length: 400 }).notNull(),
+  expiresAt: instant("expires_at").notNull(),
+  createdAt: instant("created_at").notNull().defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type WebauthnCredential = typeof webauthnCredentials.$inferSelect;
 export type Service = typeof services.$inferSelect;
 export type InsertService = typeof services.$inferInsert;
 export type Appointment = typeof appointments.$inferSelect;
