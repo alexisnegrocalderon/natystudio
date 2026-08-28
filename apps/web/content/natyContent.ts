@@ -8,8 +8,8 @@
 
 export const heroContent = {
   eyebrow: "Enfermera estética · Valparaíso y Providencia, Chile",
-  title: "Cuidado experto,",
-  accent: "piel en calma.",
+  title: "Retiro de",
+  accent: "Acrocordones.",
   lede: "Especialista en retiro de acrocordones, con una atención cercana, informada y cuidadosamente personalizada.",
   primaryAction: "Agendar mi hora",
   secondaryAction: "Ver servicios",
