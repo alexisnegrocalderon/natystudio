@@ -305,8 +305,12 @@ export const authRouter = router({
           expectedOrigin: ENV.siteUrl,
           expectedRPID: RP_ID,
         });
-      } catch {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "No se pudo verificar el dispositivo." });
+      } catch (error) {
+        console.error("[webauthn] falló verifyRegistrationResponse:", error);
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `No se pudo verificar el dispositivo: ${error instanceof Error ? error.message : "error desconocido"}`,
+        });
       }
 
       if (!verification.verified) {
@@ -387,8 +391,12 @@ export const authRouter = router({
             transports: (stored.transports ?? undefined) as AuthenticatorTransportFuture[] | undefined,
           },
         });
-      } catch {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "No se pudo verificar el dispositivo." });
+      } catch (error) {
+        console.error("[webauthn] falló verifyAuthenticationResponse:", error);
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: `No se pudo verificar el dispositivo: ${error instanceof Error ? error.message : "error desconocido"}`,
+        });
       }
 
       if (!verification.verified) {
