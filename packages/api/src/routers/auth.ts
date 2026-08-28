@@ -47,6 +47,15 @@ const RP_ID = new URL(ENV.siteUrl).hostname;
 const RP_NAME = "Panel de administración";
 
 /**
+ * Vercel puede servir el sitio tanto desde el apex (retirolunares.cl) como
+ * desde "www." sin redirigir uno al otro — WebAuthn exige que el origin
+ * coincida exacto, así que se aceptan ambas variantes del mismo dominio en
+ * vez de depender de que SITE_URL adivine cuál usará cada visita.
+ */
+const BARE_RP_ID = RP_ID.replace(/^www\./, "");
+const ALLOWED_ORIGINS = [`https://${BARE_RP_ID}`, `https://www.${BARE_RP_ID}`];
+
+/**
  * Mensaje único para credenciales inválidas. Distinguir "no existe la cuenta" de
  * "la contraseña es incorrecta" le confirmaría a un atacante qué correos están
  * registrados.
@@ -302,7 +311,7 @@ export const authRouter = router({
         verification = await verifyRegistrationResponse({
           response: input.response as unknown as RegistrationResponseJSON,
           expectedChallenge: challenge.challenge,
-          expectedOrigin: ENV.siteUrl,
+          expectedOrigin: ALLOWED_ORIGINS,
           expectedRPID: RP_ID,
         });
       } catch (error) {
@@ -382,7 +391,7 @@ export const authRouter = router({
         verification = await verifyAuthenticationResponse({
           response,
           expectedChallenge: challenge.challenge,
-          expectedOrigin: ENV.siteUrl,
+          expectedOrigin: ALLOWED_ORIGINS,
           expectedRPID: RP_ID,
           credential: {
             id: stored.id,
