@@ -4,6 +4,7 @@ import { processPendingEmailJobs } from "./services/email";
 import { cancelMpPayment, getMpPayment } from "./services/mercadopago";
 import { getSellerAccessToken } from "./services/mercadopago-connection";
 import { applyPaymentResult, HOLD_TIMEOUT_MS, shouldReleaseHold } from "./services/payments";
+import { flushSaleEvents } from "./services/sales-sync";
 
 /**
  * Cancela los holds vencidos y libera su horario. Un hold con un pago
@@ -95,8 +96,8 @@ let running = false;
  * entorno serverless), por eso el candado `running` evita que dos disparos
  * simultáneos se pisen.
  */
-export async function runMaintenanceTick(): Promise<{ sent: number; released: number; reconciled: number }> {
-  if (running) return { sent: 0, released: 0, reconciled: 0 };
+export async function runMaintenanceTick(): Promise<{ sent: number; released: number; reconciled: number; sales: number }> {
+  if (running) return { sent: 0, released: 0, reconciled: 0, sales: 0 };
   running = true;
 
   try {
@@ -105,7 +106,12 @@ export async function runMaintenanceTick(): Promise<{ sent: number; released: nu
       releaseExpiredHolds(),
       reconcileStalePayments(),
     ]);
-    return { sent, released, reconciled };
+    // Después de reconciliar: un pago aprobado por el reconciliador ya está encolado.
+    const sales = await flushSaleEvents().catch(error => {
+      console.error("[scheduler] no se pudieron enviar las ventas al panel:", error);
+      return 0;
+    });
+    return { sent, released, reconciled, sales };
   } finally {
     running = false;
   }

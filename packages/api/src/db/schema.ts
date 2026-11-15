@@ -339,6 +339,36 @@ export const mercadoPagoConnection = pgTable("mercado_pago_connection", {
   updatedAt: instant("updated_at").notNull().defaultNow(),
 });
 
+/* ----------------------------------------------------------- sale_events */
+
+/**
+ * Cola de ventas por informar al panel de ANC. Un evento por (pago, tipo): se
+ * guarda el cuerpo exacto ya congelado para que el reintento firme lo mismo
+ * que se encoló, y se envía desde el cron o apenas se aprueba el pago. Si el
+ * panel no responde, el evento espera con espera creciente; nunca se pierde.
+ */
+export const saleEvents = pgTable(
+  "sale_events",
+  {
+    id: serial("id").primaryKey(),
+    paymentId: integer("payment_id")
+      .notNull()
+      .references(() => payments.id, { onDelete: "cascade" }),
+    /** "paid" o "refunded": coincide con el `status` del contrato de eventos. */
+    kind: varchar("kind", { length: 20 }).notNull(),
+    payload: text("payload").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    nextAttemptAt: instant("next_attempt_at").notNull().defaultNow(),
+    sentAt: instant("sent_at"),
+    createdAt: instant("created_at").notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex("sale_events_payment_kind_key").on(table.paymentId, table.kind),
+    index("sale_events_pending_idx").on(table.sentAt, table.nextAttemptAt),
+  ],
+);
+
 /* -------------------------------------------------------------- expenses */
 
 export const expenses = pgTable(

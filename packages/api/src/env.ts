@@ -55,6 +55,16 @@ export const ENV = {
     clientSecret: optional("MP_CLIENT_SECRET"),
   },
 
+  /**
+   * Conexión de ventas con el panel de ANC. Las tres juntas activan el envío;
+   * sin ellas las ventas se guardan en cola y salen apenas se configuren.
+   */
+  ancSales: {
+    url: optional("ANC_SALES_URL"),
+    sourceKey: optional("ANC_SALES_SOURCE_KEY"),
+    secret: optional("ANC_SALES_SECRET"),
+  },
+
   /** Redacción con IA (mailing y descripciones de servicios). Vacío = los botones de IA quedan apagados. */
   geminiApiKey: optional("GEMINI_API_KEY"),
   geminiModel: optional("GEMINI_MODEL", "gemini-3.6-flash"),

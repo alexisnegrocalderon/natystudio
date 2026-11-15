@@ -5,6 +5,7 @@ import { db, appointments, appointmentServices, customers, leads, payments, serv
 import { enqueuePaymentEmails } from "./email";
 import { calculateServiceCharge, createMpPayment, mapMpStatus, rejectionMessage, type MpPayment } from "./mercadopago";
 import { getSellerAccessToken } from "./mercadopago-connection";
+import { reportSale } from "./sales-sync";
 
 /** Una reserva que quedó esperando pago no puede retener el horario para siempre. */
 export const HOLD_TIMEOUT_MS = 15 * 60_000;
@@ -182,6 +183,13 @@ export async function applyPaymentResult(args: {
         .set({ convertedAt: new Date() })
         .where(and(eq(leads.email, customer.email), isNull(leads.convertedAt)));
     }
+  }
+
+  // Se informa al panel de ANC sólo cuando el estado realmente cambió: el
+  // webhook y la respuesta en línea suelen llegar a la vez y la segunda no
+  // debe duplicar nada (la cola además es única por pago y tipo).
+  if (result.changed && (result.paymentStatus === "approved" || result.paymentStatus === "refunded")) {
+    await reportSale(args.paymentRowId, result.paymentStatus === "approved" ? "paid" : "refunded");
   }
 
   return {
