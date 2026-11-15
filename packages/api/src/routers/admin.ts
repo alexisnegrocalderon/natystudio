@@ -573,6 +573,10 @@ const mercadopagoRouter = router({
     return {
       configured,
       connected: Boolean(connection),
+      /** PAYMENTS_ENABLED: sin esto la cuenta puede estar conectada y aun así no cobrarse nada. */
+      paymentsEnabled: ENV.paymentsEnabled,
+      /** La llave pública de la cuenta conectada, que el formulario de pago necesita. */
+      checkoutReady: Boolean(connection?.sellerPublicKey),
       email: connection?.sellerEmail ?? null,
       connectedAt: connection?.connectedAt ?? null,
     };
