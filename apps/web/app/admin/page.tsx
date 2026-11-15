@@ -47,7 +47,7 @@ export default function AdminDashboardPage() {
           <strong>{formatClp(data.monthRevenueClp)}</strong>
           <small>
             <Wallet size={12} style={{ display: "inline", marginRight: ".25rem" }} />
-            citas realizadas · ver Ventas
+            De citas realizadas · ver Ventas
           </small>
         </Link>
 

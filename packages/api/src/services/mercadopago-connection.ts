@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, mercadoPagoConnection } from "../db";
 import { exchangeMpAuthorizationCode, fetchMpAccountEmail, refreshMpSellerToken } from "./mercadopago";
 
@@ -11,6 +11,37 @@ import { exchangeMpAuthorizationCode, fetchMpAccountEmail, refreshMpSellerToken 
  */
 
 /**
+ * Las migraciones de este proyecto se corren a mano (`pnpm db:migrate`). Si un
+ * deploy llega antes que la migración 0008, cualquier lectura de esta tabla
+ * fallaría y con ella la reserva completa; por eso la columna se asegura acá
+ * una vez por proceso. Es idempotente y la migración usa el mismo
+ * `IF NOT EXISTS`, así que el orden entre ambas no importa.
+ */
+let schemaReady: Promise<void> | undefined;
+function ensureSchema(): Promise<void> {
+  schemaReady ??= db
+    .execute(sql`ALTER TABLE mercado_pago_connection ADD COLUMN IF NOT EXISTS seller_public_key varchar(300)`)
+    .then(() => undefined)
+    .catch(error => {
+      schemaReady = undefined;
+      throw error;
+    });
+  return schemaReady;
+}
+
+/** La fila de la cuenta conectada, o `undefined` si Naty todavía no conecta Mercado Pago. */
+export async function getMpConnection() {
+  await ensureSchema();
+  const [connection] = await db.select().from(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1)).limit(1);
+  return connection;
+}
+
+export async function deleteMpConnection(): Promise<void> {
+  await ensureSchema();
+  await db.delete(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1));
+}
+
+/**
  * Cierra el flujo de OAuth: cambia el `code` por tokens y guarda la conexión
  * (reemplazando cualquier conexión previa — sólo hay una cuenta conectada a
  * la vez).
@@ -18,6 +49,7 @@ import { exchangeMpAuthorizationCode, fetchMpAccountEmail, refreshMpSellerToken 
 export async function completeMpConnection(code: string, redirectUri: string): Promise<void> {
   const token = await exchangeMpAuthorizationCode(code, redirectUri);
   const email = await fetchMpAccountEmail(token.access_token);
+  await ensureSchema();
 
   await db.transaction(async tx => {
     await tx.delete(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1));
@@ -27,6 +59,7 @@ export async function completeMpConnection(code: string, redirectUri: string): P
       sellerRefreshToken: token.refresh_token,
       sellerUserId: String(token.user_id),
       sellerEmail: email,
+      sellerPublicKey: token.public_key ?? null,
       tokenExpiresAt: new Date(Date.now() + token.expires_in * 1000),
     });
   });
@@ -41,10 +74,12 @@ const TOKEN_REFRESH_MARGIN_MS = 10 * 60_000;
  * fijo de `MP_ACCESS_TOKEN` (si existe) en ese caso.
  */
 export async function getSellerAccessToken(): Promise<string | undefined> {
-  const [connection] = await db.select().from(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1)).limit(1);
+  const connection = await getMpConnection();
   if (!connection) return undefined;
 
-  if (connection.tokenExpiresAt.getTime() - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
+  // Una conexión hecha antes de que se guardara la llave pública se renueva
+  // de inmediato: la respuesta de renovación también la trae.
+  if (connection.sellerPublicKey && connection.tokenExpiresAt.getTime() - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
     return connection.sellerAccessToken;
   }
 
@@ -55,6 +90,7 @@ export async function getSellerAccessToken(): Promise<string | undefined> {
       .set({
         sellerAccessToken: refreshed.access_token,
         sellerRefreshToken: refreshed.refresh_token,
+        sellerPublicKey: refreshed.public_key ?? connection.sellerPublicKey,
         tokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
         updatedAt: new Date(),
       })
@@ -67,4 +103,14 @@ export async function getSellerAccessToken(): Promise<string | undefined> {
     console.error("[mercadopago] no se pudo renovar el token de la cuenta conectada:", error);
     return connection.sellerAccessToken;
   }
+}
+
+/**
+ * ¿Se puede cobrar en línea ahora mismo? Hace falta el token de la cuenta
+ * conectada y su llave pública; es la misma condición con la que el sitio
+ * decide mostrar el paso de pago, para que reserva y formulario no discrepen.
+ */
+export async function isMpCheckoutReady(): Promise<boolean> {
+  if (!(await getSellerAccessToken())) return false;
+  return Boolean((await getMpConnection())?.sellerPublicKey);
 }

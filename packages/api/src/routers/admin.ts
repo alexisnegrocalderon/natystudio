@@ -29,7 +29,6 @@ import {
   expenses,
   leads,
   locations,
-  mercadoPagoConnection,
   posts,
   schedulingSettings,
   services,
@@ -39,6 +38,7 @@ import { ENV } from "../env";
 import { aiEnabled, draftEmail, draftServiceDescription } from "../services/ai";
 import { rescheduleAppointment } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow, scheduleReminders } from "../services/email";
+import { deleteMpConnection, getMpConnection } from "../services/mercadopago-connection";
 import { revalidatePaths } from "../services/revalidate";
 import { adminProcedure, router } from "../trpc";
 import { adminCustomersRouter } from "./admin-customers";
@@ -569,17 +569,21 @@ const mercadopagoRouter = router({
   /** Estado de la conexión de Naty, para mostrar en Ajustes. */
   status: adminProcedure.query(async () => {
     const configured = Boolean(ENV.mercadoPago.clientId && ENV.mercadoPago.clientSecret);
-    const [connection] = await db.select().from(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1)).limit(1);
+    const connection = await getMpConnection();
     return {
       configured,
       connected: Boolean(connection),
+      /** PAYMENTS_ENABLED: sin esto la cuenta puede estar conectada y aun así no cobrarse nada. */
+      paymentsEnabled: ENV.paymentsEnabled,
+      /** La llave pública de la cuenta conectada, que el formulario de pago necesita. */
+      checkoutReady: Boolean(connection?.sellerPublicKey),
       email: connection?.sellerEmail ?? null,
       connectedAt: connection?.connectedAt ?? null,
     };
   }),
 
   disconnect: adminProcedure.mutation(async () => {
-    await db.delete(mercadoPagoConnection).where(eq(mercadoPagoConnection.id, 1));
+    await deleteMpConnection();
     return { ok: true };
   }),
 });

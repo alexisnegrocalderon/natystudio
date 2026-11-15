@@ -1,0 +1,1 @@
+ALTER TABLE "mercado_pago_connection" ADD COLUMN IF NOT EXISTS "seller_public_key" varchar(300);

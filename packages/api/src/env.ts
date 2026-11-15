@@ -63,9 +63,16 @@ export const ENV = {
   blobReadWriteToken: optional("BLOB_READ_WRITE_TOKEN"),
 } as const;
 
-if (ENV.paymentsEnabled && !ENV.mercadoPago.accessToken) {
+// Con la cuenta de Naty conectada por OAuth se cobra con su propio token, así
+// que MP_ACCESS_TOKEN ya no es obligatorio: basta con las credenciales de la
+// Aplicación (MP_CLIENT_ID / MP_CLIENT_SECRET) para poder conectar la cuenta.
+if (
+  ENV.paymentsEnabled &&
+  !ENV.mercadoPago.accessToken &&
+  !(ENV.mercadoPago.clientId && ENV.mercadoPago.clientSecret)
+) {
   throw new Error(
-    "PAYMENTS_ENABLED está en true pero falta MP_ACCESS_TOKEN. Deja los pagos apagados hasta tener las credenciales.",
+    "PAYMENTS_ENABLED está en true pero faltan MP_CLIENT_ID y MP_CLIENT_SECRET. Deja los pagos apagados hasta tener las credenciales.",
   );
 }
 

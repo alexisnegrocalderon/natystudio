@@ -240,10 +240,28 @@ export default function AdminSettingsPage() {
                 {mpStatus.connectedAt ? ` · desde ${formatBusinessDate(new Date(mpStatus.connectedAt))}` : ""}
               </span>
             </div>
-            <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.7 }}>
-              Los pagos en línea entran directo a tu cuenta. La plataforma se queda con su comisión
-              automáticamente, sin que tengas que hacer nada.
-            </p>
+            {!mpStatus.checkoutReady ? (
+              <div className="notice" data-tone="warn">
+                <TriangleAlert size={18} />
+                <span>
+                  La conexión quedó incompleta y todavía no se puede cobrar. Desconecta la cuenta y vuelve a
+                  conectarla.
+                </span>
+              </div>
+            ) : !mpStatus.paymentsEnabled ? (
+              <div className="notice" data-tone="warn">
+                <TriangleAlert size={18} />
+                <span>
+                  Tu cuenta está lista, pero los pagos en línea siguen apagados del lado técnico. Mientras
+                  tanto las reservas llegan sin pago.
+                </span>
+              </div>
+            ) : (
+              <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.7 }}>
+                Pagos en línea activos: entran directo a tu cuenta. La plataforma se queda con su comisión
+                automáticamente, sin que tengas que hacer nada.
+              </p>
+            )}
             <button
               type="button"
               className="mini-button"
@@ -257,8 +275,8 @@ export default function AdminSettingsPage() {
         ) : (
           <>
             <p style={{ fontSize: ".88rem", color: "var(--paper-muted)", lineHeight: 1.7 }}>
-              Conecta tu cuenta de Mercado Pago para cobrar en línea desde{" "}
-              <code>/reservar</code>. El precio de tus servicios te llega completo — a la clienta se le
+              Conecta tu cuenta de Mercado Pago para cobrar en línea cuando tus clientas
+              reservan. El precio de tus servicios te llega completo — a la clienta se le
               suma aparte un cargo por gastos de servicio.
             </p>
             <a href="/api/admin/mercadopago/connect" className="primary-link">

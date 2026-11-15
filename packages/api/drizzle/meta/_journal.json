@@ -57,6 +57,13 @@
       "when": 1787884700375,
       "tag": "0007_classy_silver_centurion",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794783278955,
+      "tag": "0008_salty_dorian_gray",
+      "breakpoints": true
     }
   ]
 }
