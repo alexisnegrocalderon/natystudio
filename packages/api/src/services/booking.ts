@@ -6,7 +6,7 @@ import { generateToken } from "../auth/session";
 import { ENV } from "../env";
 import { db, appointments, appointmentServices, customers, type Appointment } from "../db";
 import { enqueueBookingEmails } from "./email";
-import { getSellerAccessToken } from "./mercadopago-connection";
+import { isMpCheckoutReady } from "./mercadopago-connection";
 import { resolvePaymentPlan, type PaymentPlan } from "./payments";
 import { combinedDuration, getSettings, isSlotAvailable, loadActiveServices } from "./scheduling";
 
@@ -52,7 +52,7 @@ export async function createBooking(
   // Los pagos sólo se activan si además de la variable de entorno, Naty ya
   // conectó su cuenta de Mercado Pago desde Ajustes — sin eso no hay a quién
   // cobrarle el split, así que la reserva sigue el flujo sin pago en línea.
-  const paymentsReady = ENV.paymentsEnabled && Boolean(await getSellerAccessToken());
+  const paymentsReady = ENV.paymentsEnabled && (await isMpCheckoutReady());
   const plan = resolvePaymentPlan(
     orderedServices.map(service => ({ priceClp: service.priceClp, depositPercent: service.depositPercent })),
     paymentsReady,

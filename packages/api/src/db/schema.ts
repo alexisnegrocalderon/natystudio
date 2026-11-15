@@ -328,6 +328,12 @@ export const mercadoPagoConnection = pgTable("mercado_pago_connection", {
   sellerRefreshToken: varchar("seller_refresh_token", { length: 300 }).notNull(),
   sellerUserId: varchar("seller_user_id", { length: 60 }).notNull(),
   sellerEmail: varchar("seller_email", { length: 320 }),
+  /**
+   * Llave pública de la cuenta conectada. El formulario de pago tiene que
+   * tokenizar la tarjeta con ESTA llave: un token creado con la llave de otra
+   * cuenta no sirve para cobrar con el access token de Naty.
+   */
+  sellerPublicKey: varchar("seller_public_key", { length: 300 }),
   connectedAt: instant("connected_at").notNull().defaultNow(),
   tokenExpiresAt: instant("token_expires_at").notNull(),
   updatedAt: instant("updated_at").notNull().defaultNow(),
