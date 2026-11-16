@@ -98,6 +98,9 @@ export function BookingFunnel() {
     amountPaidClp?: number;
   } | null>(null);
   const [hold, setHold] = useState<Hold | null>(null);
+  // El correo se pide apenas hay servicio y sede elegidos, antes de mostrar los horarios: así, si la persona
+  // se interrumpe, ya podemos escribirle. Se arrastra después al paso de datos.
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
 
   const { data: config } = trpc.config.useQuery();
   const { data: locationList, isLoading: loadingLocations } = trpc.catalog.listLocations.useQuery();
@@ -257,7 +260,23 @@ export function BookingFunnel() {
       delete next[field];
       return next;
     });
-    setRevealed(current => Math.max(current, field === "name" ? 2 : field === "email" ? 3 : 4));
+    const emailAlreadyValid = customerInputSchema.shape.email.safeParse(customer.email).success;
+    setRevealed(current => Math.max(current, field === "name" ? (emailAlreadyValid ? 3 : 2) : field === "email" ? 3 : 4));
+  }
+
+  function confirmEmail() {
+    const result = customerInputSchema.shape.email.safeParse(customer.email);
+    if (!result.success) {
+      setErrors(prev => ({ ...prev, email: result.error.issues[0]?.message ?? "Revisa tu correo electrónico" }));
+      return;
+    }
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next.email;
+      return next;
+    });
+    setCustomer(current => ({ ...current, email: result.data }));
+    setEmailConfirmed(true);
   }
 
   function handleFieldEnter(event: KeyboardEvent<HTMLInputElement>, field: "name" | "email" | "phone") {
@@ -330,6 +349,8 @@ export function BookingFunnel() {
   useEffect(() => {
     const email = customer.email.trim();
     if (!email.includes("@")) return;
+    // Mientras escribe el correo en la pregunta inicial no se guarda nada: se guarda al confirmarlo.
+    if (!emailConfirmed && step < 4) return;
 
     const timer = setTimeout(() => {
       captureLead.mutate({
@@ -337,14 +358,14 @@ export function BookingFunnel() {
         name: customer.name || undefined,
         phone: customer.phone || undefined,
         serviceId: selectedServices[0]?.id,
-        step: "datos",
+        step: step >= 4 ? "datos" : "horarios",
       });
     }, 800);
 
     return () => clearTimeout(timer);
     // captureLead se omite a propósito: su referencia cambia en cada render y
     // reiniciaría el temporizador sin necesidad.
-  }, [customer.email, customer.name, customer.phone, selectedServices]);
+  }, [customer.email, customer.name, customer.phone, selectedServices, emailConfirmed, step]);
 
   const slotDate = selectedSlot ? new Date(selectedSlot) : null;
 
@@ -558,8 +579,64 @@ export function BookingFunnel() {
               </section>
             ) : null}
 
+            {/* ── Paso 3a: correo, antes de mostrar los horarios ──────── */}
+            {step === 3 && selectedServices.length > 0 && location && !emailConfirmed ? (
+              <section aria-labelledby="paso-correo-inicial">
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => setParams({ listo: null, dia: null, hora: null })}
+                  style={{ marginBottom: "1.4rem", background: "none", border: 0, cursor: "pointer" }}
+                >
+                  <ArrowLeft size={15} /> Cambiar servicio{selectedServices.length > 1 ? "s" : ""}
+                </button>
+
+                <h1 id="paso-correo-inicial" className="page-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
+                  ¿A qué correo te escribimos?
+                </h1>
+                <p className="lede">
+                  Ahí te llega la confirmación de tu hora. Y si algo te interrumpe a mitad de camino, te guardamos la
+                  selección para que la retomes después.
+                </p>
+
+                <form
+                  className="stack"
+                  noValidate
+                  onSubmit={event => {
+                    event.preventDefault();
+                    confirmEmail();
+                  }}
+                >
+                  <div className="field">
+                    <label htmlFor="correo-inicial">Correo electrónico</label>
+                    <input
+                      id="correo-inicial"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      value={customer.email}
+                      onChange={event => setCustomer({ ...customer, email: event.target.value })}
+                      aria-invalid={Boolean(errors.email)}
+                      aria-describedby={errors.email ? "error-correo-inicial" : undefined}
+                    />
+                    {errors.email ? (
+                      <p className="field-error" id="error-correo-inicial">
+                        {errors.email}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="form-actions">
+                    <button type="submit" className="primary-link">
+                      Ver horarios <ArrowUpRight size={17} />
+                    </button>
+                  </div>
+                </form>
+              </section>
+            ) : null}
+
             {/* ── Paso 3: fecha y hora ────────────────────────────────── */}
-            {step === 3 && selectedServices.length > 0 && location ? (
+            {step === 3 && selectedServices.length > 0 && location && emailConfirmed ? (
               <section aria-labelledby="paso-fecha">
                 <button
                   type="button"

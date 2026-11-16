@@ -336,6 +336,94 @@ const appointmentsRouter = router({
       return updated;
     }),
 
+  /**
+   * Edita la reserva completa desde la agenda: datos de la clienta, notas y estado. Cambiar a "confirmada"
+   * o "cancelada" hace lo mismo que los botones de siempre (avisa a la clienta y programa o borra los
+   * recordatorios). La fecha y hora se cambian aparte con `reschedule`.
+   */
+  update: adminProcedure
+    .input(
+      idInput.extend({
+        customerName: z.string().trim().min(2, "Escribe el nombre.").max(120),
+        customerEmail: z.string().trim().toLowerCase().max(320).pipe(z.email("El correo no es válido.")),
+        customerPhone: z.string().trim().min(6, "Escribe el teléfono.").max(20),
+        customerNotes: z.string().max(2000),
+        adminNotes: z.string().max(4000),
+        status: z.enum(["pending_approval", "confirmed", "completed", "cancelled", "no_show"]).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { appointment, customerEmail: currentEmail } = await loadAppointment(input.id);
+
+      if (input.customerEmail !== currentEmail) {
+        const [taken] = await db.select({ id: customers.id }).from(customers).where(eq(customers.email, input.customerEmail)).limit(1);
+        if (taken && taken.id !== appointment.customerId) {
+          throw new TRPCError({ code: "CONFLICT", message: "Ya existe otra clienta con ese correo." });
+        }
+      }
+
+      await db
+        .update(customers)
+        .set({ name: input.customerName, email: input.customerEmail, phone: input.customerPhone, updatedAt: new Date() })
+        .where(eq(customers.id, appointment.customerId));
+
+      let updated;
+      try {
+        [updated] = await db
+          .update(appointments)
+          .set({
+            customerNotes: input.customerNotes.trim() || null,
+            adminNotes: input.adminNotes.trim() || null,
+            ...(input.status ? { status: input.status } : {}),
+            updatedAt: new Date(),
+          })
+          .where(eq(appointments.id, input.id))
+          .returning();
+      } catch (error) {
+        // Reactivar una cita cancelada en un horario que otra reserva ya ocupó.
+        if (typeof error === "object" && error !== null && (error as { code?: string }).code === "23P01") {
+          throw new TRPCError({ code: "CONFLICT", message: "Ese horario ya está ocupado por otra reserva." });
+        }
+        throw error;
+      }
+
+      if (input.status && input.status !== appointment.status) {
+        if (input.status === "confirmed") {
+          await enqueueNow(updated, "booking_confirmed", input.customerEmail);
+          await scheduleReminders(updated, input.customerEmail);
+        } else if (input.status === "cancelled") {
+          await dropPendingReminders(updated.id);
+          await enqueueNow(updated, "cancelled", input.customerEmail);
+        } else {
+          await dropPendingReminders(updated.id);
+        }
+      }
+
+      return updated;
+    }),
+
+  /**
+   * Borra la reserva sin dejar rastro y sin avisar a la clienta (para avisarle, se cancela). Si ya tiene un
+   * pago aprobado no se puede borrar: el registro de ese cobro alimenta Ventas y el panel de ANC.
+   */
+  delete: adminProcedure.input(idInput).mutation(async ({ input }) => {
+    await loadAppointment(input.id);
+
+    const [paid] = await db
+      .select({ total: count() })
+      .from(payments)
+      .where(and(eq(payments.appointmentId, input.id), eq(payments.status, "approved")));
+    if ((paid?.total ?? 0) > 0) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Esta reserva tiene un pago aprobado, así que no se puede borrar. Cancélala para conservar el registro del cobro.",
+      });
+    }
+
+    await db.delete(appointments).where(eq(appointments.id, input.id));
+    return { ok: true as const };
+  }),
+
   setNotes: adminProcedure
     .input(idInput.extend({ adminNotes: z.string().max(4000) }))
     .mutation(async ({ input }) => {
