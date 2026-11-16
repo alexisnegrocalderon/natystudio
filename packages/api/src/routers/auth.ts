@@ -42,8 +42,12 @@ const CHALLENGE_TTL_MS = 5 * 60_000;
  * El RP ID de WebAuthn es el dominio "pelado" (sin protocolo/puerto) donde
  * viven las passkeys — cambiar de dominio (ej. a retirolunares.cl) invalida
  * las ya registradas, porque el estándar las ata a este valor a propósito.
+ *
+ * Se usa siempre el dominio sin "www.": un RP ID de apex vale también para el
+ * subdominio "www", y así pasar `SITE_URL` de `https://retirolunares.cl` a
+ * `https://www.retirolunares.cl` no deja sin efecto el Face ID ya registrado.
  */
-const RP_ID = new URL(ENV.siteUrl).hostname;
+const RP_ID = new URL(ENV.siteUrl).hostname.replace(/^www\./, "");
 const RP_NAME = "Panel de administración";
 
 /**

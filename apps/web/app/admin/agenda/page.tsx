@@ -1,9 +1,10 @@
 "use client";
 
 import { AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { formatBusinessDate, formatBusinessTime, formatDuration } from "@naty/shared";
+import { AppointmentEditor } from "@/components/admin/AppointmentEditor";
 import { StatusPill } from "@/components/admin/StatusPill";
 import { addDaysToDay, businessToday, formatDay, parseDay } from "@/lib/dates";
 import { trpc } from "@/lib/trpc";
@@ -20,6 +21,7 @@ function rangeFor(startDay: string, days: number) {
 
 export default function AdminAgendaPage() {
   const [weekStart, setWeekStart] = useState(businessToday());
+  const [editingId, setEditingId] = useState<number | null>(null);
   const utils = trpc.useUtils();
 
   const range = rangeFor(weekStart, 7);
@@ -120,7 +122,8 @@ export default function AdminAgendaPage() {
                     </thead>
                     <tbody>
                       {items.map(item => (
-                        <tr key={item.id}>
+                        <Fragment key={item.id}>
+                        <tr>
                           <td style={{ whiteSpace: "nowrap", color: "var(--paper)" }}>
                             {formatBusinessTime(new Date(item.startsAt))} h
                             <br />
@@ -153,6 +156,15 @@ export default function AdminAgendaPage() {
                           </td>
                           <td>
                             <div className="row-actions">
+                              <button
+                                type="button"
+                                className="mini-button"
+                                disabled={busy}
+                                onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                              >
+                                {editingId === item.id ? "Cerrar" : "Editar"}
+                              </button>
+
                               {item.status === "pending_approval" ? (
                                 <button
                                   type="button"
@@ -204,6 +216,14 @@ export default function AdminAgendaPage() {
                             </div>
                           </td>
                         </tr>
+                        {editingId === item.id ? (
+                          <tr>
+                            <td colSpan={6}>
+                              <AppointmentEditor item={item} onClose={() => setEditingId(null)} />
+                            </td>
+                          </tr>
+                        ) : null}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
