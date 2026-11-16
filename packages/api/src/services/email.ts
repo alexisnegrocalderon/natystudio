@@ -27,6 +27,7 @@ async function deliver(
 
   const { error } = await resend.emails.send({
     from: ENV.mailFrom,
+    ...(ENV.mailReplyTo ? { replyTo: ENV.mailReplyTo } : {}),
     to,
     subject,
     html,
