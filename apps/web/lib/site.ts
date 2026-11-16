@@ -30,7 +30,8 @@ export const BUSINESS = {
   description: SITE_DESCRIPTION,
   postalCode: "",
   country: "CL",
-  whatsapp: "https://wa.me/message/BEZLWH4LIT2PM1",
+  /** Chat directo con el número de Natalia (+56 9 8800 0788). Todos los botones de WhatsApp parten de aquí. */
+  whatsapp: "https://wa.me/56988000788",
   instagram: "https://www.instagram.com/naty.studiovalparaiso/",
   priceRange: "$$",
 } as const;
