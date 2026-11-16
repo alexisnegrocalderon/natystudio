@@ -19,6 +19,9 @@ export type TemplateData = {
   publicId: string;
   cancelToken: string;
   siteUrl: string;
+  /** Sólo para el aviso interno a Naty: cómo contactar a la clienta. */
+  customerEmail?: string;
+  customerPhone?: string;
 };
 
 export type RenderedEmail = {
@@ -113,16 +116,17 @@ function plainDetails(data: TemplateData): string {
 }
 
 /** Correo escrito a mano por Naty desde la ficha de una clienta o un envío masivo. */
-export function renderManualMessage(subject: string, body: string): RenderedEmail {
-  const html = body
-    .split(/\n{2,}/)
-    .map(block => paragraph(block.replace(/\n/g, "<br>")))
-    .join("");
+export function renderManualMessage(subject: string, body: string, cta?: { label: string; url: string }): RenderedEmail {
+  const html =
+    body
+      .split(/\n{2,}/)
+      .map(block => paragraph(block.replace(/\n/g, "<br>")))
+      .join("") + (cta ? button(cta.url, cta.label) : "");
 
   return {
     subject,
     html: layout(subject, html),
-    text: body,
+    text: cta ? `${body}\n\n${cta.label}: ${cta.url}` : body,
   };
 }
 
@@ -219,19 +223,27 @@ export function renderEmail(kind: EmailJobKind, data: TemplateData): RenderedEma
         text: `${firstName}, tu cita del ${when} fue cancelada.\n\nAgendar otra hora: ${data.siteUrl}/reservar`,
       };
 
-    case "admin_new_booking":
+    case "admin_new_booking": {
+      // Con un pago aprobado la hora ya es firme: el aviso lo dice y trae el archivo del calendario.
+      const paid = data.amountPaidClp > 0;
+      const summary = paid
+        ? `reservó y pagó ${formatClp(data.amountPaidClp)}. La hora quedó confirmada.`
+        : "solicitó una hora.";
+      const contact = [data.customerEmail, data.customerPhone].filter(Boolean).join(" · ");
       return {
-        subject: `Nueva reserva · ${data.customerName} · ${when}`,
+        subject: `${paid ? "Reserva confirmada" : "Nueva reserva"} · ${data.customerName} · ${when}`,
         html: layout(
-          "Nueva reserva",
-          heading("Tienes una nueva reserva") +
-            paragraph(`<strong style="color:${TEXT};">${data.customerName}</strong> solicitó una hora.`) +
+          paid ? "Reserva confirmada" : "Nueva reserva",
+          heading(paid ? "Tienes una reserva confirmada" : "Tienes una nueva reserva") +
+            paragraph(`<strong style="color:${TEXT};">${data.customerName}</strong> ${summary}`) +
+            (contact ? paragraph(`Contacto: ${contact}`) : "") +
             appointmentDetails(data) +
             button(`${data.siteUrl}/admin/agenda`, "Abrir la agenda"),
           "Aviso interno de naty.studio",
         ),
-        text: `Nueva reserva de ${data.customerName}.\n\n${plainDetails(data)}\n\nAgenda: ${data.siteUrl}/admin/agenda`,
+        text: `${data.customerName} ${summary}\n${contact ? `Contacto: ${contact}\n` : ""}\n${plainDetails(data)}\n\nAgenda: ${data.siteUrl}/admin/agenda`,
       };
+    }
 
     case "payment_received": {
       const remaining = data.priceClp - data.amountPaidClp;

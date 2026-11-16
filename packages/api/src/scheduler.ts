@@ -4,6 +4,7 @@ import { processPendingEmailJobs } from "./services/email";
 import { cancelMpPayment, getMpPayment } from "./services/mercadopago";
 import { getSellerAccessToken } from "./services/mercadopago-connection";
 import { applyPaymentResult, HOLD_TIMEOUT_MS, shouldReleaseHold } from "./services/payments";
+import { sendAbandonedReminders } from "./services/abandoned-reminders";
 import { flushSaleEvents } from "./services/sales-sync";
 
 /**
@@ -96,11 +97,22 @@ let running = false;
  * entorno serverless), por eso el candado `running` evita que dos disparos
  * simultáneos se pisen.
  */
-export async function runMaintenanceTick(): Promise<{ sent: number; released: number; reconciled: number; sales: number }> {
-  if (running) return { sent: 0, released: 0, reconciled: 0, sales: 0 };
+export async function runMaintenanceTick(): Promise<{
+  sent: number;
+  released: number;
+  reconciled: number;
+  sales: number;
+  reminders: number;
+}> {
+  if (running) return { sent: 0, released: 0, reconciled: 0, sales: 0, reminders: 0 };
   running = true;
 
   try {
+    // Primero se encolan los recordatorios de reservas abandonadas, así salen en esta misma pasada.
+    const reminders = await sendAbandonedReminders().catch(error => {
+      console.error("[scheduler] no se pudieron preparar los recordatorios de reservas abandonadas:", error);
+      return 0;
+    });
     const [sent, released, reconciled] = await Promise.all([
       processPendingEmailJobs(),
       releaseExpiredHolds(),
@@ -111,7 +123,7 @@ export async function runMaintenanceTick(): Promise<{ sent: number; released: nu
       console.error("[scheduler] no se pudieron enviar las ventas al panel:", error);
       return 0;
     });
-    return { sent, released, reconciled, sales };
+    return { sent, released, reconciled, sales, reminders };
   } finally {
     running = false;
   }

@@ -463,6 +463,27 @@ export const leads = pgTable(
   ],
 );
 
+/**
+ * Recordatorio a quien dejó una reserva sin terminar. Va en tablas aparte (en vez de columnas en
+ * `leads` o `scheduling_settings`) para que desplegar antes de correr la migración no rompa las consultas
+ * que ya existen: se crean con `IF NOT EXISTS` al primer uso.
+ */
+export const reminderSettings = pgTable("reminder_settings", {
+  id: integer("id").primaryKey().default(1),
+  abandonedEnabled: boolean("abandoned_enabled").notNull().default(true),
+  /** Cuántas horas después de dejar la reserva se manda el recordatorio. */
+  abandonedDelayHours: integer("abandoned_delay_hours").notNull().default(24),
+  updatedAt: instant("updated_at").notNull().defaultNow(),
+});
+
+/** Un recordatorio como máximo por contacto: la fila existe si ya se le avisó. */
+export const leadReminders = pgTable("lead_reminders", {
+  leadId: integer("lead_id")
+    .primaryKey()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  sentAt: instant("sent_at").notNull().defaultNow(),
+});
+
 /* ------------------------------------------------------- sesiones de login */
 
 /** Desafío intermedio entre la contraseña correcta y el segundo factor. */

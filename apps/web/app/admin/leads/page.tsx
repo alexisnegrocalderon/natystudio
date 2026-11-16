@@ -74,6 +74,9 @@ export default function AdminLeadsPage() {
                     </p>
                     <p style={{ color: "var(--muted)", margin: ".2rem 0 0", fontSize: ".78rem" }}>
                       Llegó hasta &ldquo;{lead.step}&rdquo; el {formatBusinessDate(new Date(lead.createdAt))}
+                      {lead.reminderSentAt
+                        ? ` · recordatorio automático enviado el ${formatBusinessDate(new Date(lead.reminderSentAt))}`
+                        : ""}
                     </p>
                   </div>
 

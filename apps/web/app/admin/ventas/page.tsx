@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, TrendingDown, TrendingUp, Trash2, Wallet } from "lucide-react";
+import { Loader2, Mail, MessageCircle, Plus, TrendingDown, TrendingUp, Trash2, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -16,6 +16,8 @@ import {
   YAxis,
 } from "recharts";
 import { formatBusinessDate, formatClp } from "@naty/shared";
+import { StatusPill } from "@/components/admin/StatusPill";
+import { whatsappTo } from "@/lib/site";
 import { trpc } from "@/lib/trpc";
 
 /** Los mismos 5 tonos de la paleta del sitio, del más claro al más saturado. */
@@ -80,6 +82,7 @@ export default function AdminVentasPage() {
 
   const { data: summary, isLoading: loadingSummary } = trpc.admin.finance.summary.useQuery({ from, to });
   const { data: expenseList, isLoading: loadingExpenses } = trpc.admin.finance.listExpenses.useQuery({ from, to });
+  const { data: purchases, isLoading: loadingPurchases } = trpc.admin.finance.listPurchases.useQuery({ from, to });
   const { data: locationList } = trpc.catalog.listLocations.useQuery();
 
   const [form, setForm] = useState<ExpenseForm>(EMPTY_EXPENSE);
@@ -272,6 +275,70 @@ export default function AdminVentasPage() {
           </section>
         </>
       )}
+
+      <section className="admin-card">
+        <h2>Compras</h2>
+        <p style={{ color: "var(--muted)", fontSize: ".85rem", marginTop: 0 }}>
+          Pagos aprobados en el período, con los datos para escribirle directo a cada clienta.
+        </p>
+
+        {loadingPurchases ? (
+          <p style={{ color: "var(--muted)", display: "flex", gap: ".6rem", alignItems: "center" }}>
+            <Loader2 size={16} className="animate-spin" /> Cargando…
+          </p>
+        ) : !purchases || purchases.length === 0 ? (
+          <p style={{ color: "var(--muted)" }}>Todavía no hay compras en este período.</p>
+        ) : (
+          <div className="table-scroll" style={{ border: 0, background: "transparent" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Clienta</th>
+                  <th>Contacto</th>
+                  <th>Servicio</th>
+                  <th>Pagó</th>
+                  <th>Cita</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchases.map(purchase => {
+                  const firstName = purchase.customerName.split(" ")[0];
+                  const message = `Hola ${firstName}, te escribo de Natalia Rodríguez Studio por tu reserva de ${purchase.serviceName}.`;
+                  return (
+                    <tr key={purchase.id}>
+                      <td>{formatBusinessDate(new Date(purchase.paidAt))}</td>
+                      <td>{purchase.customerName}</td>
+                      <td>
+                        <div style={{ display: "flex", flexDirection: "column", gap: ".35rem" }}>
+                          <a href={`mailto:${purchase.customerEmail}`} style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}>
+                            <Mail size={13} aria-hidden="true" /> {purchase.customerEmail}
+                          </a>
+                          <a
+                            href={whatsappTo(purchase.customerPhone, message)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}
+                          >
+                            <MessageCircle size={13} aria-hidden="true" /> {purchase.customerPhone} · WhatsApp
+                          </a>
+                        </div>
+                      </td>
+                      <td>{purchase.serviceName}</td>
+                      <td>{formatClp(purchase.netClp)}</td>
+                      <td>
+                        <StatusPill status={purchase.appointmentStatus} />
+                        <br />
+                        <small style={{ color: "var(--muted)" }}>{formatBusinessDate(new Date(purchase.startsAt))}</small>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="admin-card">
         <h2>Gastos</h2>
