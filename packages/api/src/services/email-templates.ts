@@ -116,16 +116,17 @@ function plainDetails(data: TemplateData): string {
 }
 
 /** Correo escrito a mano por Naty desde la ficha de una clienta o un envío masivo. */
-export function renderManualMessage(subject: string, body: string): RenderedEmail {
-  const html = body
-    .split(/\n{2,}/)
-    .map(block => paragraph(block.replace(/\n/g, "<br>")))
-    .join("");
+export function renderManualMessage(subject: string, body: string, cta?: { label: string; url: string }): RenderedEmail {
+  const html =
+    body
+      .split(/\n{2,}/)
+      .map(block => paragraph(block.replace(/\n/g, "<br>")))
+      .join("") + (cta ? button(cta.url, cta.label) : "");
 
   return {
     subject,
     html: layout(subject, html),
-    text: body,
+    text: cta ? `${body}\n\n${cta.label}: ${cta.url}` : body,
   };
 }
 

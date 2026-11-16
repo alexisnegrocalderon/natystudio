@@ -81,7 +81,7 @@ async function enqueue(
     .onConflictDoNothing({ target: [emailJobs.appointmentId, emailJobs.kind] });
 }
 
-type ManualMessagePayload = { subject: string; body: string };
+type ManualMessagePayload = { subject: string; body: string; cta?: { label: string; url: string } };
 
 /**
  * Correo escrito a mano por Naty (ficha de una clienta, o envío masivo). No
@@ -90,8 +90,13 @@ type ManualMessagePayload = { subject: string; body: string };
  * (cita, tipo) no aplica —los `NULL` nunca colisionan en Postgres— así que
  * cada llamada encola un correo nuevo.
  */
-export async function enqueueManualMessage(recipient: string, subject: string, body: string): Promise<void> {
-  const payload: ManualMessagePayload = { subject, body };
+export async function enqueueManualMessage(
+  recipient: string,
+  subject: string,
+  body: string,
+  cta?: { label: string; url: string },
+): Promise<void> {
+  const payload: ManualMessagePayload = { subject, body, ...(cta ? { cta } : {}) };
   await db.insert(emailJobs).values({
     appointmentId: null,
     kind: "manual_message",
@@ -265,7 +270,7 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
     let attachments: Attachment[] = [];
 
     if (job.kind === "manual_message") {
-      const payload = job.payload ? (JSON.parse(job.payload) as { subject: string; body: string }) : null;
+      const payload = job.payload ? (JSON.parse(job.payload) as ManualMessagePayload) : null;
       if (!payload) {
         await db
           .update(emailJobs)
@@ -273,7 +278,7 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
           .where(eq(emailJobs.id, job.id));
         continue;
       }
-      rendered = renderManualMessage(payload.subject, payload.body);
+      rendered = renderManualMessage(payload.subject, payload.body, payload.cta);
     } else {
       const found = job.appointmentId !== null ? byAppointmentId.get(job.appointmentId) : undefined;
       if (!found) {

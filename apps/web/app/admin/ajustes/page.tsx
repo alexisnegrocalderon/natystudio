@@ -19,6 +19,92 @@ import { toast } from "sonner";
 import { BUSINESS_TIMEZONE, formatBusinessDate } from "@naty/shared";
 import { trpc } from "@/lib/trpc";
 
+const REMINDER_DELAYS = [4, 12, 24, 48] as const;
+
+/** Recordatorio automático a quien dejó una reserva o un servicio sin terminar. */
+function AbandonedReminderCard() {
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.admin.reminders.get.useQuery();
+  const [enabled, setEnabled] = useState(true);
+  const [hours, setHours] = useState<number>(24);
+
+  useEffect(() => {
+    if (!data) return;
+    setEnabled(data.abandonedEnabled);
+    setHours(data.abandonedDelayHours);
+  }, [data]);
+
+  const save = trpc.admin.reminders.update.useMutation({
+    onSuccess: () => {
+      toast.success("Recordatorio guardado.");
+      void utils.admin.reminders.get.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  return (
+    <section className="admin-card">
+      <h2>Recordatorio de reservas sin terminar</h2>
+      <p style={{ color: "var(--muted)", fontSize: ".85rem", marginTop: 0 }}>
+        Si alguien dejó sus datos y no terminó de pagar, se le manda un solo correo para que retome su reserva. Solo se
+        envía de 9:00 a 20:00 (hora de Chile), una vez por persona, y no se manda a quien ya reservó.
+      </p>
+
+      {isLoading ? (
+        <p style={{ color: "var(--muted)", display: "flex", gap: ".6rem", alignItems: "center" }}>
+          <Loader2 size={16} className="animate-spin" /> Cargando…
+        </p>
+      ) : (
+        <>
+          <label style={{ display: "flex", gap: ".6rem", alignItems: "flex-start", fontSize: ".88rem" }}>
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={event => setEnabled(event.target.checked)}
+              style={{ marginTop: ".2rem" }}
+            />
+            <span>
+              Enviar el recordatorio automáticamente
+              <br />
+              <small style={{ color: "var(--muted)" }}>
+                También puedes escribirles a mano desde &ldquo;Interesadas&rdquo;; ahí verás a quién ya se le avisó.
+              </small>
+            </span>
+          </label>
+
+          <div className="field" style={{ marginTop: "1rem", maxWidth: "20rem" }}>
+            <label htmlFor="recordatorio-horas">Mandarlo después de</label>
+            <select
+              id="recordatorio-horas"
+              value={hours}
+              disabled={!enabled}
+              onChange={event => setHours(Number(event.target.value))}
+            >
+              {REMINDER_DELAYS.map(option => (
+                <option key={option} value={option}>
+                  {option === 24 ? "1 día (24 horas)" : option === 48 ? "2 días (48 horas)" : `${option} horas`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="primary-link"
+              onClick={() => save.mutate({ abandonedEnabled: enabled, abandonedDelayHours: hours })}
+              disabled={save.isPending}
+            >
+              {save.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+              Guardar recordatorio
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function AdminSettingsPage() {
   const utils = trpc.useUtils();
   const searchParams = useSearchParams();
@@ -222,6 +308,8 @@ export default function AdminSettingsPage() {
           </>
         )}
       </section>
+
+      <AbandonedReminderCard />
 
       <section className="admin-card">
         <h2>Pagos</h2>

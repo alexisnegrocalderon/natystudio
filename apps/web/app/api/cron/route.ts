@@ -22,6 +22,6 @@ export async function GET(req: Request) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const { sent, released, reconciled, sales } = await runMaintenanceTick();
-  return Response.json({ ok: true, sent, released, reconciled, sales });
+  const { sent, released, reconciled, sales, reminders } = await runMaintenanceTick();
+  return Response.json({ ok: true, sent, released, reconciled, sales, reminders });
 }

@@ -27,14 +27,17 @@ import {
   dateOverrides,
   emailJobs,
   expenses,
+  leadReminders,
   leads,
   locations,
+  payments,
   posts,
   schedulingSettings,
   services,
   timeOff,
 } from "../db";
 import { ENV } from "../env";
+import { ensureReminderSchema, getReminderSettings, saveReminderSettings } from "../services/abandoned-reminders";
 import { aiEnabled, draftEmail, draftServiceDescription } from "../services/ai";
 import { rescheduleAppointment } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow, scheduleReminders } from "../services/email";
@@ -396,9 +399,23 @@ const postsRouter = router({
   }),
 });
 
+const remindersRouter = router({
+  get: adminProcedure.query(() => getReminderSettings()),
+
+  update: adminProcedure
+    .input(
+      z.object({
+        abandonedEnabled: z.boolean(),
+        abandonedDelayHours: z.number().int().min(1).max(72),
+      }),
+    )
+    .mutation(({ input }) => saveReminderSettings(input)),
+});
+
 const leadsRouter = router({
-  list: adminProcedure.query(() =>
-    db
+  list: adminProcedure.query(async () => {
+    await ensureReminderSchema();
+    return db
       .select({
         id: leads.id,
         email: leads.email,
@@ -407,13 +424,15 @@ const leadsRouter = router({
         step: leads.step,
         createdAt: leads.createdAt,
         serviceName: services.name,
+        reminderSentAt: leadReminders.sentAt,
       })
       .from(leads)
       .leftJoin(services, eq(leads.serviceId, services.id))
+      .leftJoin(leadReminders, eq(leadReminders.leadId, leads.id))
       .where(isNull(leads.convertedAt))
       .orderBy(desc(leads.createdAt))
-      .limit(100),
-  ),
+      .limit(100);
+  }),
 
   /** Reservó por otra vía (teléfono, en persona): se cierra el seguimiento. */
   markConverted: adminProcedure.input(idInput).mutation(async ({ input }) => {
@@ -517,6 +536,34 @@ const financeRouter = router({
       netProfit: incomeTotal - expenseTotal,
     };
   }),
+
+  /**
+   * Compras: cada pago aprobado en el rango, con los datos de contacto de quien pagó para escribirle directo.
+   * `netClp` es la parte de Naty (lo cobrado menos las comisiones), la misma que suma el dashboard.
+   */
+  listPurchases: adminProcedure.input(financeSummaryQuerySchema).query(({ input }) =>
+    db
+      .select({
+        id: payments.id,
+        paidAt: payments.createdAt,
+        kind: payments.kind,
+        chargedClp: payments.amountClp,
+        netClp: sql<number>`(${payments.amountClp} - ${payments.feeClp})::int`,
+        appointmentStatus: appointments.status,
+        startsAt: appointments.startsAt,
+        customerName: customers.name,
+        customerEmail: customers.email,
+        customerPhone: customers.phone,
+        serviceName: services.name,
+      })
+      .from(payments)
+      .innerJoin(appointments, eq(payments.appointmentId, appointments.id))
+      .innerJoin(customers, eq(appointments.customerId, customers.id))
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .where(and(eq(payments.status, "approved"), gte(payments.createdAt, new Date(input.from)), lte(payments.createdAt, new Date(input.to))))
+      .orderBy(desc(payments.createdAt))
+      .limit(200),
+  ),
 
   listExpenses: adminProcedure.input(financeSummaryQuerySchema).query(({ input }) =>
     db
@@ -672,4 +719,5 @@ export const adminRouter = router({
   }),
 
   leads: leadsRouter,
+  reminders: remindersRouter,
 });
