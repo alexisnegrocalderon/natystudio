@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, eq, isNull, ne } from "drizzle-orm";
 import type { AppointmentStatus, PaymentStatus, ProcessPaymentInput } from "@naty/shared";
 import { db, appointments, appointmentServices, customers, leads, payments, services, type Appointment } from "../db";
-import { enqueuePaymentEmails } from "./email";
+import { enqueuePaymentEmails, flushEmailsSoon } from "./email";
 import { calculateServiceCharge, createMpPayment, mapMpStatus, rejectionMessage, type MpPayment } from "./mercadopago";
 import { getSellerAccessToken } from "./mercadopago-connection";
 import { reportSale } from "./sales-sync";
@@ -175,6 +175,7 @@ export async function applyPaymentResult(args: {
     const [customer] = await db.select().from(customers).where(eq(customers.id, appointment.customerId)).limit(1);
     if (customer) {
       await enqueuePaymentEmails(appointment, customer.email);
+      await flushEmailsSoon();
 
       // El pago es lo que cierra el embudo cuando la reserva pasó por un hold:
       // hasta ahora el lead seguía "sin convertir" por si el pago no llegaba.

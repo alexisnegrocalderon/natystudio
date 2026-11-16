@@ -32,6 +32,11 @@ export const ENV = {
 
   resendApiKey: optional("RESEND_API_KEY"),
   mailFrom: optional("MAIL_FROM", "naty.studio <onboarding@resend.dev>"),
+  /**
+   * Dónde llegan las respuestas de las clientas. El remitente (`MAIL_FROM`) puede ser una dirección del
+   * dominio que no tiene casilla real; las respuestas se desvían a esta, p. ej. el Gmail personal de Naty.
+   */
+  mailReplyTo: optional("MAIL_REPLY_TO"),
   /** Casilla donde Naty recibe el aviso de cada reserva nueva. */
   adminNotifyEmail: optional("ADMIN_NOTIFY_EMAIL"),
 

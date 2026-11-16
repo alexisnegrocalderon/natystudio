@@ -146,17 +146,15 @@ pegando el SQL equivalente en el SQL Editor de Neon si no tienes terminal a mano
 
 ### Recordatorios programados (`/api/cron`)
 
-Sin un proceso permanente, algo externo tiene que disparar el mantenimiento cada 5 minutos:
+El mantenimiento (recordatorios, reconciliación de pagos, reenvío de avisos pendientes) corre con un
+**Vercel Cron** declarado en `apps/web/vercel.json`: llama a `/api/cron` cada 5 minutos. Vercel envía
+solo `Authorization: Bearer <CRON_SECRET>`, así que basta con tener `CRON_SECRET` definida en las
+variables del proyecto. Se ve en *Settings → Cron Jobs*.
 
-1. Crea una cuenta gratuita en **[cron-job.org](https://cron-job.org)** (o similar).
-2. Programa una llamada GET cada 5 minutos a:
-   ```
-   https://tudominio.cl/api/cron?key=<CRON_SECRET>
-   ```
-3. Confirma en los logs de Vercel que la ruta responde `{"ok":true,"sent":...,"released":...}`.
+Los correos de una reserva o de un pago aprobado además se envían en el momento; el cron queda como
+red de seguridad y para los recordatorios de 24 h y 2 h.
 
-Sin la clave correcta, la ruta devuelve `401` — así nadie más puede forzar el reenvío de
-recordatorios.
+Sin la clave correcta, la ruta devuelve `401`.
 
 ### Cobrar en línea con Mercado Pago
 

@@ -5,7 +5,7 @@ import type { CreateBookingInput } from "@naty/shared";
 import { generateToken } from "../auth/session";
 import { ENV } from "../env";
 import { db, appointments, appointmentServices, customers, type Appointment } from "../db";
-import { enqueueBookingEmails } from "./email";
+import { enqueueBookingEmails, flushEmailsSoon } from "./email";
 import { isMpCheckoutReady } from "./mercadopago-connection";
 import { resolvePaymentPlan, type PaymentPlan } from "./payments";
 import { combinedDuration, getSettings, isSlotAvailable, loadActiveServices } from "./scheduling";
@@ -123,6 +123,7 @@ export async function createBooking(
     email: input.customer.email,
     name: input.customer.name,
   });
+  await flushEmailsSoon();
 
   return { appointment, plan };
 }

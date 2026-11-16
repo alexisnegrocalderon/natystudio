@@ -27,6 +27,7 @@ async function deliver(
 
   const { error } = await resend.emails.send({
     from: ENV.mailFrom,
+    ...(ENV.mailReplyTo ? { replyTo: ENV.mailReplyTo } : {}),
     to,
     subject,
     html,
@@ -188,6 +189,22 @@ export async function enqueueNow(
 }
 
 /**
+ * Manda ahora los avisos recién encolados (confirmación, comprobante, aviso a Naty) en vez de esperar
+ * a la siguiente pasada del cron: quien acaba de pagar espera su correo en segundos, no en cinco minutos.
+ * Es de mejor esfuerzo: si falla o tarda, los avisos siguen en la cola y el cron los reintenta.
+ */
+export async function flushEmailsSoon(timeoutMs = 6000): Promise<void> {
+  try {
+    await Promise.race([
+      processPendingEmailJobs(10),
+      new Promise<void>(resolve => setTimeout(resolve, timeoutMs)),
+    ]);
+  } catch (error) {
+    console.error("[email] no se pudieron enviar los avisos al momento:", error);
+  }
+}
+
+/**
  * Procesa los avisos vencidos. La idempotencia vive en la fila de la base, no en
  * memoria: reiniciar el proceso no duplica ni pierde recordatorios.
  *
@@ -196,6 +213,13 @@ export async function enqueueNow(
  * cual, y sólo para los que sí tienen cita se resuelve el resto de la fila.
  */
 export async function processPendingEmailJobs(limit = 25): Promise<number> {
+  // En producción, sin RESEND_API_KEY los avisos NO se dan por enviados: quedan en la cola esperando la
+  // clave. Antes se marcaban como "sent" y el correo se perdía sin ningún síntoma.
+  if (!resend && ENV.isProduction) {
+    console.warn("[email] falta RESEND_API_KEY: los avisos quedan en cola hasta configurarla.");
+    return 0;
+  }
+
   const dueJobs = await db
     .select()
     .from(emailJobs)
