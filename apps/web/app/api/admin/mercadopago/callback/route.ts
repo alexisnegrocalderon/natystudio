@@ -8,10 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const STATE_COOKIE = "mp_oauth_state";
+const VERIFIER_COOKIE = "mp_oauth_verifier";
 
 function redirectToAjustes(status: "connected" | "error"): Response {
   const headers = new Headers({ Location: `${ENV.siteUrl}/admin/ajustes?mp=${status}` });
   clearCookie(headers, STATE_COOKIE, { path: "/" });
+  clearCookie(headers, VERIFIER_COOKIE, { path: "/" });
   return new Response(null, { status: 302, headers });
 }
 
@@ -26,13 +28,14 @@ export async function GET(req: Request): Promise<Response> {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const cookieState = readCookie(req, STATE_COOKIE);
+  const verifier = readCookie(req, VERIFIER_COOKIE);
 
-  if (!code || !state || !cookieState || state !== cookieState) {
+  if (!code || !state || !cookieState || !verifier || state !== cookieState) {
     return redirectToAjustes("error");
   }
 
   try {
-    await completeMpConnection(code, `${ENV.siteUrl}/api/admin/mercadopago/callback`);
+    await completeMpConnection(code, `${ENV.siteUrl}/api/admin/mercadopago/callback`, verifier);
     return redirectToAjustes("connected");
   } catch (error) {
     console.error("[mercadopago callback] no se pudo completar la conexión:", error);

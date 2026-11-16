@@ -46,8 +46,8 @@ export async function deleteMpConnection(): Promise<void> {
  * (reemplazando cualquier conexión previa — sólo hay una cuenta conectada a
  * la vez).
  */
-export async function completeMpConnection(code: string, redirectUri: string): Promise<void> {
-  const token = await exchangeMpAuthorizationCode(code, redirectUri);
+export async function completeMpConnection(code: string, redirectUri: string, codeVerifier: string): Promise<void> {
+  const token = await exchangeMpAuthorizationCode(code, redirectUri, codeVerifier);
   const email = await fetchMpAccountEmail(token.access_token);
   await ensureSchema();
 

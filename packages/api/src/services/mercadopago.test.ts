@@ -1,8 +1,10 @@
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildMpAuthorizationUrl,
   calculateServiceCharge,
+  createPkcePair,
   createMpPayment,
   getMpPayment,
   mapMpStatus,
@@ -207,4 +209,25 @@ describe("ramas de error HTTP", () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("PKCE de la conexión OAuth", () => {
+  it("el challenge es el SHA-256 en base64url del verifier", () => {
+    const { verifier, challenge } = createPkcePair();
+    expect(verifier.length).toBeGreaterThanOrEqual(43);
+    expect(challenge).toBe(createHash("sha256").update(verifier).digest("base64url"));
+    expect(verifier).toMatch(/^[A-Za-z0-9_-]+$/);
+  });
+
+  it("cada conexión usa un verifier distinto", () => {
+    expect(createPkcePair().verifier).not.toBe(createPkcePair().verifier);
+  });
+
+  it("la URL de autorización lleva el challenge y el método S256", () => {
+    const url = new URL(buildMpAuthorizationUrl("https://www.retirolunares.cl/api/admin/mercadopago/callback", "estado", "abc123"));
+    expect(url.searchParams.get("code_challenge")).toBe("abc123");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://www.retirolunares.cl/api/admin/mercadopago/callback");
+    expect(url.searchParams.get("state")).toBe("estado");
+  });
 });

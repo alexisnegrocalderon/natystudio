@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { MP_ESTIMATED_PROCESSING_FEE_PERCENT, PLATFORM_FEE_PERCENT, type PaymentStatus } from "@naty/shared";
 import { ENV } from "../env";
@@ -235,14 +235,27 @@ export type MpOAuthToken = {
   public_key?: string;
 };
 
+/**
+ * PKCE (RFC 7636): la aplicación de Mercado Pago tiene activado el flujo con PKCE, así que sin
+ * `code_challenge` en la autorización rechaza la conexión ("la aplicación no puede conectarse a tu cuenta").
+ * El `verifier` se guarda en una cookie y se entrega al canjear el `code`.
+ */
+export function createPkcePair(): { verifier: string; challenge: string } {
+  const verifier = randomBytes(48).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
+
 /** URL a la que se manda a Naty para que autorice la conexión de su cuenta. */
-export function buildMpAuthorizationUrl(redirectUri: string, state: string): string {
+export function buildMpAuthorizationUrl(redirectUri: string, state: string, codeChallenge: string): string {
   const params = new URLSearchParams({
     client_id: ENV.mercadoPago.clientId,
     response_type: "code",
     platform_id: "mp",
     redirect_uri: redirectUri,
     state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
   });
   return `${OAUTH_AUTHORIZE_URL}?${params.toString()}`;
 }
@@ -269,8 +282,8 @@ async function oauthFetch(body: Record<string, string>): Promise<MpOAuthToken> {
 }
 
 /** Intercambia el `code` que Mercado Pago devuelve tras la autorización por los tokens de la cuenta de Naty. */
-export function exchangeMpAuthorizationCode(code: string, redirectUri: string): Promise<MpOAuthToken> {
-  return oauthFetch({ grant_type: "authorization_code", code, redirect_uri: redirectUri });
+export function exchangeMpAuthorizationCode(code: string, redirectUri: string, codeVerifier: string): Promise<MpOAuthToken> {
+  return oauthFetch({ grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: codeVerifier });
 }
 
 /** Renueva el access token de Naty cuando está por vencer, usando el refresh token guardado. */
