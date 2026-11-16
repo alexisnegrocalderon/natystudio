@@ -4,10 +4,13 @@ import { AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { formatBusinessDate, formatBusinessTime, formatDuration } from "@naty/shared";
+import { AdminSheet } from "@/components/admin/AdminSheet";
+import { AppointmentCard, type CardAppointment } from "@/components/admin/AppointmentCard";
 import { AppointmentEditor } from "@/components/admin/AppointmentEditor";
 import { StatusPill } from "@/components/admin/StatusPill";
 import { addDaysToDay, businessToday, formatDay, parseDay } from "@/lib/dates";
 import { trpc } from "@/lib/trpc";
+import { useIsMobile } from "@/lib/useIsMobile";
 
 /** Convierte un día local de Chile al instante que abre y cierra ese rango. */
 function rangeFor(startDay: string, days: number) {
@@ -22,6 +25,8 @@ function rangeFor(startDay: string, days: number) {
 export default function AdminAgendaPage() {
   const [weekStart, setWeekStart] = useState(businessToday());
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [sheetItem, setSheetItem] = useState<CardAppointment | null>(null);
+  const mobile = useIsMobile();
   const utils = trpc.useUtils();
 
   const range = rangeFor(weekStart, 7);
@@ -92,6 +97,52 @@ export default function AdminAgendaPage() {
         <p style={{ color: "var(--muted)", display: "flex", gap: ".6rem", alignItems: "center" }}>
           <Loader2 size={17} className="animate-spin" /> Cargando la agenda…
         </p>
+      ) : mobile ? (
+        <>
+          <div className="week-strip" aria-label="Días de la semana">
+            {days.map(day => {
+              const count = (byDay.get(day) ?? []).length;
+              const weekday = new Intl.DateTimeFormat("es-CL", { weekday: "short", timeZone: "UTC" })
+                .format(new Date(`${day}T12:00:00Z`))
+                .replace(".", "");
+              return (
+                <a
+                  key={day}
+                  href={`#dia-${day}`}
+                  data-today={day === businessToday()}
+                  data-empty={count === 0}
+                  aria-label={`${weekday} ${parseDay(day).date}: ${count === 1 ? "1 cita" : `${count} citas`}`}
+                >
+                  {weekday}
+                  <strong>{parseDay(day).date}</strong>
+                  <i>{count > 0 ? count : "·"}</i>
+                </a>
+              );
+            })}
+          </div>
+
+          {days.map(day => {
+            const items = (byDay.get(day) ?? []).sort(
+              (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+            );
+            const label = `${formatBusinessDate(new Date(`${day}T12:00:00Z`))}${day === businessToday() ? " · hoy" : ""}`;
+            return items.length === 0 ? (
+              <div key={day} id={`dia-${day}`} className="day-empty-line" style={{ scrollMarginTop: "80px" }}>
+                <span>{label}</span>
+                <span>Sin citas</span>
+              </div>
+            ) : (
+              <section key={day} id={`dia-${day}`} style={{ scrollMarginTop: "80px" }}>
+                <h2 className="day-heading" style={{ color: day === businessToday() ? "var(--rose)" : undefined }}>{label}</h2>
+                <div className="admin-list">
+                  {items.map(item => (
+                    <AppointmentCard key={item.id} item={item} onEdit={setSheetItem} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </>
       ) : (
         days.map(day => {
           const items = (byDay.get(day) ?? []).sort(
@@ -233,6 +284,14 @@ export default function AdminAgendaPage() {
           );
         })
       )}
+
+      <AdminSheet
+        open={Boolean(sheetItem)}
+        title={sheetItem ? `Cita de ${sheetItem.customerName}` : "Cita"}
+        onClose={() => setSheetItem(null)}
+      >
+        {sheetItem ? <AppointmentEditor item={sheetItem} onClose={() => setSheetItem(null)} /> : null}
+      </AdminSheet>
 
       <div className="notice" style={{ marginTop: "1.5rem" }}>
         <AlertCircle size={18} />

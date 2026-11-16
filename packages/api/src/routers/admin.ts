@@ -38,6 +38,7 @@ import {
 } from "../db";
 import { ENV } from "../env";
 import { ensureReminderSchema, getReminderSettings, saveReminderSettings } from "../services/abandoned-reminders";
+import { salesPeriodStarts } from "../services/sales-periods";
 import { aiEnabled, draftEmail, draftServiceDescription } from "../services/ai";
 import { rescheduleAppointment } from "../services/booking";
 import { dropPendingReminders, enqueueManualMessage, enqueueNow, scheduleReminders } from "../services/email";
@@ -566,36 +567,36 @@ const financeRouter = router({
   summary: adminProcedure.input(financeSummaryQuerySchema).query(async ({ input }) => {
     const from = new Date(input.from);
     const to = new Date(input.to);
-    const incomeSum = sql<number>`coalesce(sum(${appointments.amountPaidClp}), 0)::int`;
-    const monthBucket = sql<string>`to_char(date_trunc('month', ${appointments.startsAt}), 'YYYY-MM')`;
-    const completedInRange = and(
-      eq(appointments.status, "completed"),
-      gte(appointments.startsAt, from),
-      lte(appointments.startsAt, to),
-    );
+    // Ingresos = pagos aprobados en el período (lo que realmente entró), con la parte de Naty: lo cobrado
+    // menos las comisiones. Es el mismo criterio del Inicio y de la lista de Compras.
+    const incomeSum = sql<number>`coalesce(sum(${payments.amountClp} - ${payments.feeClp}), 0)::int`;
+    const monthBucket = sql<string>`to_char(date_trunc('month', ${payments.createdAt} AT TIME ZONE 'America/Santiago'), 'YYYY-MM')`;
+    const paidInRange = and(eq(payments.status, "approved"), gte(payments.createdAt, from), lte(payments.createdAt, to));
 
     const [incomeByMonth, incomeByService, incomeByLocation, appointmentsByStatus, expenseTotalRow] =
       await Promise.all([
         db
           .select({ month: monthBucket, total: incomeSum })
-          .from(appointments)
-          .where(completedInRange)
+          .from(payments)
+          .where(paidInRange)
           .groupBy(monthBucket)
           .orderBy(monthBucket),
 
         db
           .select({ name: services.name, total: incomeSum })
-          .from(appointments)
+          .from(payments)
+          .innerJoin(appointments, eq(payments.appointmentId, appointments.id))
           .innerJoin(services, eq(appointments.serviceId, services.id))
-          .where(completedInRange)
+          .where(paidInRange)
           .groupBy(services.name)
           .orderBy(desc(incomeSum)),
 
         db
           .select({ name: locations.name, total: incomeSum })
-          .from(appointments)
+          .from(payments)
+          .innerJoin(appointments, eq(payments.appointmentId, appointments.id))
           .innerJoin(locations, eq(appointments.locationId, locations.id))
-          .where(completedInRange)
+          .where(paidInRange)
           .groupBy(locations.name)
           .orderBy(desc(incomeSum)),
 
@@ -736,9 +737,15 @@ export const adminRouter = router({
   dashboard: adminProcedure.query(async () => {
     const now = new Date();
     const in7Days = new Date(now.getTime() + 7 * 86_400_000);
-    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const periods = salesPeriodStarts(now);
+    // Lo que le corresponde a Naty de cada pago: lo cobrado menos las comisiones (igual que Ventas > Compras).
+    const net = sql<number>`(${payments.amountClp} - ${payments.feeClp})`;
+    const sumSince = (since: Date) =>
+      sql<number>`coalesce(sum(${net}) filter (where ${payments.createdAt} >= ${since}), 0)::int`;
+    const countSince = (since: Date) => sql<number>`(count(*) filter (where ${payments.createdAt} >= ${since}))::int`;
 
-    const [upcomingRows, pendingApproval, monthRevenue, openLeads, failedEmails] = await Promise.all([
+    /** Citas con lo que hace falta para contactar a la clienta y abrir el editor desde el inicio. */
+    const appointmentCards = (where: ReturnType<typeof and>, limit: number) =>
       db
         .select({
           id: appointments.id,
@@ -746,61 +753,108 @@ export const adminRouter = router({
           startsAt: appointments.startsAt,
           status: appointments.status,
           customerName: customers.name,
+          customerEmail: customers.email,
+          customerPhone: customers.phone,
+          customerNotes: appointments.customerNotes,
+          adminNotes: appointments.adminNotes,
           locationName: locations.name,
         })
         .from(appointments)
         .innerJoin(customers, eq(appointments.customerId, customers.id))
         .innerJoin(locations, eq(appointments.locationId, locations.id))
-        .where(
+        .where(where)
+        .orderBy(asc(appointments.startsAt))
+        .limit(limit);
+
+    const [upcomingRows, todayRows, pendingRows, pendingApproval, salesRow, recentPurchases, openLeads, failedEmails] =
+      await Promise.all([
+        appointmentCards(
           and(
-            gte(appointments.startsAt, now),
+            gte(appointments.startsAt, periods.tomorrow),
             lte(appointments.startsAt, in7Days),
             inArray(appointments.status, [...BLOCKING_APPOINTMENT_STATUSES]),
           ),
-        )
-        .orderBy(asc(appointments.startsAt))
-        .limit(20),
+          20,
+        ),
+        appointmentCards(
+          and(
+            gte(appointments.startsAt, periods.today),
+            lte(appointments.startsAt, periods.tomorrow),
+            inArray(appointments.status, ["pending_payment", "pending_approval", "confirmed", "completed", "no_show"]),
+          ),
+          30,
+        ),
+        appointmentCards(and(eq(appointments.status, "pending_approval"), gte(appointments.startsAt, periods.today)), 10),
 
-      db
-        .select({ total: count() })
-        .from(appointments)
-        .where(eq(appointments.status, "pending_approval")),
+        db.select({ total: count() }).from(appointments).where(eq(appointments.status, "pending_approval")),
 
-      db
-        .select({ total: sql<number>`coalesce(sum(${appointments.amountPaidClp}), 0)::int` })
-        .from(appointments)
-        .where(and(gte(appointments.startsAt, monthStart), eq(appointments.status, "completed"))),
+        db
+          .select({
+            today: sumSince(periods.today),
+            todayCount: countSince(periods.today),
+            week: sumSince(periods.week),
+            weekCount: countSince(periods.week),
+            month: sumSince(periods.month),
+            monthCount: countSince(periods.month),
+          })
+          .from(payments)
+          .where(and(eq(payments.status, "approved"), gte(payments.createdAt, periods.month < periods.week ? periods.month : periods.week))),
 
-      db
-        .select({ total: count() })
-        .from(leads)
-        .where(isNull(leads.convertedAt)),
+        db
+          .select({
+            id: payments.id,
+            paidAt: payments.createdAt,
+            netClp: sql<number>`(${payments.amountClp} - ${payments.feeClp})::int`,
+            customerName: customers.name,
+            customerEmail: customers.email,
+            customerPhone: customers.phone,
+            serviceName: services.name,
+          })
+          .from(payments)
+          .innerJoin(appointments, eq(payments.appointmentId, appointments.id))
+          .innerJoin(customers, eq(appointments.customerId, customers.id))
+          .innerJoin(services, eq(appointments.serviceId, services.id))
+          .where(eq(payments.status, "approved"))
+          .orderBy(desc(payments.createdAt))
+          .limit(5),
 
-      db.select({ total: count() }).from(emailJobs).where(eq(emailJobs.status, "failed")),
-    ]);
+        db.select({ total: count() }).from(leads).where(isNull(leads.convertedAt)),
 
-    const upcomingServiceRows = upcomingRows.length
+        db.select({ total: count() }).from(emailJobs).where(eq(emailJobs.status, "failed")),
+      ]);
+
+    const ids = [...new Set([...upcomingRows, ...todayRows, ...pendingRows].map(row => row.id))];
+    const serviceRows = ids.length
       ? await db
           .select({ appointmentId: appointmentServices.appointmentId, name: services.name })
           .from(appointmentServices)
           .innerJoin(services, eq(appointmentServices.serviceId, services.id))
-          .where(inArray(appointmentServices.appointmentId, upcomingRows.map(row => row.id)))
+          .where(inArray(appointmentServices.appointmentId, ids))
       : [];
     const namesByAppointmentId = new Map<number, string[]>();
-    for (const row of upcomingServiceRows) {
+    for (const row of serviceRows) {
       const list = namesByAppointmentId.get(row.appointmentId) ?? [];
       list.push(row.name);
       namesByAppointmentId.set(row.appointmentId, list);
     }
-    const upcoming = upcomingRows.map(row => ({
-      ...row,
-      serviceName: (namesByAppointmentId.get(row.id) ?? []).join(" + "),
-    }));
+    const withServices = <T extends { id: number }>(rows: T[]) =>
+      rows.map(row => ({ ...row, serviceName: (namesByAppointmentId.get(row.id) ?? []).join(" + ") }));
 
+    const sales = salesRow[0];
     return {
-      upcoming,
+      sales: {
+        todayClp: sales?.today ?? 0,
+        todayCount: sales?.todayCount ?? 0,
+        weekClp: sales?.week ?? 0,
+        weekCount: sales?.weekCount ?? 0,
+        monthClp: sales?.month ?? 0,
+        monthCount: sales?.monthCount ?? 0,
+      },
+      today: withServices(todayRows),
+      pendingApproval: withServices(pendingRows),
+      upcoming: withServices(upcomingRows),
+      recentPurchases,
       pendingApprovalCount: pendingApproval[0]?.total ?? 0,
-      monthRevenueClp: monthRevenue[0]?.total ?? 0,
       openLeadsCount: openLeads[0]?.total ?? 0,
       failedEmailCount: failedEmails[0]?.total ?? 0,
     };

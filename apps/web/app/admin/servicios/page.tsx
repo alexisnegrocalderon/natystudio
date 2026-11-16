@@ -152,6 +152,8 @@ export default function AdminServicesPage() {
     setAiNotes("");
     setAiPhoto(null);
     setOpen(true);
+    // El editor aparece arriba de la lista: en el teléfono hay que llevar la vista hasta él.
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function submit() {
@@ -456,12 +458,12 @@ export default function AdminServicesPage() {
             <tbody>
               {services.map(service => (
                 <tr key={service.id}>
-                  <td>
+                  <td data-label="Servicio">
                     <strong style={{ color: "var(--paper)" }}>{service.name}</strong>
                     <br />
                     <small style={{ color: "var(--muted)" }}>/servicios/{service.slug}</small>
                   </td>
-                  <td style={{ whiteSpace: "nowrap" }}>
+                  <td data-label="Duración" style={{ whiteSpace: "nowrap" }}>
                     {formatDuration(service.durationMin)}
                     {service.bufferMin > 0 ? (
                       <>
@@ -470,13 +472,13 @@ export default function AdminServicesPage() {
                       </>
                     ) : null}
                   </td>
-                  <td>{service.priceClp > 0 ? formatClp(service.priceClp) : "Sin definir"}</td>
-                  <td>
+                  <td data-label="Valor">{service.priceClp > 0 ? formatClp(service.priceClp) : "Sin definir"}</td>
+                  <td data-label="Estado">
                     <span className="status-pill" data-status={service.active ? "confirmed" : "cancelled"}>
                       {service.active ? "Visible" : "Archivado"}
                     </span>
                   </td>
-                  <td>
+                  <td data-cell="actions">
                     <div className="row-actions">
                       <button type="button" className="mini-button" onClick={() => startEdit(service)}>
                         Editar

@@ -16,9 +16,12 @@ import {
   YAxis,
 } from "recharts";
 import { formatBusinessDate, formatClp } from "@naty/shared";
+import { AdminSheet } from "@/components/admin/AdminSheet";
+import { ContactButtons } from "@/components/admin/ContactButtons";
 import { StatusPill } from "@/components/admin/StatusPill";
 import { whatsappTo } from "@/lib/site";
 import { trpc } from "@/lib/trpc";
+import { useIsMobile } from "@/lib/useIsMobile";
 
 /** Los mismos 5 tonos de la paleta del sitio, del más claro al más saturado. */
 const CHART_COLORS = ["#FF5C89", "#FB8CAC", "#FDA8BF", "#FDC3D1", "#FFDBDB"];
@@ -86,11 +89,14 @@ export default function AdminVentasPage() {
   const { data: locationList } = trpc.catalog.listLocations.useQuery();
 
   const [form, setForm] = useState<ExpenseForm>(EMPTY_EXPENSE);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const mobile = useIsMobile();
 
   const createExpense = trpc.admin.finance.createExpense.useMutation({
     onSuccess: () => {
       toast.success("Gasto agregado.");
       setForm(EMPTY_EXPENSE);
+      setExpenseOpen(false);
       void utils.admin.finance.listExpenses.invalidate();
       void utils.admin.finance.summary.invalidate();
     },
@@ -121,6 +127,85 @@ export default function AdminVentasPage() {
       incurredAt: new Date(`${form.incurredAt}T12:00:00`).toISOString(),
     });
   }
+
+  const expenseForm = (
+    <>
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="gasto-descripcion">Descripción</label>
+            <input
+              id="gasto-descripcion"
+              value={form.description}
+              onChange={event => setForm({ ...form, description: event.target.value })}
+              placeholder="Arriendo del local, insumos, publicidad…"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="gasto-monto">Monto (CLP)</label>
+            <input
+              id="gasto-monto"
+              type="number"
+              min={0}
+              value={form.amountClp}
+              onChange={event => setForm({ ...form, amountClp: event.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="gasto-categoria">Categoría</label>
+            <input
+              id="gasto-categoria"
+              list="gasto-categorias"
+              value={form.category}
+              onChange={event => setForm({ ...form, category: event.target.value })}
+              placeholder="Otro"
+            />
+            <datalist id="gasto-categorias">
+              {CATEGORY_SUGGESTIONS.map(option => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+          </div>
+          <div className="field">
+            <label htmlFor="gasto-fecha">Fecha</label>
+            <input
+              id="gasto-fecha"
+              type="date"
+              value={form.incurredAt}
+              onChange={event => setForm({ ...form, incurredAt: event.target.value })}
+              style={{ colorScheme: "light" }}
+            />
+          </div>
+        </div>
+
+        {locationList && locationList.length > 0 ? (
+          <div className="field">
+            <label htmlFor="gasto-sede">Sede (opcional)</label>
+            <select
+              id="gasto-sede"
+              value={form.locationId}
+              onChange={event => setForm({ ...form, locationId: event.target.value })}
+            >
+              <option value="">General, no es de una sede en particular</option>
+              {locationList.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        <div className="form-actions">
+          <button type="button" className="primary-link" onClick={submitExpense} disabled={createExpense.isPending}>
+            {createExpense.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={13} />}
+            Agregar gasto
+          </button>
+        </div>
+    </>
+  );
 
   const appointmentsChartData = (summary?.appointmentsByStatus ?? []).map(row => ({
     label: STATUS_LABELS[row.status] ?? row.status,
@@ -162,7 +247,7 @@ export default function AdminVentasPage() {
               </div>
               <span>Ingresos</span>
               <strong>{formatClp(summary.incomeTotal)}</strong>
-              <small>citas realizadas en el período</small>
+              <small>pagos recibidos en el período</small>
             </div>
 
             <div className="stat-card">
@@ -183,6 +268,98 @@ export default function AdminVentasPage() {
               <small>ingresos menos gastos</small>
             </div>
           </div>
+
+          <section className="admin-card">
+            <h2>Compras</h2>
+            <p style={{ color: "var(--muted)", fontSize: ".85rem", marginTop: 0 }}>
+              Pagos aprobados en el período, con los datos para escribirle directo a cada clienta.
+            </p>
+
+            {loadingPurchases ? (
+              <p style={{ color: "var(--muted)", display: "flex", gap: ".6rem", alignItems: "center" }}>
+                <Loader2 size={16} className="animate-spin" /> Cargando…
+              </p>
+            ) : !purchases || purchases.length === 0 ? (
+              <p style={{ color: "var(--muted)" }}>Todavía no hay compras en este período.</p>
+            ) : mobile ? (
+              <div className="admin-list">
+                {purchases.map(purchase => (
+                  <article key={purchase.id} className="admin-item" style={{ boxShadow: "none" }}>
+                    <div className="admin-item-top">
+                      <div style={{ minWidth: 0 }}>
+                        <div className="admin-item-title">{purchase.customerName}</div>
+                        <div className="admin-item-meta">
+                          {purchase.serviceName} · pagó el {formatBusinessDate(new Date(purchase.paidAt))}
+                        </div>
+                      </div>
+                      <div className="admin-item-amount">{formatClp(purchase.netClp)}</div>
+                    </div>
+                    <div className="admin-item-meta" style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap", marginTop: ".5rem" }}>
+                      <StatusPill status={purchase.appointmentStatus} /> cita el {formatBusinessDate(new Date(purchase.startsAt))}
+                    </div>
+                    <div className="admin-actions">
+                      <ContactButtons
+                        name={purchase.customerName}
+                        phone={purchase.customerPhone}
+                        email={purchase.customerEmail}
+                        withEmail
+                        message={`Hola ${purchase.customerName.split(" ")[0]}, te escribo de Natalia Rodríguez Studio por tu reserva de ${purchase.serviceName}.`}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="table-scroll" style={{ border: 0, background: "transparent" }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Clienta</th>
+                      <th>Contacto</th>
+                      <th>Servicio</th>
+                      <th>Pagó</th>
+                      <th>Cita</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchases.map(purchase => {
+                      const firstName = purchase.customerName.split(" ")[0];
+                      const message = `Hola ${firstName}, te escribo de Natalia Rodríguez Studio por tu reserva de ${purchase.serviceName}.`;
+                      return (
+                        <tr key={purchase.id}>
+                          <td>{formatBusinessDate(new Date(purchase.paidAt))}</td>
+                          <td>{purchase.customerName}</td>
+                          <td>
+                            <div style={{ display: "flex", flexDirection: "column", gap: ".35rem" }}>
+                              <a href={`mailto:${purchase.customerEmail}`} style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}>
+                                <Mail size={13} aria-hidden="true" /> {purchase.customerEmail}
+                              </a>
+                              <a
+                                href={whatsappTo(purchase.customerPhone, message)}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}
+                              >
+                                <MessageCircle size={13} aria-hidden="true" /> {purchase.customerPhone} · WhatsApp
+                              </a>
+                            </div>
+                          </td>
+                          <td>{purchase.serviceName}</td>
+                          <td>{formatClp(purchase.netClp)}</td>
+                          <td>
+                            <StatusPill status={purchase.appointmentStatus} />
+                            <br />
+                            <small style={{ color: "var(--muted)" }}>{formatBusinessDate(new Date(purchase.startsAt))}</small>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
           <section className="admin-card">
             <h2>Ingresos por mes</h2>
@@ -276,147 +453,19 @@ export default function AdminVentasPage() {
         </>
       )}
 
-      <section className="admin-card">
-        <h2>Compras</h2>
-        <p style={{ color: "var(--muted)", fontSize: ".85rem", marginTop: 0 }}>
-          Pagos aprobados en el período, con los datos para escribirle directo a cada clienta.
-        </p>
-
-        {loadingPurchases ? (
-          <p style={{ color: "var(--muted)", display: "flex", gap: ".6rem", alignItems: "center" }}>
-            <Loader2 size={16} className="animate-spin" /> Cargando…
-          </p>
-        ) : !purchases || purchases.length === 0 ? (
-          <p style={{ color: "var(--muted)" }}>Todavía no hay compras en este período.</p>
-        ) : (
-          <div className="table-scroll" style={{ border: 0, background: "transparent" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Clienta</th>
-                  <th>Contacto</th>
-                  <th>Servicio</th>
-                  <th>Pagó</th>
-                  <th>Cita</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map(purchase => {
-                  const firstName = purchase.customerName.split(" ")[0];
-                  const message = `Hola ${firstName}, te escribo de Natalia Rodríguez Studio por tu reserva de ${purchase.serviceName}.`;
-                  return (
-                    <tr key={purchase.id}>
-                      <td>{formatBusinessDate(new Date(purchase.paidAt))}</td>
-                      <td>{purchase.customerName}</td>
-                      <td>
-                        <div style={{ display: "flex", flexDirection: "column", gap: ".35rem" }}>
-                          <a href={`mailto:${purchase.customerEmail}`} style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}>
-                            <Mail size={13} aria-hidden="true" /> {purchase.customerEmail}
-                          </a>
-                          <a
-                            href={whatsappTo(purchase.customerPhone, message)}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}
-                          >
-                            <MessageCircle size={13} aria-hidden="true" /> {purchase.customerPhone} · WhatsApp
-                          </a>
-                        </div>
-                      </td>
-                      <td>{purchase.serviceName}</td>
-                      <td>{formatClp(purchase.netClp)}</td>
-                      <td>
-                        <StatusPill status={purchase.appointmentStatus} />
-                        <br />
-                        <small style={{ color: "var(--muted)" }}>{formatBusinessDate(new Date(purchase.startsAt))}</small>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       <section className="admin-card">
         <h2>Gastos</h2>
 
-        <div className="field-row">
-          <div className="field">
-            <label htmlFor="gasto-descripcion">Descripción</label>
-            <input
-              id="gasto-descripcion"
-              value={form.description}
-              onChange={event => setForm({ ...form, description: event.target.value })}
-              placeholder="Arriendo del local, insumos, publicidad…"
-            />
+        {mobile ? (
+          <div className="form-actions" style={{ marginTop: 0 }}>
+            <button type="button" className="primary-link" onClick={() => setExpenseOpen(true)}>
+              <Plus size={16} /> Agregar gasto
+            </button>
           </div>
-          <div className="field">
-            <label htmlFor="gasto-monto">Monto (CLP)</label>
-            <input
-              id="gasto-monto"
-              type="number"
-              min={0}
-              value={form.amountClp}
-              onChange={event => setForm({ ...form, amountClp: event.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="field-row">
-          <div className="field">
-            <label htmlFor="gasto-categoria">Categoría</label>
-            <input
-              id="gasto-categoria"
-              list="gasto-categorias"
-              value={form.category}
-              onChange={event => setForm({ ...form, category: event.target.value })}
-              placeholder="Otro"
-            />
-            <datalist id="gasto-categorias">
-              {CATEGORY_SUGGESTIONS.map(option => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
-          </div>
-          <div className="field">
-            <label htmlFor="gasto-fecha">Fecha</label>
-            <input
-              id="gasto-fecha"
-              type="date"
-              value={form.incurredAt}
-              onChange={event => setForm({ ...form, incurredAt: event.target.value })}
-              style={{ colorScheme: "light" }}
-            />
-          </div>
-        </div>
-
-        {locationList && locationList.length > 0 ? (
-          <div className="field">
-            <label htmlFor="gasto-sede">Sede (opcional)</label>
-            <select
-              id="gasto-sede"
-              value={form.locationId}
-              onChange={event => setForm({ ...form, locationId: event.target.value })}
-            >
-              <option value="">General, no es de una sede en particular</option>
-              {locationList.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
-        <div className="form-actions">
-          <button type="button" className="mini-button" data-variant="primary" onClick={submitExpense} disabled={createExpense.isPending}>
-            {createExpense.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={13} />}
-            Agregar gasto
-          </button>
-        </div>
+        ) : (
+          expenseForm
+        )}
 
         {loadingExpenses ? (
           <p style={{ color: "var(--muted)", marginTop: "1.5rem" }}>Cargando…</p>
@@ -436,19 +485,22 @@ export default function AdminVentasPage() {
               <tbody>
                 {expenseList.map(expense => (
                   <tr key={expense.id}>
-                    <td>{formatBusinessDate(new Date(expense.incurredAt))}</td>
-                    <td style={{ color: "var(--paper)" }}>{expense.description}</td>
-                    <td>{expense.category}</td>
-                    <td>{expense.locationName ?? "General"}</td>
-                    <td>{formatClp(expense.amountClp)}</td>
-                    <td>
+                    <td data-label="Fecha">{formatBusinessDate(new Date(expense.incurredAt))}</td>
+                    <td data-label="Detalle" style={{ color: "var(--paper)" }}>{expense.description}</td>
+                    <td data-label="Categoría">{expense.category}</td>
+                    <td data-label="Sede">{expense.locationName ?? "General"}</td>
+                    <td data-label="Monto">{formatClp(expense.amountClp)}</td>
+                    <td data-cell="actions">
                       <button
                         type="button"
                         className="mini-button"
                         data-variant="danger"
-                        onClick={() => deleteExpense.mutate({ id: expense.id })}
+                        aria-label={`Eliminar el gasto ${expense.description}`}
+                        onClick={() => {
+                          if (confirm(`¿Eliminar el gasto "${expense.description}"?`)) deleteExpense.mutate({ id: expense.id });
+                        }}
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={13} /> {mobile ? "Eliminar" : null}
                       </button>
                     </td>
                   </tr>
@@ -462,6 +514,10 @@ export default function AdminVentasPage() {
           </p>
         )}
       </section>
+
+      <AdminSheet open={expenseOpen} title="Agregar gasto" onClose={() => setExpenseOpen(false)}>
+        {expenseForm}
+      </AdminSheet>
     </>
   );
 }

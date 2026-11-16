@@ -370,15 +370,15 @@ export default function AdminHoursPage() {
               <tbody>
                 {upcomingOverrideDays.map(day => (
                   <tr key={day}>
-                    <td style={{ textTransform: "capitalize" }}>
+                    <td data-label="Día" style={{ textTransform: "capitalize" }}>
                       {formatBusinessDate(new Date(`${day}T12:00:00Z`))}
                     </td>
-                    <td>
+                    <td data-label="Horas">
                       {(overridesByDay.get(day) ?? [])
                         .map(entry => `${minutesToLabel(entry.startMinute)}–${minutesToLabel(entry.endMinute)}`)
                         .join(", ")}
                     </td>
-                    <td>
+                    <td data-cell="actions">
                       <div className="row-actions">
                         <button type="button" className="mini-button" onClick={() => editOverrideDay(day)}>
                           <Pencil size={13} />
@@ -487,10 +487,10 @@ export default function AdminHoursPage() {
               <tbody>
                 {blocks.map(block => (
                   <tr key={block.id}>
-                    <td>{formatBusinessDateTime(new Date(block.startsAt))}</td>
-                    <td>{formatBusinessDateTime(new Date(block.endsAt))}</td>
-                    <td>{block.reason ?? "—"}</td>
-                    <td>
+                    <td data-label="Desde">{formatBusinessDateTime(new Date(block.startsAt))}</td>
+                    <td data-label="Hasta">{formatBusinessDateTime(new Date(block.endsAt))}</td>
+                    <td data-label="Motivo">{block.reason ?? "—"}</td>
+                    <td data-cell="actions">
                       <button
                         type="button"
                         className="mini-button"

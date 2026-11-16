@@ -44,7 +44,7 @@ export function ContactActions({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: ".8rem" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem" }}>
+      <div className="admin-actions" style={{ marginTop: 0, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
         {phone
           ? whatsappTemplates.map(template => (
               <a

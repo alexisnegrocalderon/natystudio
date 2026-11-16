@@ -3,6 +3,7 @@
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import {
   AlertCircle,
+  ChevronDown,
   CreditCard,
   Fingerprint,
   Loader2,
@@ -13,11 +14,28 @@ import {
   Unlink,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { BUSINESS_TIMEZONE, formatBusinessDate } from "@naty/shared";
 import { trpc } from "@/lib/trpc";
+import { useIsMobile } from "@/lib/useIsMobile";
+
+/** Sección plegable de Ajustes: en el teléfono empieza cerrada y muestra su estado en una línea. */
+function Fold({ title, summary, defaultOpen, children }: { title: string; summary: string; defaultOpen: boolean; children: ReactNode }) {
+  return (
+    <details className="admin-fold" open={defaultOpen}>
+      <summary>
+        <span>
+          <strong>{title}</strong>
+          <small>{summary}</small>
+        </span>
+        <ChevronDown size={19} aria-hidden="true" />
+      </summary>
+      {children}
+    </details>
+  );
+}
 
 const REMINDER_DELAYS = [4, 12, 24, 48] as const;
 
@@ -214,6 +232,32 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const mobile = useIsMobile();
+  const { data: reminder } = trpc.admin.reminders.get.useQuery();
+  const paymentsSummary = !mpStatus
+    ? "Revisando…"
+    : !mpStatus.configured
+      ? "Sin configurar"
+      : mpStatus.connected
+        ? `Mercado Pago conectado${mpStatus.email ? ` · ${mpStatus.email}` : ""}`
+        : "Mercado Pago sin conectar";
+  const reminderSummary = !reminder
+    ? "Revisando…"
+    : reminder.abandonedEnabled
+      ? `Activado · ${reminder.abandonedDelayHours === 24 ? "1 día" : reminder.abandonedDelayHours === 48 ? "2 días" : `${reminder.abandonedDelayHours} horas`} después`
+      : "Desactivado";
+  const rulesSummary = settings
+    ? `Cada ${settings.slotGranularityMin} min · aviso mínimo ${settings.minLeadTimeHours} h · hasta ${settings.maxAdvanceDays} días${settings.autoApprove ? " · confirma sola" : ""}`
+    : "Revisando…";
+  const faceIdSummary = !credentials
+    ? "Revisando…"
+    : credentials.length === 0
+      ? "No activado"
+      : credentials.length === 1
+        ? "Activado en 1 dispositivo"
+        : `Activado en ${credentials.length} dispositivos`;
+  const totpSummary = user?.totpEnabled ? "Activada" : "No activada";
+
   return (
     <>
       <div className="admin-header">
@@ -223,6 +267,77 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
+      <Fold title="Pagos" summary={paymentsSummary} defaultOpen={!mobile || Boolean(searchParams.get("mp"))}>
+      <section className="admin-card">
+        <h2>Pagos</h2>
+
+        {!mpStatus?.configured ? (
+          <div className="notice" data-tone="warn">
+            <TriangleAlert size={18} />
+            <span>La conexión con Mercado Pago todavía no está configurada del lado técnico.</span>
+          </div>
+        ) : mpStatus.connected ? (
+          <>
+            <div className="notice">
+              <ShieldCheck size={18} />
+              <span>
+                Cuenta conectada{mpStatus.email ? `: ${mpStatus.email}` : ""}
+                {mpStatus.connectedAt ? ` · desde ${formatBusinessDate(new Date(mpStatus.connectedAt))}` : ""}
+              </span>
+            </div>
+            {!mpStatus.checkoutReady ? (
+              <div className="notice" data-tone="warn">
+                <TriangleAlert size={18} />
+                <span>
+                  La conexión quedó incompleta y todavía no se puede cobrar. Desconecta la cuenta y vuelve a
+                  conectarla.
+                </span>
+              </div>
+            ) : !mpStatus.paymentsEnabled ? (
+              <div className="notice" data-tone="warn">
+                <TriangleAlert size={18} />
+                <span>
+                  Tu cuenta está lista, pero los pagos en línea siguen apagados del lado técnico. Mientras
+                  tanto las reservas llegan sin pago.
+                </span>
+              </div>
+            ) : (
+              <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.7 }}>
+                Pagos en línea activos: entran directo a tu cuenta. La plataforma se queda con su comisión
+                automáticamente, sin que tengas que hacer nada.
+              </p>
+            )}
+            <button
+              type="button"
+              className="mini-button"
+              onClick={() => disconnectMp.mutate()}
+              disabled={disconnectMp.isPending}
+            >
+              {disconnectMp.isPending ? <Loader2 size={13} className="animate-spin" /> : <Unlink size={13} />}
+              Desconectar
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: ".88rem", color: "var(--paper-muted)", lineHeight: 1.7 }}>
+              Conecta tu cuenta de Mercado Pago para cobrar en línea cuando tus clientas
+              reservan. El precio de tus servicios te llega completo — a la clienta se le
+              suma aparte un cargo por gastos de servicio.
+            </p>
+            <a href="/api/admin/mercadopago/connect" className="primary-link">
+              <CreditCard size={16} />
+              Conectar Mercado Pago
+            </a>
+          </>
+        )}
+      </section>
+      </Fold>
+
+      <Fold title="Recordatorio de reservas sin terminar" summary={reminderSummary} defaultOpen={!mobile}>
+      <AbandonedReminderCard />
+      </Fold>
+
+      <Fold title="Reglas de la agenda" summary={rulesSummary} defaultOpen={!mobile}>
       <section className="admin-card">
         <h2>Reglas de la agenda</h2>
 
@@ -308,73 +423,77 @@ export default function AdminSettingsPage() {
           </>
         )}
       </section>
+      </Fold>
 
-      <AbandonedReminderCard />
-
+      <Fold title="Face ID / Touch ID" summary={faceIdSummary} defaultOpen={!mobile}>
       <section className="admin-card">
-        <h2>Pagos</h2>
+        <h2>Face ID / Touch ID</h2>
+        <p style={{ color: "var(--paper-muted)", fontSize: ".88rem", lineHeight: 1.7 }}>
+          Un atajo adicional para entrar más rápido desde este dispositivo, sin escribir la contraseña. La
+          contraseña sigue funcionando siempre, en cualquier equipo — esto sólo agrega una opción más rápida
+          en los que actives.
+        </p>
 
-        {!mpStatus?.configured ? (
+        {!faceIdSupported ? (
           <div className="notice" data-tone="warn">
             <TriangleAlert size={18} />
-            <span>La conexión con Mercado Pago todavía no está configurada del lado técnico.</span>
+            <span>Este navegador o dispositivo no ofrece Face ID/Touch ID.</span>
           </div>
-        ) : mpStatus.connected ? (
-          <>
-            <div className="notice">
-              <ShieldCheck size={18} />
-              <span>
-                Cuenta conectada{mpStatus.email ? `: ${mpStatus.email}` : ""}
-                {mpStatus.connectedAt ? ` · desde ${formatBusinessDate(new Date(mpStatus.connectedAt))}` : ""}
-              </span>
-            </div>
-            {!mpStatus.checkoutReady ? (
-              <div className="notice" data-tone="warn">
-                <TriangleAlert size={18} />
-                <span>
-                  La conexión quedó incompleta y todavía no se puede cobrar. Desconecta la cuenta y vuelve a
-                  conectarla.
-                </span>
-              </div>
-            ) : !mpStatus.paymentsEnabled ? (
-              <div className="notice" data-tone="warn">
-                <TriangleAlert size={18} />
-                <span>
-                  Tu cuenta está lista, pero los pagos en línea siguen apagados del lado técnico. Mientras
-                  tanto las reservas llegan sin pago.
-                </span>
-              </div>
-            ) : (
-              <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.7 }}>
-                Pagos en línea activos: entran directo a tu cuenta. La plataforma se queda con su comisión
-                automáticamente, sin que tengas que hacer nada.
-              </p>
-            )}
-            <button
-              type="button"
-              className="mini-button"
-              onClick={() => disconnectMp.mutate()}
-              disabled={disconnectMp.isPending}
-            >
-              {disconnectMp.isPending ? <Loader2 size={13} className="animate-spin" /> : <Unlink size={13} />}
-              Desconectar
-            </button>
-          </>
         ) : (
-          <>
-            <p style={{ fontSize: ".88rem", color: "var(--paper-muted)", lineHeight: 1.7 }}>
-              Conecta tu cuenta de Mercado Pago para cobrar en línea cuando tus clientas
-              reservan. El precio de tus servicios te llega completo — a la clienta se le
-              suma aparte un cargo por gastos de servicio.
-            </p>
-            <a href="/api/admin/mercadopago/connect" className="primary-link">
-              <CreditCard size={16} />
-              Conectar Mercado Pago
-            </a>
-          </>
+          <div className="field-row" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div className="field" style={{ maxWidth: "260px" }}>
+              <label htmlFor="deviceName">Nombre del dispositivo</label>
+              <input
+                id="deviceName"
+                value={deviceName}
+                onChange={event => setDeviceName(event.target.value)}
+                placeholder="iPhone de Naty"
+              />
+            </div>
+            <button type="button" className="primary-link" onClick={registerFaceId} disabled={faceIdPending}>
+              {faceIdPending ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} />}
+              Activar en este dispositivo
+            </button>
+          </div>
         )}
-      </section>
 
+        {credentials?.length ? (
+          <div className="table-scroll" style={{ marginTop: "1.2rem" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Dispositivo</th>
+                  <th>Agregado</th>
+                  <th>Último uso</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {credentials.map(credential => (
+                  <tr key={credential.id}>
+                    <td>{credential.name}</td>
+                    <td>{formatBusinessDate(credential.createdAt)}</td>
+                    <td>{credential.lastUsedAt ? formatBusinessDate(credential.lastUsedAt) : "—"}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="mini-button"
+                        onClick={() => removeCredential.mutate({ id: credential.id })}
+                        disabled={removeCredential.isPending}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+      </Fold>
+
+      <Fold title="Verificación en dos pasos" summary={totpSummary} defaultOpen={!mobile}>
       <section className="admin-card">
         <h2>Verificación en dos pasos</h2>
 
@@ -467,72 +586,8 @@ export default function AdminSettingsPage() {
           </div>
         ) : null}
       </section>
+      </Fold>
 
-      <section className="admin-card">
-        <h2>Face ID / Touch ID</h2>
-        <p style={{ color: "var(--paper-muted)", fontSize: ".88rem", lineHeight: 1.7 }}>
-          Un atajo adicional para entrar más rápido desde este dispositivo, sin escribir la contraseña. La
-          contraseña sigue funcionando siempre, en cualquier equipo — esto sólo agrega una opción más rápida
-          en los que actives.
-        </p>
-
-        {!faceIdSupported ? (
-          <div className="notice" data-tone="warn">
-            <TriangleAlert size={18} />
-            <span>Este navegador o dispositivo no ofrece Face ID/Touch ID.</span>
-          </div>
-        ) : (
-          <div className="field-row" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div className="field" style={{ maxWidth: "260px" }}>
-              <label htmlFor="deviceName">Nombre del dispositivo</label>
-              <input
-                id="deviceName"
-                value={deviceName}
-                onChange={event => setDeviceName(event.target.value)}
-                placeholder="iPhone de Naty"
-              />
-            </div>
-            <button type="button" className="primary-link" onClick={registerFaceId} disabled={faceIdPending}>
-              {faceIdPending ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} />}
-              Activar en este dispositivo
-            </button>
-          </div>
-        )}
-
-        {credentials?.length ? (
-          <div className="table-scroll" style={{ marginTop: "1.2rem" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Dispositivo</th>
-                  <th>Agregado</th>
-                  <th>Último uso</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {credentials.map(credential => (
-                  <tr key={credential.id}>
-                    <td>{credential.name}</td>
-                    <td>{formatBusinessDate(credential.createdAt)}</td>
-                    <td>{credential.lastUsedAt ? formatBusinessDate(credential.lastUsedAt) : "—"}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="mini-button"
-                        onClick={() => removeCredential.mutate({ id: credential.id })}
-                        disabled={removeCredential.isPending}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </section>
     </>
   );
 }

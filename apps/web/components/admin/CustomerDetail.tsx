@@ -177,16 +177,16 @@ export function CustomerDetail({ customerId }: { customerId: number }) {
                 const remaining = item.priceClp - item.amountPaidClp;
                 return (
                   <tr key={item.id}>
-                    <td style={{ textTransform: "capitalize" }}>
+                    <td data-label="Fecha" style={{ textTransform: "capitalize" }}>
                       {formatBusinessDate(new Date(item.startsAt))}, {formatBusinessTime(new Date(item.startsAt))} h
                     </td>
-                    <td>{item.serviceName}</td>
-                    <td>
+                    <td data-label="Servicio">{item.serviceName}</td>
+                    <td data-label="Estado">
                       <StatusPill status={item.status} />
                     </td>
-                    <td>{item.priceClp > 0 ? formatClp(item.priceClp) : "Consulta el valor"}</td>
-                    <td>{item.amountPaidClp > 0 ? formatClp(item.amountPaidClp) : "—"}</td>
-                    <td>{remaining > 0 ? formatClp(remaining) : "—"}</td>
+                    <td data-label="Valor">{item.priceClp > 0 ? formatClp(item.priceClp) : "Consulta el valor"}</td>
+                    <td data-label="Pagado">{item.amountPaidClp > 0 ? formatClp(item.amountPaidClp) : "—"}</td>
+                    <td data-label="Saldo">{remaining > 0 ? formatClp(remaining) : "—"}</td>
                   </tr>
                 );
               })}
