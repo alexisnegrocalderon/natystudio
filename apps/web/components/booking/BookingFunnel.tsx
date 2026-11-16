@@ -431,7 +431,17 @@ export function BookingFunnel() {
                         type="button"
                         className="choice-card"
                         aria-pressed={locationSlug === item.slug}
-                        onClick={() => setParams({ sede: item.slug, servicios: null, listo: null, dia: null, hora: null })}
+                        onClick={() =>
+                          // Si llegó desde un servicio (?servicios=…), ese servicio ya está elegido: se conserva
+                          // y se salta la lista completa en vez de pedirle que lo elija otra vez.
+                          setParams({
+                            sede: item.slug,
+                            servicios: selectedServices.length > 0 ? selectedServices.map(service => service.slug).join(",") : null,
+                            listo: selectedServices.length > 0 ? "1" : null,
+                            dia: null,
+                            hora: null,
+                          })
+                        }
                       >
                         <MapPin size={20} aria-hidden="true" style={{ flex: "0 0 auto", color: "var(--rose)" }} />
                         <div>

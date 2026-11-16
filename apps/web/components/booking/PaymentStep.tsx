@@ -2,7 +2,7 @@
 
 import { Payment, initMercadoPago } from "@mercadopago/sdk-react";
 import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { estimateServiceFee, formatClp } from "@naty/shared";
 import { trpc } from "@/lib/trpc";
 
@@ -11,21 +11,69 @@ let mpInitialized = false;
 
 type PaymentPlanInfo = { depositClp: number | null; fullClp: number };
 
-function useCountdown(target: Date): { label: string; expired: boolean } {
-  const [now, setNow] = useState(() => Date.now());
+type BrickFormData = {
+  token: string;
+  payment_method_id: string;
+  issuer_id?: string;
+  installments?: number;
+  payer?: { email?: string };
+};
 
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+/**
+ * El contador vive en su propio componente: si se actualizara dentro de PaymentStep, cada segundo
+ * redibujaría el paso entero y el SDK de Mercado Pago destruiría y volvería a crear el formulario de pago.
+ */
+function Countdown({ target, onTimeout }: { target: Date; onTimeout: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  const timeoutRef = useRef(onTimeout);
+  timeoutRef.current = onTimeout;
 
   const remainingMs = target.getTime() - now;
-  if (remainingMs <= 0) return { label: "0:00", expired: true };
+  const finished = remainingMs <= 0;
 
-  const minutes = Math.floor(remainingMs / 60_000);
-  const seconds = Math.floor((remainingMs % 60_000) / 1000);
-  return { label: `${minutes}:${String(seconds).padStart(2, "0")}`, expired: false };
+  useEffect(() => {
+    if (finished) {
+      timeoutRef.current();
+      return;
+    }
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [finished]);
+
+  const minutes = Math.max(0, Math.floor(remainingMs / 60_000));
+  const seconds = Math.max(0, Math.floor((remainingMs % 60_000) / 1000));
+  return (
+    <p style={{ color: "var(--rose-pale)", fontSize: ".8rem", fontWeight: 700, marginBottom: "1rem" }}>
+      Tienes {minutes}:{String(seconds).padStart(2, "0")} para completar el pago
+    </p>
+  );
 }
+
+/** Estilo del formulario de pago. Va fuera del componente para que el SDK reciba siempre el mismo objeto. */
+const BRICK_CUSTOMIZATION = {
+  paymentMethods: {
+    creditCard: "all",
+    debitCard: "all",
+    mercadoPago: "all",
+    prepaidCard: "all",
+    maxInstallments: 1,
+  },
+  visual: {
+    style: {
+      theme: "default",
+      customVariables: {
+        baseColor: "#ff5c89",
+        baseColorFirstVariant: "#e8447a",
+        textPrimaryColor: "#3b1626",
+        textSecondaryColor: "#6b4456",
+        inputBackgroundColor: "#ffffff",
+        formBackgroundColor: "#fff6f8",
+        borderRadiusMedium: "10px",
+        errorColor: "#e11d48",
+      },
+    },
+  },
+} as const;
 
 export function PaymentStep({
   publicId,
@@ -50,11 +98,13 @@ export function PaymentStep({
   const [waitingConfirmation, setWaitingConfirmation] = useState(false);
 
   const processPayment = trpc.payment.process.useMutation();
-  const { label: countdownLabel, expired } = useCountdown(holdExpiresAt);
-
-  useEffect(() => {
-    if (expired) onExpired();
-  }, [expired, onExpired]);
+  const [expired, setExpired] = useState(false);
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
+  const handleTimeout = useCallback(() => {
+    setExpired(true);
+    onExpiredRef.current();
+  }, []);
 
   useEffect(() => {
     if (!config?.mercadoPagoPublicKey || mpInitialized) return;
@@ -77,6 +127,54 @@ export function PaymentStep({
     }
   }, [waitingConfirmation, pollStatus, onApproved]);
 
+  const amountClp = kind === "deposit" ? (plan.depositClp ?? plan.fullClp) : plan.fullClp;
+  // Lo que realmente se le cobra a la tarjeta: el monto de Naty + los gastos
+  // por servicio (ver aviso más abajo). El backend cobra este mismo total.
+  const chargeClp = amountClp + estimateServiceFee(amountClp);
+
+  // El SDK recrea el formulario cuando cambia cualquiera de estas referencias, así que se mantienen
+  // estables: sólo cambian si cambia el monto o el correo.
+  const initialization = useMemo(
+    () => ({ amount: chargeClp, payer: { email: customerEmail } }),
+    [chargeClp, customerEmail],
+  );
+  const submitRef = useRef<(data: { formData: BrickFormData }) => Promise<void>>(async () => {});
+  submitRef.current = async ({ formData }) => {
+    setNotice(null);
+    try {
+      const response = await processPayment.mutateAsync({
+        publicId,
+        cancelToken,
+        kind,
+        formData: {
+          token: formData.token,
+          payment_method_id: formData.payment_method_id,
+          issuer_id: formData.issuer_id,
+          installments: formData.installments ?? 1,
+          payer: { email: formData.payer?.email ?? customerEmail },
+        },
+      });
+
+      if (response.outcome === "approved") {
+        onApproved(response.amountPaidClp);
+      } else if (response.outcome === "in_process") {
+        setWaitingConfirmation(true);
+      } else {
+        setNotice({ tone: "error", message: response.message });
+      }
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "No se pudo procesar el pago.",
+      });
+    }
+  };
+  const handleSubmit = useCallback((data: { formData: BrickFormData }) => submitRef.current(data), []);
+  const handleError = useCallback(
+    () => setNotice({ tone: "error", message: "Ocurrió un problema al cargar el pago. Intenta de nuevo." }),
+    [],
+  );
+
   if (expired) {
     return (
       <div className="notice" data-tone="error">
@@ -85,11 +183,6 @@ export function PaymentStep({
       </div>
     );
   }
-
-  const amountClp = kind === "deposit" ? (plan.depositClp ?? plan.fullClp) : plan.fullClp;
-  // Lo que realmente se le cobra a la tarjeta: el monto de Naty + los gastos
-  // por servicio (ver aviso más abajo). El backend cobra este mismo total.
-  const chargeClp = amountClp + estimateServiceFee(amountClp);
 
   if (!config?.mercadoPagoPublicKey) {
     return (
@@ -101,9 +194,7 @@ export function PaymentStep({
 
   return (
     <div>
-      <p style={{ color: "var(--rose-pale)", fontSize: ".8rem", fontWeight: 700, marginBottom: "1rem" }}>
-        Tienes {countdownLabel} para completar el pago
-      </p>
+      <Countdown target={holdExpiresAt} onTimeout={handleTimeout} />
 
       {plan.depositClp ? (
         <div className="stack" style={{ marginBottom: "1.4rem" }}>
@@ -146,65 +237,10 @@ export function PaymentStep({
       ) : (
         <div className="payment-brick">
           <Payment
-            key={chargeClp}
-            initialization={{ amount: chargeClp, payer: { email: customerEmail } }}
-            customization={{
-              paymentMethods: {
-                creditCard: "all",
-                debitCard: "all",
-                mercadoPago: "all",
-                prepaidCard: "all",
-                maxInstallments: 1,
-              },
-              visual: {
-                style: {
-                  theme: "default",
-                  customVariables: {
-                    baseColor: "#ff5c89",
-                    baseColorFirstVariant: "#e8447a",
-                    textPrimaryColor: "#3b1626",
-                    textSecondaryColor: "#6b4456",
-                    inputBackgroundColor: "#ffffff",
-                    formBackgroundColor: "#fff6f8",
-                    borderRadiusMedium: "10px",
-                    errorColor: "#e11d48",
-                  },
-                },
-              },
-            }}
-            onError={() =>
-              setNotice({ tone: "error", message: "Ocurrió un problema al cargar el pago. Intenta de nuevo." })
-            }
-            onSubmit={async ({ formData }) => {
-              setNotice(null);
-              try {
-                const response = await processPayment.mutateAsync({
-                  publicId,
-                  cancelToken,
-                  kind,
-                  formData: {
-                    token: formData.token,
-                    payment_method_id: formData.payment_method_id,
-                    issuer_id: formData.issuer_id,
-                    installments: formData.installments ?? 1,
-                    payer: { email: formData.payer?.email ?? customerEmail },
-                  },
-                });
-
-                if (response.outcome === "approved") {
-                  onApproved(response.amountPaidClp);
-                } else if (response.outcome === "in_process") {
-                  setWaitingConfirmation(true);
-                } else {
-                  setNotice({ tone: "error", message: response.message });
-                }
-              } catch (error) {
-                setNotice({
-                  tone: "error",
-                  message: error instanceof Error ? error.message : "No se pudo procesar el pago.",
-                });
-              }
-            }}
+            initialization={initialization}
+            customization={BRICK_CUSTOMIZATION}
+            onError={handleError}
+            onSubmit={handleSubmit}
           />
         </div>
       )}
