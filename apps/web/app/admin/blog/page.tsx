@@ -230,26 +230,27 @@ export default function AdminBlogPage() {
             <tbody>
               {posts.map(post => (
                 <tr key={post.id}>
-                  <td>
+                  <td data-label="Artículo">
                     <strong style={{ color: "var(--paper)" }}>{post.title}</strong>
                     <br />
                     <small style={{ color: "var(--muted)" }}>/blog/{post.slug}</small>
                   </td>
-                  <td>
+                  <td data-label="Estado">
                     <span className="status-pill" data-status={post.publishedAt ? "confirmed" : "pending_approval"}>
                       {post.publishedAt ? "Publicado" : "Borrador"}
                     </span>
                   </td>
-                  <td style={{ textTransform: "capitalize" }}>
+                  <td data-label="Publicado" style={{ textTransform: "capitalize" }}>
                     {post.publishedAt ? formatBusinessDate(new Date(post.publishedAt)) : "—"}
                   </td>
-                  <td>
+                  <td data-cell="actions">
                     <div className="row-actions">
                       <button
                         type="button"
                         className="mini-button"
                         onClick={() => {
                           setEditingId(post.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
                           setForm({
                             slug: post.slug,
                             title: post.title,

@@ -65,7 +65,7 @@ export default function AdminLeadsPage() {
             return (
               <section key={lead.id} className="admin-card">
                 <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: ".6rem" }}>
-                  <div>
+                  <div style={{ flex: "1 1 260px", minWidth: 0, overflowWrap: "anywhere" }}>
                     <h2 style={{ marginBottom: ".2rem" }}>{lead.name || lead.email}</h2>
                     <p style={{ color: "var(--muted)", margin: 0, fontSize: ".85rem" }}>
                       {lead.email}
@@ -80,10 +80,10 @@ export default function AdminLeadsPage() {
                     </p>
                   </div>
 
-                  <div style={{ display: "flex", gap: ".5rem", alignItems: "flex-start" }}>
+                  <div className="admin-actions" style={{ flex: "1 1 220px", marginTop: 0, alignSelf: "flex-start" }}>
                     <button
                       type="button"
-                      className="mini-button"
+                      className="admin-action"
                       data-variant="primary"
                       disabled={busy}
                       onClick={() => markConverted.mutate({ id: lead.id })}
@@ -92,7 +92,7 @@ export default function AdminLeadsPage() {
                     </button>
                     <button
                       type="button"
-                      className="mini-button"
+                      className="admin-action"
                       disabled={busy}
                       onClick={() => dismiss.mutate({ id: lead.id })}
                     >

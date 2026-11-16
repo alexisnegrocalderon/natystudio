@@ -7,6 +7,7 @@ import {
   Loader2,
   LogOut,
   Menu,
+  MoreHorizontal,
   Settings,
   Clock,
   Sparkles,
@@ -19,6 +20,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { AdminSheet } from "@/components/admin/AdminSheet";
 import { trpc } from "@/lib/trpc";
 
 const ADMIN_LINKS = [
@@ -33,11 +35,17 @@ const ADMIN_LINKS = [
   { href: "/admin/ajustes", label: "Ajustes", icon: Settings },
 ];
 
+/** Accesos fijos de la barra inferior del teléfono; el resto va en "Más". */
+const TAB_HREFS = ["/admin", "/admin/agenda", "/admin/ventas", "/admin/clientas"];
+const TAB_LINKS = TAB_HREFS.map(href => ADMIN_LINKS.find(link => link.href === href)!);
+const MORE_LINKS = ADMIN_LINKS.filter(link => !TAB_HREFS.includes(link.href));
+
 export function AdminGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isLoginPage = pathname === "/admin/login";
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const { data: user, isLoading } = trpc.auth.me.useQuery(undefined, { retry: false });
   const utils = trpc.useUtils();
@@ -57,6 +65,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   // la vista nueva.
   useEffect(() => {
     setMenuOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   if (isLoginPage) return <>{children}</>;
@@ -137,8 +146,47 @@ export function AdminGuard({ children }: { children: ReactNode }) {
           </nav>
         </aside>
 
-        <div>{children}</div>
+        <div style={{ minWidth: 0 }}>{children}</div>
       </div>
+
+      <nav className="admin-tabbar" aria-label="Secciones principales">
+        {TAB_LINKS.map(link => {
+          const Icon = link.icon;
+          return (
+            <Link key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
+              <Icon size={21} aria-hidden="true" />
+              {link.label}
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          aria-expanded={moreOpen || MORE_LINKS.some(link => isCurrent(link.href))}
+          aria-haspopup="dialog"
+        >
+          <MoreHorizontal size={21} aria-hidden="true" />
+          Más
+        </button>
+      </nav>
+
+      <AdminSheet open={moreOpen} title="Más" onClose={() => setMoreOpen(false)}>
+        <div className="admin-more">
+          {MORE_LINKS.map(link => {
+            const Icon = link.icon;
+            return (
+              <Link key={link.href} href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
+                <Icon size={19} aria-hidden="true" />
+                {link.label}
+              </Link>
+            );
+          })}
+          <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
+            <LogOut size={19} aria-hidden="true" />
+            Cerrar sesión
+          </button>
+        </div>
+      </AdminSheet>
     </>
   );
 }

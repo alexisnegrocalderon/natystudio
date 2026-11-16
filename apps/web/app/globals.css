@@ -2190,6 +2190,767 @@ button.funnel-crumb[data-state="done"]:hover {
   }
 }
 
+/* ═══════════════════════════════════════ admin en el teléfono (≤ 900 px) */
+
+/* Piezas que solo existen en el teléfono: barra inferior y hojas desde abajo. */
+.admin-tabbar,
+.admin-sheet-root {
+  display: none;
+}
+
+.admin-sheet-root[data-open="true"] {
+  display: block;
+}
+
+.admin-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(40, 21, 28, 0.38);
+  animation: admin-fade 160ms var(--ease-out);
+}
+
+.admin-sheet {
+  position: fixed;
+  z-index: 81;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 92svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink-raised);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -18px 40px rgba(59, 22, 38, 0.18);
+  animation: admin-sheet-in 220ms var(--ease-out);
+}
+
+/* En escritorio la hoja se muestra como un diálogo centrado. */
+@media (min-width: 901px) {
+  .admin-sheet {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    width: min(640px, calc(100% - 40px));
+    max-height: 86vh;
+    border-radius: 18px;
+    transform: translate(-50%, -50%);
+    animation: admin-fade 160ms var(--ease-out);
+  }
+}
+
+.admin-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-sheet-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.admin-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--paper-muted);
+  cursor: pointer;
+}
+
+.admin-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom));
+}
+
+@keyframes admin-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes admin-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Tarjeta de cita / compra / interesada: lo mismo que una fila de tabla, pero legible en el teléfono. */
+.admin-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-item {
+  background: var(--ink-raised);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.95rem 1rem;
+  box-shadow: 0 8px 22px rgba(59, 22, 38, 0.05);
+  min-width: 0;
+}
+
+.admin-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.admin-item-time {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--paper);
+}
+
+.admin-item-title {
+  font-weight: 700;
+  color: var(--paper);
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-item-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-item-amount {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--paper);
+  white-space: nowrap;
+}
+
+.admin-item-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  color: var(--rose-pale);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Botones de una tarjeta: grilla pareja, nunca se montan. */
+.admin-actions {
+  display: grid;
+  /* 3 por fila si caben enteros; si no, 2. */
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.admin-actions > * {
+  width: 100%;
+}
+
+.admin-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.5rem 0.4rem;
+  gap: 0.3rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--paper-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  /* Nunca partir "WhatsApp" a la mitad, aunque la celda permita cortar palabras. */
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.admin-action svg {
+  flex: 0 0 auto;
+}
+
+.admin-action[data-variant="primary"] {
+  background: var(--rose);
+  border-color: var(--rose);
+  color: #28151c;
+}
+
+.admin-action[data-variant="whatsapp"] {
+  background: #e7f8ee;
+  border-color: #bfe9cf;
+  color: #146c3c;
+}
+
+.admin-action[data-variant="danger"] {
+  color: #c2414f;
+}
+
+.admin-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.8rem 0 0.8rem;
+}
+
+.admin-section-title h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.admin-section-title a {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--rose);
+  white-space: nowrap;
+}
+
+/* Inicio: lo vendido, arriba y grande. */
+.sales-hero {
+  display: block;
+  background: var(--ink-raised);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.15rem 1.2rem;
+  box-shadow: 0 12px 30px rgba(59, 22, 38, 0.07);
+  margin-bottom: 0.8rem;
+  color: inherit;
+}
+
+.sales-hero-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rose);
+}
+
+.sales-hero-today {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  line-height: 1.05;
+  color: var(--paper);
+  margin: 0.35rem 0 0.15rem;
+}
+
+.sales-hero-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.sales-hero-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.95rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.sales-hero-split strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--paper);
+  margin-top: 0.2rem;
+}
+
+.sales-hero-split span {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.admin-pills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.admin-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 56px;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--ink-raised);
+  color: var(--paper-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.admin-pill strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--paper);
+}
+
+.admin-pill[data-tone="alert"] {
+  border-color: rgba(225, 29, 72, 0.35);
+  color: #c2414f;
+}
+
+/* Agenda: tira de los 7 días de la semana. */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.week-strip a {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  min-height: 56px;
+  padding: 0.4rem 0.1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--ink-raised);
+  color: var(--paper-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.week-strip a strong {
+  font-size: 1.05rem;
+  color: var(--paper);
+}
+
+.week-strip a[data-today="true"] {
+  border-color: var(--rose);
+}
+
+.week-strip a[data-empty="true"] {
+  opacity: 0.55;
+}
+
+.week-strip i {
+  font-style: normal;
+  color: var(--rose);
+  font-size: 0.68rem;
+}
+
+.day-empty-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.65rem 0.2rem;
+  border-bottom: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: capitalize;
+}
+
+.day-heading {
+  margin: 1.2rem 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rose);
+  scroll-margin-top: 80px;
+}
+
+/* Secciones plegables (Ajustes). */
+.admin-fold {
+  background: var(--ink-raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin-bottom: 0.8rem;
+  box-shadow: 0 10px 30px rgba(59, 22, 38, 0.05);
+}
+
+.admin-fold > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-height: 60px;
+  padding: 0.9rem 1.1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-fold > summary strong {
+  display: block;
+  color: var(--paper);
+  font-size: 0.98rem;
+}
+
+.admin-fold > summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.admin-fold > summary svg {
+  flex: 0 0 auto;
+  color: var(--rose);
+  transition: transform 160ms var(--ease-out);
+}
+
+.admin-fold[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.admin-fold > .admin-card {
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+  padding-top: 0.2rem;
+  background: transparent;
+}
+
+.admin-fold > .admin-card > h2:first-child {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  /* iOS acerca la pantalla al tocar cualquier campo con letra menor a 16 px. */
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea,
+  .admin-sheet input,
+  .admin-sheet select,
+  .admin-sheet textarea,
+  .login-shell input {
+    font-size: 16px;
+  }
+
+  .admin-shell {
+    width: calc(100% - 32px);
+    padding: 0.6rem 0 calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .admin-topbar {
+    width: calc(100% - 32px);
+    padding: calc(0.7rem + env(safe-area-inset-top)) 0 0;
+  }
+
+  .admin-topbar .wordmark img {
+    height: 30px;
+    width: auto;
+  }
+
+  /* La barra inferior reemplaza al menú de hamburguesa. */
+  .admin-topbar .menu-toggle,
+  .admin-mobile-nav,
+  .admin-mobile-nav[data-open="true"] {
+    display: none;
+  }
+
+  .admin-tabbar {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed;
+    z-index: 70;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom));
+    background: rgba(255, 246, 248, 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+  }
+
+  .admin-tabbar a,
+  .admin-tabbar button {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 0.2rem;
+    min-height: 52px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .admin-tabbar [aria-current="page"],
+  .admin-tabbar button[aria-expanded="true"] {
+    color: var(--rose);
+    background: color-mix(in srgb, var(--rose) 10%, transparent);
+  }
+
+  .admin-more {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .admin-more a,
+  .admin-more button {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 52px;
+    padding: 0 0.9rem;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--paper);
+    font-size: 0.98rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .admin-more a[aria-current="page"] {
+    border-color: var(--rose);
+    color: var(--rose);
+  }
+
+  .admin-header {
+    margin-bottom: 1.1rem;
+  }
+
+  .admin-header h1 {
+    font-size: 1.95rem;
+  }
+
+  .admin-header .primary-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-header > .calendar-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-header .calendar-nav button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .admin-header .calendar-nav .mini-button {
+    width: auto;
+    flex: 1;
+    margin-inline: 0.5rem;
+    border-radius: 999px;
+  }
+
+  .admin-card {
+    padding: 1.1rem;
+    border-radius: 16px;
+  }
+
+  /* Botones chicos: alto mínimo para el dedo (44 px) y separados. */
+  .mini-button {
+    min-height: 44px;
+    padding: 0.55rem 0.95rem;
+    font-size: 0.8rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  .row-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .row-actions > * {
+    width: 100%;
+  }
+
+  .range-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1.4rem;
+  }
+
+  .stat-card {
+    padding: 0.95rem;
+  }
+
+  .stat-card-icon {
+    width: 1.9rem;
+    height: 1.9rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .stat-card strong {
+    font-size: 1.55rem;
+  }
+
+  .form-actions .primary-link {
+    min-height: 48px;
+  }
+
+  /* Horario semanal: el día arriba y las dos horas debajo, a medias. */
+  .hours-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+    grid-template-areas:
+      "day day day"
+      "from to off";
+    row-gap: 0.45rem;
+  }
+
+  .hours-row > :nth-child(1) {
+    grid-area: day;
+  }
+
+  .hours-row input[type="time"] {
+    min-height: 44px;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .hours-row input[type="checkbox"] {
+    width: 26px;
+    height: 26px;
+    justify-self: center;
+    accent-color: var(--rose);
+  }
+
+  /* Si una fila de cifras queda con una sola tarjeta, que use todo el ancho. */
+  .stat-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .admin-section-title a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.2rem;
+  }
+
+  /* Buscador de clientas siempre a mano. */
+  .admin-search {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    max-width: none !important;
+    margin-inline: -16px;
+    padding: 0.6rem 16px;
+    background: var(--ink);
+  }
+
+  /* Toast arriba y fuera de la barra inferior. */
+  [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* Tablas: en el teléfono cada fila es una tarjeta con "etiqueta: valor". La etiqueta sale del atributo
+   data-label de cada celda; la celda de acciones (data-cell="actions") ocupa el ancho completo. */
+@media (max-width: 640px) {
+  .table-scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table tr {
+    background: var(--ink-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0.35rem 0.95rem;
+    margin-bottom: 0.7rem;
+    box-shadow: 0 8px 22px rgba(59, 22, 38, 0.05);
+  }
+
+  .data-table td {
+    position: relative;
+    border: 0;
+    padding: 0.5rem 0 0.5rem 6.6rem;
+    min-height: 2.1rem;
+    overflow-wrap: anywhere;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    top: 0.62rem;
+    width: 6.1rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--rose);
+  }
+
+  .data-table td:not([data-label]),
+  .data-table td[data-cell="actions"] {
+    padding-left: 0;
+  }
+
+  .data-table td:not([data-label])::before,
+  .data-table td[data-cell="actions"]::before {
+    content: none;
+  }
+
+  .data-table td[data-cell="actions"] {
+    border-top: 1px solid var(--line);
+    margin-top: 0.3rem;
+    padding-top: 0.75rem;
+  }
+
+  .data-table tr:hover td {
+    background: transparent;
+  }
+}
+
 /* Vista imprimible del listado de clientas: "Descargar PDF" es window.print(),
    así que esto es lo único que llega al PDF. Todo lo demás del sitio (nav,
    fondo oscuro, botones) no tiene sentido en papel. */

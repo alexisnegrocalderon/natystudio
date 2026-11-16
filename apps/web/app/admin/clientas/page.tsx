@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { formatBusinessDate, formatClp } from "@naty/shared";
+import { ContactButtons } from "@/components/admin/ContactButtons";
 import { trpc } from "@/lib/trpc";
 
 export default function AdminCustomersPage() {
@@ -92,7 +93,7 @@ export default function AdminCustomersPage() {
         </section>
       ) : null}
 
-      <div className="field" style={{ maxWidth: "360px", marginBottom: "1.5rem" }}>
+      <div className="field admin-search" style={{ maxWidth: "360px", marginBottom: "1.5rem" }}>
         <label htmlFor="buscar">
           <Search size={13} style={{ display: "inline", marginRight: ".3rem" }} />
           Buscar por nombre, correo o teléfono
@@ -125,24 +126,33 @@ export default function AdminCustomersPage() {
                 <th>Citas</th>
                 <th>Última visita</th>
                 <th>Total pagado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {data.items.map(customer => (
                 <tr key={customer.id}>
-                  <td style={{ color: "var(--paper)" }}>
+                  <td data-label="Nombre" style={{ color: "var(--paper)" }}>
                     <Link href={`/admin/clientas/${customer.id}`}>{customer.name}</Link>
                   </td>
-                  <td>
+                  <td data-label="Contacto">
                     {customer.email}
                     <br />
                     <span style={{ color: "var(--muted)" }}>{customer.phone}</span>
                   </td>
-                  <td>{customer.appointmentCount}</td>
-                  <td>
+                  <td data-label="Citas">{customer.appointmentCount}</td>
+                  <td data-label="Última visita">
                     {customer.lastVisit ? formatBusinessDate(new Date(customer.lastVisit)) : "—"}
                   </td>
-                  <td>{formatClp(customer.totalPaidClp)}</td>
+                  <td data-label="Total pagado">{formatClp(customer.totalPaidClp)}</td>
+                  <td data-cell="actions">
+                    <div className="admin-actions" style={{ marginTop: 0 }}>
+                      <ContactButtons name={customer.name} phone={customer.phone} />
+                      <Link className="admin-action" href={`/admin/clientas/${customer.id}`}>
+                        Ver ficha
+                      </Link>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
