@@ -48,6 +48,7 @@ function buildTemplateData(
   serviceItems: { name: string; durationMin: number }[],
   customerName: string,
   location: { name: string; city: string },
+  contact?: { email: string; phone: string },
 ): TemplateData {
   return {
     customerName,
@@ -62,6 +63,8 @@ function buildTemplateData(
     publicId: appointment.publicId,
     cancelToken: appointment.cancelToken,
     siteUrl: ENV.siteUrl,
+    customerEmail: contact?.email,
+    customerPhone: contact?.phone,
   };
 }
 
@@ -284,12 +287,15 @@ export async function processPendingEmailJobs(limit = 25): Promise<number> {
       }
 
       const serviceItems = servicesByAppointmentId.get(found.appointment.id) ?? [];
-      const data = buildTemplateData(found.appointment, serviceItems, found.customer.name, found.location);
+      const data = buildTemplateData(found.appointment, serviceItems, found.customer.name, found.location, {
+        email: found.customer.email,
+        phone: found.customer.phone,
+      });
       rendered = renderEmail(job.kind, data);
 
-      // Sólo la confirmación lleva el archivo de calendario: es el único
-      // momento en que la cita pasa a ser un compromiso firme.
-      if (job.kind === "booking_confirmed") {
+      // Lleva el archivo de calendario la confirmación a la clienta y el aviso a Naty cuando la hora
+      // ya es firme (pago aprobado): es el momento en que la cita pasa a ser un compromiso.
+      if (job.kind === "booking_confirmed" || (job.kind === "admin_new_booking" && found.appointment.status === "confirmed")) {
         const locationLine = found.location.streetAddress
           ? `${found.location.streetAddress}, ${found.location.city}`
           : `${found.location.city}, Chile`;
